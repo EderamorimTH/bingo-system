@@ -38,9 +38,9 @@ mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTop
   })
   .catch(err => console.error('Erro ao conectar ao MongoDB:', err));
 
-// Rota para a raiz (redireciona para /display)
+// Rota para a página inicial
 app.get('/', (req, res) => {
-  res.redirect('/display');
+  res.render('index');
 });
 
 // Rotas para renderizar páginas
