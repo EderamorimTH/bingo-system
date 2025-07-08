@@ -6,6 +6,7 @@
   <title>Painel de Sorteio - Bingo</title>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
+  <link rel="icon" href="data:;base64,iVBORw0KGgo=">
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen">
   <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-2xl">
@@ -16,14 +17,24 @@
     <div class="mb-4">
       <label for="playersClose" class="block text-sm font-medium text-gray-700">Jogadores próximos de ganhar:</label>
       <input type="number" id="playersClose" class="mt-1 p-2 border rounded w-full" min="0" value="0">
-      <button id="updatePlayersButton" class="mt-2 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 w-full">Atualizar</button>
+      <button id="updatePlayersButton" class="mt-2 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 w-full">Atualizar Jogadores</button>
+    </div>
+    <div class="mb-4">
+      <label for="currentPrize" class="block text-sm font-medium text-gray-700">Prêmio Atual:</label>
+      <input type="text" id="currentPrize" class="mt-1 p-2 border rounded w-full" placeholder="Ex.: 1ª Linha, Cartela Cheia">
+      <button id="updatePrizeButton" class="mt-2 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 w-full">Atualizar Prêmio</button>
+    </div>
+    <div class="mb-4">
+      <label for="additionalInfo" class="block text-sm font-medium text-gray-700">Informações Adicionais:</label>
+      <input type="text" id="additionalInfo" class="mt-1 p-2 border rounded w-full" placeholder="Ex.: Próximo sorteio às 20h">
+      <button id="updateInfoButton" class="mt-2 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 w-full">Atualizar Informações</button>
     </div>
     <div class="mt-4">
       <h2 class="text-xl font-semibold">Último Número Sorteado</h2>
       <p id="lastNumber" class="text-4xl font-bold text-center text-blue-600 animate-pulse">--</p>
     </div>
     <div class="mt-4">
-      <h2 class="text-xl font-semibold">Números Sorteados</h2>
+      <h2 class="text-xl font-semibold">Números Sorteados (em ordem numérica)</h2>
       <div id="drawnNumbers" class="grid grid-cols-5 gap-2 mt-2"></div>
     </div>
   </div>
@@ -40,7 +51,9 @@
       document.getElementById('lastNumber').textContent = game.lastNumber || '--';
       const drawnNumbersDiv = document.getElementById('drawnNumbers');
       drawnNumbersDiv.innerHTML = '';
-      game.drawnNumbers.forEach(num => {
+      // Ordenar números em ordem numérica crescente
+      const sortedNumbers = game.drawnNumbers.slice().sort((a, b) => a - b);
+      sortedNumbers.forEach(num => {
         const numDiv = document.createElement('div');
         numDiv.className = 'bg-gray-200 p-2 rounded text-center';
         numDiv.textContent = num;
@@ -62,6 +75,24 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playersClose: parseInt(playersClose) })
+      });
+    });
+
+    document.getElementById('updatePrizeButton').addEventListener('click', async () => {
+      const currentPrize = document.getElementById('currentPrize').value;
+      await fetch('/update-prize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPrize })
+      });
+    });
+
+    document.getElementById('updateInfoButton').addEventListener('click', async () => {
+      const additionalInfo = document.getElementById('additionalInfo').value;
+      await fetch('/update-info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ additionalInfo })
       });
     });
 
