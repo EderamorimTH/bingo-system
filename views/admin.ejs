@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel de Sorteio - Bingo</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+  <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-2xl">
+    <h1 class="text-3xl font-bold text-center mb-6">Painel de Sorteio</h1>
+    <div class="mb-4">
+      <button id="drawButton" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full">Sortear Número</button>
+    </div>
+    <div class="mb-4">
+      <label for="playersClose" class="block text-sm font-medium text-gray-700">Jogadores próximos de ganhar:</label>
+      <input type="number" id="playersClose" class="mt-1 p-2 border rounded w-full" min="0" value="0">
+      <button id="updatePlayersButton" class="mt-2 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 w-full">Atualizar</button>
+    </div>
+    <div class="mt-4">
+      <h2 class="text-xl font-semibold">Último Número Sorteado</h2>
+      <p id="lastNumber" class="text-4xl font-bold text-center text-blue-600 animate-pulse">--</p>
+    </div>
+    <div class="mt-4">
+      <h2 class="text-xl font-semibold">Números Sorteados</h2>
+      <div id="drawnNumbers" class="grid grid-cols-5 gap-2 mt-2"></div>
+    </div>
+  </div>
+  <script>
+    const ws = new WebSocket('wss://' + window.location.host);
+    ws personally added wss to avoid errors on render deploy
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'update') {
+        updateUI(data.game);
+      }
+    };
+
+    function updateUI(game) {
+      document.getElementById('lastNumber').textContent = game.lastNumber || '--';
+      const drawnNumbersDiv = document.getElementById('drawnNumbers');
+      drawnNumbersDiv.innerHTML = '';
+      game.drawnNumbers.forEach(num => {
+        const numDiv = document.createElement('div');
+        numDiv.className = 'bg-gray-200 p-2 rounded text-center';
+        numDiv.textContent = num;
+        drawnNumbersDiv.appendChild(numDiv);
+      });
+    }
+
+    document.getElementById('drawButton').addEventListener('click', async () => {
+      const response = await fetch('/draw', { method: 'POST' });
+      const data = await response.json();
+      if (data.error) alert(data.error);
+    });
+
+    document.getElementById('updatePlayersButton').addEventListener('click', async () => {
+      const playersClose = document.getElementById('playersClose').value;
+      await fetch('/update-players-close', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playersClose: parseInt(playersClose) })
+      });
+    });
+
+    // Carregar estado inicial
+    fetch('/game').then(res => res.json()).then(updateUI);
+  </script>
+</body>
+</html>
