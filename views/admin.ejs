@@ -34,11 +34,41 @@
       <p id="lastNumber" class="text-4xl font-bold text-center text-blue-600 animate-pulse">--</p>
     </div>
     <div class="mt-4">
-      <h2 class="text-xl font-semibold">Números Sorteados (em ordem numérica)</h2>
-      <div id="drawnNumbers" class="grid grid-cols-5 gap-2 mt-2"></div>
+      <h2 class="text-xl font-semibold">Números Sorteados por Letra</h2>
+      <div id="drawnNumbers" class="mt-2">
+        <div class="mb-4">
+          <h3 class="text-lg font-semibold">B (1-15)</h3>
+          <div id="bNumbers" class="grid grid-cols-5 gap-2"></div>
+        </div>
+        <div class="mb-4">
+          <h3 class="text-lg font-semibold">I (16-30)</h3>
+          <div id="iNumbers" class="grid grid-cols-5 gap-2"></div>
+        </div>
+        <div class="mb-4">
+          <h3 class="text-lg font-semibold">N (31-45)</h3>
+          <div id="nNumbers" class="grid grid-cols-5 gap-2"></div>
+        </div>
+        <div class="mb-4">
+          <h3 class="text-lg font-semibold">G (46-60)</h3>
+          <div id="gNumbers" class="grid grid-cols-5 gap-2"></div>
+        </div>
+        <div class="mb-4">
+          <h3 class="text-lg font-semibold">O (61-75)</h3>
+          <div id="oNumbers" class="grid grid-cols-5 gap-2"></div>
+        </div>
+      </div>
     </div>
   </div>
   <script>
+    function getBingoLetter(number) {
+      if (number >= 1 && number <= 15) return 'B';
+      if (number >= 16 && number <= 30) return 'I';
+      if (number >= 31 && number <= 45) return 'N';
+      if (number >= 46 && number <= 60) return 'G';
+      if (number >= 61 && number <= 75) return 'O';
+      return '';
+    }
+
     const ws = new WebSocket('wss://' + window.location.host);
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
@@ -48,16 +78,52 @@
     };
 
     function updateUI(game) {
-      document.getElementById('lastNumber').textContent = game.lastNumber || '--';
-      const drawnNumbersDiv = document.getElementById('drawnNumbers');
-      drawnNumbersDiv.innerHTML = '';
-      // Ordenar números em ordem numérica crescente
-      const sortedNumbers = game.drawnNumbers.slice().sort((a, b) => a - b);
-      sortedNumbers.forEach(num => {
+      document.getElementById('lastNumber').textContent = game.lastNumber ? `${getBingoLetter(game.lastNumber)}-${game.lastNumber}` : '--';
+      const bNumbersDiv = document.getElementById('bNumbers');
+      const iNumbersDiv = document.getElementById('iNumbers');
+      const nNumbersDiv = document.getElementById('nNumbers');
+      const gNumbersDiv = document.getElementById('gNumbers');
+      const oNumbersDiv = document.getElementById('oNumbers');
+      bNumbersDiv.innerHTML = '';
+      iNumbersDiv.innerHTML = '';
+      nNumbersDiv.innerHTML = '';
+      gNumbersDiv.innerHTML = '';
+      oNumbersDiv.innerHTML = '';
+      // Organizar números por letra
+      const bNumbers = game.drawnNumbers.filter(n => n >= 1 && n <= 15).sort((a, b) => a - b);
+      const iNumbers = game.drawnNumbers.filter(n => n >= 16 && n <= 30).sort((a, b) => a - b);
+      const nNumbers = game.drawnNumbers.filter(n => n >= 31 && n <= 45).sort((a, b) => a - b);
+      const gNumbers = game.drawnNumbers.filter(n => n >= 46 && n <= 60).sort((a, b) => a - b);
+      const oNumbers = game.drawnNumbers.filter(n => n >= 61 && n <= 75).sort((a, b) => a - b);
+      bNumbers.forEach(num => {
         const numDiv = document.createElement('div');
         numDiv.className = 'bg-gray-200 p-2 rounded text-center';
-        numDiv.textContent = num;
-        drawnNumbersDiv.appendChild(numDiv);
+        numDiv.textContent = `B-${num}`;
+        bNumbersDiv.appendChild(numDiv);
+      });
+      iNumbers.forEach(num => {
+        const numDiv = document.createElement('div');
+        numDiv.className = 'bg-gray-200 p-2 rounded text-center';
+        numDiv.textContent = `I-${num}`;
+        iNumbersDiv.appendChild(numDiv);
+      });
+      nNumbers.forEach(num => {
+        const numDiv = document.createElement('div');
+        numDiv.className = 'bg-gray-200 p-2 rounded text-center';
+        numDiv.textContent = `N-${num}`;
+        nNumbersDiv.appendChild(numDiv);
+      });
+      gNumbers.forEach(num => {
+        const numDiv = document.createElement('div');
+        numDiv.className = 'bg-gray-200 p-2 rounded text-center';
+        numDiv.textContent = `G-${num}`;
+        gNumbersDiv.appendChild(numDiv);
+      });
+      oNumbers.forEach(num => {
+        const numDiv = document.createElement('div');
+        numDiv.className = 'bg-gray-200 p-2 rounded text-center';
+        numDiv.textContent = `O-${num}`;
+        oNumbersDiv.appendChild(numDiv);
       });
     }
 
