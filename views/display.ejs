@@ -23,10 +23,6 @@
       <h2 class="text-xl font-semibold">Prêmio Atual</h2>
       <p id="currentPrize" class="text-lg">Aguardando prêmio...</p>
     </div>
-    <div class="bg-yellow-100 p-4 rounded-lg mb-4">
-      <h2 class="text-xl font-semibold">Informações do Jogo</h2>
-      <p id="gameStatus" class="text-lg">🚨 Aguardando sorteio...</p>
-    </div>
     <div class="bg-yellow-100 p-4 rounded-lg">
       <h2 class="text-xl font-semibold">Informações Adicionais</h2>
       <p id="additionalInfo" class="text-lg">Nenhuma informação adicional.</p>
@@ -62,10 +58,6 @@
         numDiv.textContent = `${getBingoLetter(num)}-${num}`;
         drawnNumbersDiv.appendChild(numDiv);
       });
-      const status = game.playersClose > 0
-        ? `🚨 ${game.playersClose} jogador${game.playersClose > 1 ? 'es' : ''} relatou estar perto de ganhar!`
-        : '🎉 Pode sair um vencedor a qualquer momento!';
-      document.getElementById('gameStatus').textContent = status;
       document.getElementById('currentPrize').textContent = game.currentPrize || 'Aguardando prêmio...';
       document.getElementById('additionalInfo').textContent = game.additionalInfo || 'Nenhuma informação adicional.';
     }
