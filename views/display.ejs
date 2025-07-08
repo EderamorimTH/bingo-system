@@ -33,6 +33,15 @@
     </div>
   </div>
   <script>
+    function getBingoLetter(number) {
+      if (number >= 1 && number <= 15) return 'B';
+      if (number >= 16 && number <= 30) return 'I';
+      if (number >= 31 && number <= 45) return 'N';
+      if (number >= 46 && number <= 60) return 'G';
+      if (number >= 61 && number <= 75) return 'O';
+      return '';
+    }
+
     const ws = new WebSocket('wss://' + window.location.host);
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
@@ -42,7 +51,7 @@
     };
 
     function updateUI(game) {
-      document.getElementById('lastNumber').textContent = game.lastNumber || '--';
+      document.getElementById('lastNumber').textContent = game.lastNumber ? `${getBingoLetter(game.lastNumber)}-${game.lastNumber}` : '--';
       const drawnNumbersDiv = document.getElementById('drawnNumbers');
       drawnNumbersDiv.innerHTML = '';
       // Mostrar apenas os últimos 10 números, com o mais recente no início
@@ -50,7 +59,7 @@
       lastTenNumbers.forEach(num => {
         const numDiv = document.createElement('div');
         numDiv.className = 'bg-gray-200 p-2 rounded text-center';
-        numDiv.textContent = num;
+        numDiv.textContent = `${getBingoLetter(num)}-${num}`;
         drawnNumbersDiv.appendChild(numDiv);
       });
       const status = game.playersClose > 0
