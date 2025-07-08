@@ -17,7 +17,7 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
-// Schema do jogo (definido antes de qualquer uso)
+// Schema do jogo
 const gameSchema = new mongoose.Schema({
   drawnNumbers: [Number],
   lastNumber: Number,
@@ -37,6 +37,11 @@ mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTop
     }
   })
   .catch(err => console.error('Erro ao conectar ao MongoDB:', err));
+
+// Rota para a raiz (redireciona para /display)
+app.get('/', (req, res) => {
+  res.redirect('/display');
+});
 
 // Rotas para renderizar páginas
 app.get('/admin', (req, res) => {
@@ -64,9 +69,10 @@ async function drawNumber() {
 app.post('/draw', async (req, res) => {
   const newNumber = await drawNumber();
   if (newNumber) {
+    const game = await Game.findOne();
     wss.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({ type: 'update', game: { drawnNumbers: game.drawnNumbers, lastNumber: game.lastNumber, playersClose: game.playersClose } }));
+        client.send(JSON.stringify({ type: 'update', game }));
       }
     });
     res.json({ number: newNumber });
