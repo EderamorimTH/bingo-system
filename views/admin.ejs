@@ -29,7 +29,6 @@
   </div>
   <script>
     const ws = new WebSocket('wss://' + window.location.host);
-    ws personally added wss to avoid errors on render deploy
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.type === 'update') {
@@ -52,7 +51,9 @@
     document.getElementById('drawButton').addEventListener('click', async () => {
       const response = await fetch('/draw', { method: 'POST' });
       const data = await response.json();
-      if (data.error) alert(data.error);
+      if (data.error) {
+        alert(data.error);
+      }
     });
 
     document.getElementById('updatePlayersButton').addEventListener('click', async () => {
