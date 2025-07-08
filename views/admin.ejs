@@ -15,11 +15,6 @@
       <button id="drawButton" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full">Sortear Número</button>
     </div>
     <div class="mb-4">
-      <label for="playersClose" class="block text-sm font-medium text-gray-700">Jogadores próximos de ganhar:</label>
-      <input type="number" id="playersClose" class="mt-1 p-2 border rounded w-full" min="0" value="0">
-      <button id="updatePlayersButton" class="mt-2 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 w-full">Atualizar Jogadores</button>
-    </div>
-    <div class="mb-4">
       <label for="currentPrize" class="block text-sm font-medium text-gray-700">Prêmio Atual:</label>
       <input type="text" id="currentPrize" class="mt-1 p-2 border rounded w-full" placeholder="Ex.: 1ª Linha, Cartela Cheia">
       <button id="updatePrizeButton" class="mt-2 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 w-full">Atualizar Prêmio</button>
@@ -125,6 +120,8 @@
         numDiv.textContent = `O-${num}`;
         oNumbersDiv.appendChild(numDiv);
       });
+      document.getElementById('currentPrize').value = game.currentPrize || '';
+      document.getElementById('additionalInfo').value = game.additionalInfo || '';
     }
 
     document.getElementById('drawButton').addEventListener('click', async () => {
@@ -133,15 +130,6 @@
       if (data.error) {
         alert(data.error);
       }
-    });
-
-    document.getElementById('updatePlayersButton').addEventListener('click', async () => {
-      const playersClose = document.getElementById('playersClose').value;
-      await fetch('/update-players-close', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playersClose: parseInt(playersClose) })
-      });
     });
 
     document.getElementById('updatePrizeButton').addEventListener('click', async () => {
