@@ -3,29 +3,55 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Exibição de Bingo</title>
+  <title>Painel de Sorteio - Bingo</title>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
   <link rel="icon" href="data:;base64,iVBORw0KGgo=">
 </head>
-<body class="bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center min-h-screen">
-  <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-4xl">
-    <h1 class="text-4xl font-bold text-center mb-6 text-gray-800">Bingo ao Vivo</h1>
-    <div class="mb-6">
-      <h2 class="text-2xl font-semibold text-center">Último Número Sorteado</h2>
-      <p id="lastNumber" class="text-6xl font-bold text-center text-blue-600 animate-pulse">--</p>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+  <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-2xl">
+    <h1 class="text-3xl font-bold text-center mb-6">Painel de Sorteio</h1>
+    <div class="mb-4">
+      <button id="drawButton" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full">Sortear Número</button>
     </div>
-    <div class="mb-6">
-      <h2 class="text-2xl font-semibold text-center">Últimos 10 Números Sorteados</h2>
-      <div id="drawnNumbers" class="grid grid-cols-5 gap-2 mt-2"></div>
+    <div class="mb-4">
+      <label for="currentPrize" class="block text-sm font-medium text-gray-700">Prêmio Atual:</label>
+      <input type="text" id="currentPrize" class="mt-1 p-2 border rounded w-full" placeholder="Ex.: 1ª Linha, Cartela Cheia">
+      <button id="updatePrizeButton" class="mt-2 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 w-full">Atualizar Prêmio</button>
     </div>
-    <div class="bg-yellow-100 p-4 rounded-lg mb-4">
-      <h2 class="text-xl font-semibold">Prêmio Atual</h2>
-      <p id="currentPrize" class="text-lg">Aguardando prêmio...</p>
+    <div class="mb-4">
+      <label for="additionalInfo" class="block text-sm font-medium text-gray-700">Informações Adicionais:</label>
+      <input type="text" id="additionalInfo" class="mt-1 p-2 border rounded w-full" placeholder="Ex.: Próximo sorteio às 20h">
+      <button id="updateInfoButton" class="mt-2 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 w-full">Atualizar Informações</button>
     </div>
-    <div class="bg-yellow-100 p-4 rounded-lg">
-      <h2 class="text-xl font-semibold">Informações Adicionais</h2>
-      <p id="additionalInfo" class="text-lg">Nenhuma informação adicional.</p>
+    <div class="mt-4">
+      <h2 class="text-xl font-semibold">Último Número Sorteado</h2>
+      <p id="lastNumber" class="text-4xl font-bold text-center text-blue-600 animate-pulse">--</p>
+    </div>
+    <div class="mt-4">
+      <h2 class="text-xl font-semibold">Números Sorteados por Letra</h2>
+      <div id="drawnNumbers" class="mt-2">
+        <div class="mb-4">
+          <h3 class="text-lg font-semibold">B (1-15)</h3>
+          <div id="bNumbers" class="grid grid-cols-5 gap-2"></div>
+        </div>
+        <div class="mb-4">
+          <h3 class="text-lg font-semibold">I (16-30)</h3>
+          <div id="iNumbers" class="grid grid-cols-5 gap-2"></div>
+        </div>
+        <div class="mb-4">
+          <h3 class="text-lg font-semibold">N (31-45)</h3>
+          <div id="nNumbers" class="grid grid-cols-5 gap-2"></div>
+        </div>
+        <div class="mb-4">
+          <h3 class="text-lg font-semibold">G (46-60)</h3>
+          <div id="gNumbers" class="grid grid-cols-5 gap-2"></div>
+        </div>
+        <div class="mb-4">
+          <h3 class="text-lg font-semibold">O (61-75)</h3>
+          <div id="oNumbers" class="grid grid-cols-5 gap-2"></div>
+        </div>
+      </div>
     </div>
   </div>
   <script>
@@ -48,19 +74,81 @@
 
     function updateUI(game) {
       document.getElementById('lastNumber').textContent = game.lastNumber ? `${getBingoLetter(game.lastNumber)}-${game.lastNumber}` : '--';
-      const drawnNumbersDiv = document.getElementById('drawnNumbers');
-      drawnNumbersDiv.innerHTML = '';
-      // Mostrar apenas os últimos 10 números, com o mais recente no início
-      const lastTenNumbers = game.drawnNumbers.slice(-10).reverse();
-      lastTenNumbers.forEach(num => {
+      const bNumbersDiv = document.getElementById('bNumbers');
+      const iNumbersDiv = document.getElementById('iNumbers');
+      const nNumbersDiv = document.getElementById('nNumbers');
+      const gNumbersDiv = document.getElementById('gNumbers');
+      const oNumbersDiv = document.getElementById('oNumbers');
+      bNumbersDiv.innerHTML = '';
+      iNumbersDiv.innerHTML = '';
+      nNumbersDiv.innerHTML = '';
+      gNumbersDiv.innerHTML = '';
+      oNumbersDiv.innerHTML = '';
+      // Organizar números por letra
+      const bNumbers = game.drawnNumbers.filter(n => n >= 1 && n <= 15).sort((a, b) => a - b);
+      const iNumbers = game.drawnNumbers.filter(n => n >= 16 && n <= 30).sort((a, b) => a - b);
+      const nNumbers = game.drawnNumbers.filter(n => n >= 31 && n <= 45).sort((a, b) => a - b);
+      const gNumbers = game.drawnNumbers.filter(n => n >= 46 && n <= 60).sort((a, b) => a - b);
+      const oNumbers = game.drawnNumbers.filter(n => n >= 61 && n <= 75).sort((a, b) => a - b);
+      bNumbers.forEach(num => {
         const numDiv = document.createElement('div');
         numDiv.className = 'bg-gray-200 p-2 rounded text-center';
-        numDiv.textContent = `${getBingoLetter(num)}-${num}`;
-        drawnNumbersDiv.appendChild(numDiv);
+        numDiv.textContent = `B-${num}`;
+        bNumbersDiv.appendChild(numDiv);
       });
-      document.getElementById('currentPrize').textContent = game.currentPrize || 'Aguardando prêmio...';
-      document.getElementById('additionalInfo').textContent = game.additionalInfo || 'Nenhuma informação adicional.';
+      iNumbers.forEach(num => {
+        const numDiv = document.createElement('div');
+        numDiv.className = 'bg-gray-200 p-2 rounded text-center';
+        numDiv.textContent = `I-${num}`;
+        iNumbersDiv.appendChild(numDiv);
+      });
+      nNumbers.forEach(num => {
+        const numDiv = document.createElement('div');
+        numDiv.className = 'bg-gray-200 p-2 rounded text-center';
+        numDiv.textContent = `N-${num}`;
+        nNumbersDiv.appendChild(numDiv);
+      });
+      gNumbers.forEach(num => {
+        const numDiv = document.createElement('div');
+        numDiv.className = 'bg-gray-200 p-2 rounded text-center';
+        numDiv.textContent = `G-${num}`;
+        gNumbersDiv.appendChild(numDiv);
+      });
+      oNumbers.forEach(num => {
+        const numDiv = document.createElement('div');
+        numDiv.className = 'bg-gray-200 p-2 rounded text-center';
+        numDiv.textContent = `O-${num}`;
+        oNumbersDiv.appendChild(numDiv);
+      });
+      document.getElementById('currentPrize').value = game.currentPrize || '';
+      document.getElementById('additionalInfo').value = game.additionalInfo || '';
     }
+
+    document.getElementById('drawButton').addEventListener('click', async () => {
+      const response = await fetch('/draw', { method: 'POST' });
+      const data = await response.json();
+      if (data.error) {
+        alert(data.error);
+      }
+    });
+
+    document.getElementById('updatePrizeButton').addEventListener('click', async () => {
+      const currentPrize = document.getElementById('currentPrize').value;
+      await fetch('/update-prize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPrize })
+      });
+    });
+
+    document.getElementById('updateInfoButton').addEventListener('click', async () => {
+      const additionalInfo = document.getElementById('additionalInfo').value;
+      await fetch('/update-info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ additionalInfo })
+      });
+    });
 
     // Carregar estado inicial
     fetch('/game').then(res => res.json()).then(updateUI);
