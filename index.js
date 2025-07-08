@@ -17,6 +17,7 @@ app.set('views', path.join(__dirname, 'views'));
 // Servir arquivos estáticos (CSS)
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true })); // Adicionado para processar formulários
 app.use(cookieParser());
 
 // Configurar Mongoose para suprimir aviso de depreciação
