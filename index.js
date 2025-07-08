@@ -6,8 +6,6 @@ const path = require('path');
 require('dotenv').config();
 
 const app = express();
- workaround for render
-const PORT = process.env.PORT || 3000;
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
@@ -21,7 +19,16 @@ app.use(express.json());
 
 // Conexão com MongoDB
 mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log('Conectado ao MongoDB'))
+  .then(async () => {
+    console.log('Conectado ao MongoDB');
+    // Inicializar banco e coleção automaticamente
+    const Game = mongoose.model('Game', gameSchema);
+    const game = await Game.findOne();
+    if (!game) {
+      await new Game({ drawnNumbers: [], lastNumber: null, playersClose: 0 }).save();
+      console.log('Banco de dados "bingo" e coleção "game" criados automaticamente');
+    }
+  })
   .catch(err => console.error('Erro ao conectar ao MongoDB:', err));
 
 // Schema do jogo
@@ -96,4 +103,5 @@ wss.on('connection', ws => {
   });
 });
 
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
