@@ -3,6 +3,7 @@ const http = require('http');
 const WebSocket = require('ws');
 const mongoose = require('mongoose');
 const path = require('path');
+const cookieParser = require('cookie-parser');
 require('dotenv').config();
 
 const app = express();
@@ -16,6 +17,7 @@ app.set('views', path.join(__dirname, 'views'));
 // Servir arquivos estáticos (CSS)
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
+app.use(cookieParser());
 
 // Schema do jogo
 const gameSchema = new mongoose.Schema({
@@ -31,7 +33,6 @@ const Game = mongoose.model('Game', gameSchema);
 mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(async () => {
     console.log('Conectado ao MongoDB');
-    // Inicializar banco e coleção automaticamente
     const game = await Game.findOne();
     if (!game) {
       await new Game({ drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' }).save();
@@ -40,13 +41,36 @@ mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTop
   })
   .catch(err => console.error('Erro ao conectar ao MongoDB:', err));
 
+// Middleware para proteger a rota /admin
+function isAuthenticated(req, res, next) {
+  if (req.cookies.auth === 'true') {
+    return next();
+  }
+  res.redirect('/login');
+}
+
 // Rota para a raiz (redireciona para /display)
 app.get('/', (req, res) => {
   res.redirect('/display');
 });
 
+// Rota de login
+app.get('/login', (req, res) => {
+  res.render('login');
+});
+
+app.post('/login', (req, res) => {
+  const { password } = req.body;
+  if (password === process.env.ADMIN_PASSWORD) {
+    res.cookie('auth', 'true', { httpOnly: true });
+    res.redirect('/admin');
+  } else {
+    res.render('login', { error: 'Senha incorreta' });
+  }
+});
+
 // Rotas para renderizar páginas
-app.get('/admin', (req, res) => {
+app.get('/admin', isAuthenticated, (req, res) => {
   res.render('admin');
 });
 
@@ -68,7 +92,7 @@ async function drawNumber() {
 }
 
 // Endpoint para sortear número
-app.post('/draw', async (req, res) => {
+app.post('/draw', isAuthenticated, async (req, res) => {
   const newNumber = await drawNumber();
   if (newNumber) {
     const game = await Game.findOne();
@@ -84,7 +108,7 @@ app.post('/draw', async (req, res) => {
 });
 
 // Endpoint para atualizar prêmio atual
-app.post('/update-prize', async (req, res) => {
+app.post('/update-prize', isAuthenticated, async (req, res) => {
   const { currentPrize } = req.body;
   const game = await Game.findOne() || new Game({ drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' });
   game.currentPrize = currentPrize;
@@ -98,7 +122,7 @@ app.post('/update-prize', async (req, res) => {
 });
 
 // Endpoint para atualizar informações adicionais
-app.post('/update-info', async (req, res) => {
+app.post('/update-info', isAuthenticated, async (req, res) => {
   const { additionalInfo } = req.body;
   const game = await Game.findOne() || new Game({ drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' });
   game.additionalInfo = additionalInfo;
@@ -112,7 +136,7 @@ app.post('/update-info', async (req, res) => {
 });
 
 // Endpoint para atualizar mensagem inicial
-app.post('/update-start-message', async (req, res) => {
+app.post('/update-start-message', isAuthenticated, async (req, res) => {
   const { startMessage } = req.body;
   const game = await Game.findOne() || new Game({ drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' });
   game.startMessage = startMessage;
