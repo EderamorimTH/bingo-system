@@ -17,12 +17,19 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
-// Conexão com MongoDB
+// Schema do jogo (definido antes de qualquer uso)
+const gameSchema = new mongoose.Schema({
+  drawnNumbers: [Number],
+  lastNumber: Number,
+  playersClose: Number
+});
+const Game = mongoose.model('Game', gameSchema);
+
+// Conexão com MongoDB e inicialização automática
 mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(async () => {
     console.log('Conectado ao MongoDB');
     // Inicializar banco e coleção automaticamente
-    const Game = mongoose.model('Game', gameSchema);
     const game = await Game.findOne();
     if (!game) {
       await new Game({ drawnNumbers: [], lastNumber: null, playersClose: 0 }).save();
@@ -30,14 +37,6 @@ mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTop
     }
   })
   .catch(err => console.error('Erro ao conectar ao MongoDB:', err));
-
-// Schema do jogo
-const gameSchema = new mongoose.Schema({
-  drawnNumbers: [Number],
-  lastNumber: Number,
-  playersClose: Number
-});
-const Game = mongoose.model('Game', gameSchema);
 
 // Rotas para renderizar páginas
 app.get('/admin', (req, res) => {
@@ -67,7 +66,7 @@ app.post('/draw', async (req, res) => {
   if (newNumber) {
     wss.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({ type: 'update', game: await Game.findOne() }));
+        client.send(JSON.stringify({ type: 'update', game: { drawnNumbers: game.drawnNumbers, lastNumber: game.lastNumber, playersClose: game.playersClose } }));
       }
     });
     res.json({ number: newNumber });
