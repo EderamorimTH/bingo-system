@@ -21,7 +21,9 @@ app.use(express.json());
 const gameSchema = new mongoose.Schema({
   drawnNumbers: [Number],
   lastNumber: Number,
-  playersClose: Number
+  playersClose: Number,
+  currentPrize: String,
+  additionalInfo: String
 });
 const Game = mongoose.model('Game', gameSchema);
 
@@ -32,15 +34,15 @@ mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTop
     // Inicializar banco e coleção automaticamente
     const game = await Game.findOne();
     if (!game) {
-      await new Game({ drawnNumbers: [], lastNumber: null, playersClose: 0 }).save();
+      await new Game({ drawnNumbers: [], lastNumber: null, playersClose: 0, currentPrize: '', additionalInfo: '' }).save();
       console.log('Banco de dados "bingo" e coleção "game" criados automaticamente');
     }
   })
   .catch(err => console.error('Erro ao conectar ao MongoDB:', err));
 
-// Rota para a página inicial
+// Rota para a raiz (redireciona para /display)
 app.get('/', (req, res) => {
-  res.render('index');
+  res.redirect('/display');
 });
 
 // Rotas para renderizar páginas
@@ -54,7 +56,7 @@ app.get('/display', (req, res) => {
 
 // Função para sortear número
 async function drawNumber() {
-  const game = await Game.findOne() || new Game({ drawnNumbers: [], lastNumber: null, playersClose: 0 });
+  const game = await Game.findOne() || new Game({ drawnNumbers: [], lastNumber: null, playersClose: 0, currentPrize: '', additionalInfo: '' });
   const availableNumbers = Array.from({ length: 75 }, (_, i) => i + 1)
     .filter(n => !game.drawnNumbers.includes(n));
   if (availableNumbers.length === 0) return null;
@@ -84,8 +86,36 @@ app.post('/draw', async (req, res) => {
 // Endpoint para atualizar jogadores próximos
 app.post('/update-players-close', async (req, res) => {
   const { playersClose } = req.body;
-  const game = await Game.findOne() || new Game({ drawnNumbers: [], lastNumber: null, playersClose: 0 });
+  const game = await Game.findOne() || new Game({ drawnNumbers: [], lastNumber: null, playersClose: 0, currentPrize: '', additionalInfo: '' });
   game.playersClose = playersClose;
+  await game.save();
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({ type: 'update', game }));
+    }
+  });
+  res.json({ success: true });
+});
+
+// Endpoint para atualizar prêmio atual
+app.post('/update-prize', async (req, res) => {
+  const { currentPrize } = req.body;
+  const game = await Game.findOne() || new Game({ drawnNumbers: [], lastNumber: null, playersClose: 0, currentPrize: '', additionalInfo: '' });
+  game.currentPrize = currentPrize;
+  await game.save();
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({ type: 'update', game }));
+    }
+  });
+  res.json({ success: true });
+});
+
+// Endpoint para atualizar informações adicionais
+app.post('/update-info', async (req, res) => {
+  const { additionalInfo } = req.body;
+  const game = await Game.findOne() || new Game({ drawnNumbers: [], lastNumber: null, playersClose: 0, currentPrize: '', additionalInfo: '' });
+  game.additionalInfo = additionalInfo;
   await game.save();
   wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
@@ -97,14 +127,14 @@ app.post('/update-players-close', async (req, res) => {
 
 // Endpoint para obter estado do jogo
 app.get('/game', async (req, res) => {
-  const game = await Game.findOne() || { drawnNumbers: [], lastNumber: null, playersClose: 0 };
+  const game = await Game.findOne() || { drawnNumbers: [], lastNumber: null, playersClose: 0, currentPrize: '', additionalInfo: '' };
   res.json(game);
 });
 
 // WebSocket
 wss.on('connection', ws => {
   Game.findOne().then(game => {
-    ws.send(JSON.stringify({ type: 'update', game: game || { drawnNumbers: [], lastNumber: null, playersClose: 0 } }));
+    ws.send(JSON.stringify({ type: 'update', game: game || { drawnNumbers: [], lastNumber: null, playersClose: 0, currentPrize: '', additionalInfo: '' } }));
   });
 });
 
