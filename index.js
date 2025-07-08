@@ -19,6 +19,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 app.use(cookieParser());
 
+// Configurar Mongoose para suprimir aviso de depreciação
+mongoose.set('strictQuery', true);
+
 // Schema do jogo
 const gameSchema = new mongoose.Schema({
   drawnNumbers: [Number],
@@ -56,11 +59,13 @@ app.get('/', (req, res) => {
 
 // Rota de login
 app.get('/login', (req, res) => {
-  res.render('login');
+  res.render('login', { error: null });
 });
 
 app.post('/login', (req, res) => {
   const { password } = req.body;
+  console.log('Senha enviada:', password);
+  console.log('ADMIN_PASSWORD:', process.env.ADMIN_PASSWORD);
   if (password === process.env.ADMIN_PASSWORD) {
     res.cookie('auth', 'true', { httpOnly: true });
     res.redirect('/admin');
