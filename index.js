@@ -1,0 +1,99 @@
+const express = require('express');
+const http = require('http');
+const WebSocket = require('ws');
+const mongoose = require('mongoose');
+const path = require('path');
+require('dotenv').config();
+
+const app = express();
+ workaround for render
+const PORT = process.env.PORT || 3000;
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server });
+
+// Configurar EJS
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+
+// Servir arquivos estáticos (CSS)
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json());
+
+// Conexão com MongoDB
+mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log('Conectado ao MongoDB'))
+  .catch(err => console.error('Erro ao conectar ao MongoDB:', err));
+
+// Schema do jogo
+const gameSchema = new mongoose.Schema({
+  drawnNumbers: [Number],
+  lastNumber: Number,
+  playersClose: Number
+});
+const Game = mongoose.model('Game', gameSchema);
+
+// Rotas para renderizar páginas
+app.get('/admin', (req, res) => {
+  res.render('admin');
+});
+
+app.get('/display', (req, res) => {
+  res.render('display');
+});
+
+// Função para sortear número
+async function drawNumber() {
+  const game = await Game.findOne() || new Game({ drawnNumbers: [], lastNumber: null, playersClose: 0 });
+  const availableNumbers = Array.from({ length: 75 }, (_, i) => i + 1)
+    .filter(n => !game.drawnNumbers.includes(n));
+  if (availableNumbers.length === 0) return null;
+  const newNumber = availableNumbers[Math.floor(Math.random() * availableNumbers.length)];
+  game.drawnNumbers.push(newNumber);
+  game.lastNumber = newNumber;
+  await game.save();
+  return newNumber;
+}
+
+// Endpoint para sortear número
+app.post('/draw', async (req, res) => {
+  const newNumber = await drawNumber();
+  if (newNumber) {
+    wss.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({ type: 'update', game: await Game.findOne() }));
+      }
+    });
+    res.json({ number: newNumber });
+  } else {
+    res.status(400).json({ error: 'Não há mais números para sortear' });
+  }
+});
+
+// Endpoint para atualizar jogadores próximos
+app.post('/update-players-close', async (req, res) => {
+  const { playersClose } = req.body;
+  const game = await Game.findOne() || new Game({ drawnNumbers: [], lastNumber: null, playersClose: 0 });
+  game.playersClose = playersClose;
+  await game.save();
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({ type: 'update', game }));
+    }
+  });
+  res.json({ success: true });
+});
+
+// Endpoint para obter estado do jogo
+app.get('/game', async (req, res) => {
+  const game = await Game.findOne() || { drawnNumbers: [], lastNumber: null, playersClose: 0 };
+  res.json(game);
+});
+
+// WebSocket
+wss.on('connection', ws => {
+  Game.findOne().then(game => {
+    ws.send(JSON.stringify({ type: 'update', game: game || { drawnNumbers: [], lastNumber: null, playersClose: 0 } }));
+  });
+});
+
+server.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
