@@ -9,7 +9,10 @@
   <link rel="icon" href="data:;base64,iVBORw0KGgo=">
 </head>
 <body class="bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center min-h-screen">
-  <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-4xl">
+  <div id="startScreen" class="hidden flex items-center justify-center w-full max-w-4xl">
+    <h1 id="startMessage" class="text-6xl font-bold text-white animate-pulse text-center"></h1>
+  </div>
+  <div id="gameScreen" class="hidden bg-white p-6 rounded-lg shadow-lg w-full max-w-4xl">
     <h1 class="text-4xl font-bold text-center mb-6 text-gray-800">Bingo ao Vivo</h1>
     <div class="mb-6">
       <h2 class="text-2xl font-semibold text-center">Último Número Sorteado</h2>
@@ -47,19 +50,29 @@
     };
 
     function updateUI(game) {
-      document.getElementById('lastNumber').textContent = game.lastNumber ? `${getBingoLetter(game.lastNumber)}-${game.lastNumber}` : '--';
-      const drawnNumbersDiv = document.getElementById('drawnNumbers');
-      drawnNumbersDiv.innerHTML = '';
-      // Mostrar apenas os últimos 10 números, com o mais recente no início
-      const lastTenNumbers = game.drawnNumbers.slice(-10).reverse();
-      lastTenNumbers.forEach(num => {
-        const numDiv = document.createElement('div');
-        numDiv.className = 'bg-gray-200 p-2 rounded text-center';
-        numDiv.textContent = `${getBingoLetter(num)}-${num}`;
-        drawnNumbersDiv.appendChild(numDiv);
-      });
-      document.getElementById('currentPrize').textContent = game.currentPrize || 'Aguardando prêmio...';
-      document.getElementById('additionalInfo').textContent = game.additionalInfo || 'Nenhuma informação adicional.';
+      const startScreen = document.getElementById('startScreen');
+      const gameScreen = document.getElementById('gameScreen');
+      if (game.drawnNumbers.length === 0) {
+        startScreen.classList.remove('hidden');
+        gameScreen.classList.add('hidden');
+        document.getElementById('startMessage').textContent = game.startMessage || 'Em Breve o Bingo Irá Começar';
+      } else {
+        startScreen.classList.add('hidden');
+        gameScreen.classList.remove('hidden');
+        document.getElementById('lastNumber').textContent = game.lastNumber ? `${getBingoLetter(game.lastNumber)}-${game.lastNumber}` : '--';
+        const drawnNumbersDiv = document.getElementById('drawnNumbers');
+        drawnNumbersDiv.innerHTML = '';
+        // Mostrar apenas os últimos 10 números, com o mais recente no início
+        const lastTenNumbers = game.drawnNumbers.slice(-10).reverse();
+        lastTenNumbers.forEach(num => {
+          const numDiv = document.createElement('div');
+          numDiv.className = 'bg-gray-200 p-2 rounded text-center';
+          numDiv.textContent = `${getBingoLetter(num)}-${num}`;
+          drawnNumbersDiv.appendChild(numDiv);
+        });
+        document.getElementById('currentPrize').textContent = game.currentPrize || 'Aguardando prêmio...';
+        document.getElementById('additionalInfo').textContent = game.additionalInfo || 'Nenhuma informação adicional.';
+      }
     }
 
     // Carregar estado inicial
