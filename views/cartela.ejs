@@ -41,8 +41,15 @@
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen">
   <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-    <h1 class="text-2xl font-bold text-center mb-6">Cartela de Bingo</h1>
-    <p class="text-center mb-4">Jogador: <span id="playerName"><%= cartela.playerName %></span></p>
+    <h1 class="text-3xl font-bold text-center mb-6 text-blue-600">Cartela de Bingo</h1>
+    <p class="text-center mb-4 text-2xl font-bold text-green-600" id="playerName"><%= cartela.playerName %></p>
+    <div id="startMessage" class="text-xl font-semibold text-center mb-4 animate-pulse <%= cartela.drawnNumbers && cartela.drawnNumbers.length === 0 ? '' : 'hidden' %>">
+      <%= game.startMessage || 'Em Breve o Bingo Irá Começar' %>
+    </div>
+    <div class="mb-4">
+      <h2 class="text-lg font-semibold text-center">Prêmio Atual</h2>
+      <p id="currentPrize" class="text-lg text-center"><%= game.currentPrize || '--' %></p>
+    </div>
     <div id="winnerMessage" class="hidden text-center text-green-600 font-bold mb-4"></div>
     <div class="cartela-grid">
       <div class="cartela-header">B</div>
@@ -79,6 +86,9 @@
           cell.classList.add('marked');
         }
       });
+      document.getElementById('startMessage').classList.toggle('hidden', game.drawnNumbers.length > 0);
+      document.getElementById('startMessage').textContent = game.startMessage || 'Em Breve o Bingo Irá Começar';
+      document.getElementById('currentPrize').textContent = game.currentPrize || '--';
       if (winners && winners.includes(cartelaId)) {
         document.getElementById('winnerMessage').classList.remove('hidden');
         document.getElementById('winnerMessage').textContent = 'Parabéns! Sua cartela venceu!';
