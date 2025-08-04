@@ -127,23 +127,29 @@ app.get('/cartela', async (req, res) => {
   if (!cartela) {
     return res.status(404).send('Cartela não encontrada');
   }
-  res.render('cartela', { cartela });
+  const game = await Game.findOne() || { drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' };
+  res.render('cartela', { cartela, game });
 });
 
 // Rota para gerar cartela
 app.post('/generate-cartela', isAuthenticated, async (req, res) => {
-  const { playerName } = req.body;
-  const cartelaId = Math.random().toString(36).substr(2, 9);
-  const numbers = generateCartelaNumbers();
-  const cartela = new Cartela({
-    cartelaId,
-    numbers,
-    playerName: playerName || 'Anônimo',
-    markedNumbers: [],
-    createdAt: new Date()
-  });
-  await cartela.save();
-  res.json({ cartelaId });
+  const { playerName, quantity } = req.body;
+  const qty = parseInt(quantity) || 1;
+  const cartelaIds = [];
+  for (let i = 0; i < qty; i++) {
+    const cartelaId = Math.random().toString(36).substr(2, 9);
+    const numbers = generateCartelaNumbers();
+    const cartela = new Cartela({
+      cartelaId,
+      numbers,
+      playerName: playerName || 'Anônimo',
+      markedNumbers: [],
+      createdAt: new Date()
+    });
+    await cartela.save();
+    cartelaIds.push(cartelaId);
+  }
+  res.json({ cartelaIds });
 });
 
 // Função para sortear número
