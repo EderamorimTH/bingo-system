@@ -21,9 +21,9 @@
     }
   </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
-  <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-4xl">
-    <h1 class="text-3xl font-bold text-center mb-6 text-green-600">Painel de Administração</h1>
+<body class="flex items-center justify-center min-h-screen">
+  <div class="w-full max-w-4xl p-6">
+    <h1 class="text-4xl font-bold text-center mb-6 text-white drop-shadow-lg">Painel de Administração</h1>
     
     <!-- Gerar Cartela -->
     <div class="highlight-box">
@@ -81,11 +81,35 @@
       </form>
     </div>
 
+    <!-- Números Sorteados -->
+    <div class="highlight-box">
+      <h2 class="text-xl font-semibold mb-2 text-gray-700">Números Sorteados</h2>
+      <div id="drawnNumbers" class="space-y-2">
+        <div>
+          <strong>B (1-15):</strong> <span id="drawnB">--</span>
+        </div>
+        <div>
+          <strong>I (16-30):</strong> <span id="drawnI">--</span>
+        </div>
+        <div>
+          <strong>N (31-45):</strong> <span id="drawnN">--</span>
+        </div>
+        <div>
+          <strong>G (46-60):</strong> <span id="drawnG">--</span>
+        </div>
+        <div>
+          <strong>O (61-75):</strong> <span id="drawnO">--</span>
+        </div>
+      </div>
+      <div class="mt-4">
+        <button id="drawNumber" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Sortear Número</button>
+      </div>
+    </div>
+
     <!-- Ações -->
     <div class="highlight-box">
       <h2 class="text-xl font-semibold mb-2 text-gray-700">Ações</h2>
       <div class="flex space-x-4">
-        <button id="drawNumber" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Sortear Número</button>
         <form action="/reset" method="POST">
           <button type="submit" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Reiniciar o Bingo</button>
         </form>
@@ -165,6 +189,49 @@
   </div>
 
   <script>
+    // Função para formatar números sorteados por letras
+    function formatDrawnNumbers(numbers) {
+      const ranges = {
+        B: { min: 1, max: 15, numbers: [] },
+        I: { min: 16, max: 30, numbers: [] },
+        N: { min: 31, max: 45, numbers: [] },
+        G: { min: 46, max: 60, numbers: [] },
+        O: { min: 61, max: 75, numbers: [] }
+      };
+      numbers.forEach(num => {
+        if (num >= 1 && num <= 15) ranges.B.numbers.push(`B-${num}`);
+        else if (num >= 16 && num <= 30) ranges.I.numbers.push(`I-${num}`);
+        else if (num >= 31 && num <= 45) ranges.N.numbers.push(`N-${num}`);
+        else if (num >= 46 && num <= 60) ranges.G.numbers.push(`G-${num}`);
+        else if (num >= 61 && num <= 75) ranges.O.numbers.push(`O-${num}`);
+      });
+      document.getElementById('drawnB').textContent = ranges.B.numbers.length > 0 ? ranges.B.numbers.join(', ') : '--';
+      document.getElementById('drawnI').textContent = ranges.I.numbers.length > 0 ? ranges.I.numbers.join(', ') : '--';
+      document.getElementById('drawnN').textContent = ranges.N.numbers.length > 0 ? ranges.N.numbers.join(', ') : '--';
+      document.getElementById('drawnG').textContent = ranges.G.numbers.length > 0 ? ranges.G.numbers.join(', ') : '--';
+      document.getElementById('drawnO').textContent = ranges.O.numbers.length > 0 ? ranges.O.numbers.join(', ') : '--';
+    }
+
+    // Carregar números sorteados iniciais
+    formatDrawnNumbers(<%- JSON.stringify(game.drawnNumbers) %>);
+
+    // WebSocket para atualizar números sorteados
+    const ws = new WebSocket('wss://' + window.location.host);
+    ws.onopen = () => console.log('WebSocket conectado em /admin');
+    ws.onmessage = (event) => {
+      console.log('Mensagem WebSocket recebida em /admin:', event.data);
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'update') {
+          formatDrawnNumbers(data.game.drawnNumbers);
+        }
+      } catch (err) {
+        console.error('Erro ao processar mensagem WebSocket em /admin:', err);
+      }
+    };
+    ws.onerror = (err) => console.error('Erro no WebSocket em /admin:', err);
+    ws.onclose = () => console.log('WebSocket desconectado em /admin');
+
     // Gerar cartela
     document.getElementById('generateCartelaForm').addEventListener('submit', async (e) => {
       e.preventDefault();
