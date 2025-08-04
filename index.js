@@ -4,6 +4,7 @@ const WebSocket = require('ws');
 const mongoose = require('mongoose');
 const path = require('path');
 const cookieParser = require('cookie-parser');
+const fs = require('fs').promises;
 require('dotenv').config();
 
 const app = express();
@@ -43,7 +44,7 @@ const cartelaSchema = new mongoose.Schema({
 });
 const Cartela = mongoose.model('Cartela', cartelaSchema);
 
-// Schema do jogador (para armazenar nome, telefone e link)
+// Schema do jogador
 const playerSchema = new mongoose.Schema({
   playerName: String,
   phoneNumber: String,
@@ -52,7 +53,7 @@ const playerSchema = new mongoose.Schema({
 });
 const Player = mongoose.model('Player', playerSchema);
 
-// Schema do vencedor (para armazenar cartelas vencedoras)
+// Schema do vencedor
 const winnerSchema = new mongoose.Schema({
   cartelaId: String,
   playerName: String,
@@ -60,7 +61,7 @@ const winnerSchema = new mongoose.Schema({
 });
 const Winner = mongoose.model('Winner', winnerSchema);
 
-// Conexão com MongoDB e inicialização automática
+// Conexão com MongoDB
 mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(async () => {
     console.log('Conectado ao MongoDB');
@@ -72,7 +73,7 @@ mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTop
   })
   .catch(err => console.error('Erro ao conectar ao MongoDB:', err));
 
-// Middleware para proteger a rota /admin
+// Middleware para proteger rotas
 function isAuthenticated(req, res, next) {
   if (req.cookies.auth === 'true') {
     return next();
@@ -136,27 +137,51 @@ app.get('/admin', isAuthenticated, async (req, res) => {
   res.render('admin', { players, winners });
 });
 
-app.get('/display', (req, res) => {
-  res.render('display');
+app.get('/display', async (req, res) => {
+  const isAuthenticated = req.cookies.auth === 'true';
+  res.render('display', { isAuthenticated });
 });
 
 app.get('/cartelas', async (req, res) => {
-  const { playerName } = req.query;
-  if (!playerName) {
-    return res.status(400).send('Nome do jogador é obrigatório');
+  try {
+    const viewPath = path.join(__dirname, 'views', 'cartelas.ejs');
+    console.log(`Verificando existência de ${viewPath}`);
+    await fs.access(viewPath);
+    console.log('Arquivo cartelas.ejs encontrado');
+    const { playerName } = req.query;
+    console.log(`Buscando cartelas para playerName: ${playerName}`);
+    if (!playerName) {
+      console.log('Erro: Nome do jogador é obrigatório');
+      return res.status(400).send('Nome do jogador é obrigatório');
+    }
+    const cartelas = await Cartela.find({ playerName });
+    console.log(`Cartelas encontradas: ${cartelas.length}`);
+    if (cartelas.length === 0) {
+      console.log(`Nenhuma cartela encontrada para playerName: ${playerName}`);
+      return res.status(404).send('Nenhuma cartela encontrada para este jogador');
+    }
+    const game = await Game.findOne() || { drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' };
+    console.log('Renderizando cartelas.ejs');
+    res.render('cartelas', { cartelas, playerName, game });
+  } catch (err) {
+    console.error('Erro na rota /cartelas:', err);
+    res.status(500).send(`Internal Server Error: ${err.message}`);
   }
-  const cartelas = await Cartela.find({ playerName });
-  if (cartelas.length === 0) {
-    return res.status(404).send('Nenhuma cartela encontrada para este jogador');
-  }
-  const game = await Game.findOne() || { drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' };
-  res.render('cartelas', { cartelas, playerName, game });
 });
 
-// Rota para obter lista de jogadores
+// Rota para obter lista de jogadores com contagem de cartelas
 app.get('/players', isAuthenticated, async (req, res) => {
-  const players = await Player.find().sort({ createdAt: -1 });
-  res.json(players);
+  try {
+    const players = await Player.find().sort({ createdAt: -1 });
+    const playersWithCartelaCount = await Promise.all(players.map(async (player) => {
+      const cartelaCount = await Cartela.countDocuments({ playerName: player.playerName });
+      return { ...player._doc, cartelaCount };
+    }));
+    res.json(playersWithCartelaCount);
+  } catch (err) {
+    console.error('Erro na rota /players:', err);
+    res.status(500).json({ error: 'Erro ao obter jogadores' });
+  }
 });
 
 // Rota para obter lista de vencedores
@@ -186,7 +211,6 @@ app.post('/generate-cartela', isAuthenticated, async (req, res) => {
     await cartela.save();
     cartelaIds.push(cartelaId);
   }
-  // Salvar jogador, telefone e link na coleção players
   const link = `${req.protocol}://${req.get('host')}/cartelas?playerName=${encodeURIComponent(playerName)}`;
   await Player.findOneAndUpdate(
     { playerName },
@@ -209,6 +233,57 @@ app.post('/reset', isAuthenticated, async (req, res) => {
   res.json({ success: true });
 });
 
+// Rota para excluir todas as cartelas
+app.post('/delete-all-cartelas', isAuthenticated, async (req, res) => {
+  const { password } = req.body;
+  if (password !== process.env.ADMIN_PASSWORD) {
+    return res.status(401).json({ error: 'Senha incorreta' });
+  }
+  try {
+    await Cartela.deleteMany({});
+    await Player.deleteMany({});
+    await Winner.deleteMany({});
+    wss.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({ type: 'update', game: null, winners: [] }));
+      }
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Erro ao excluir todas as cartelas:', err);
+    res.status(500).json({ error: 'Erro ao excluir cartelas' });
+  }
+});
+
+// Rota para excluir cartelas por número de telefone
+app.post('/delete-cartelas-by-phone', isAuthenticated, async (req, res) => {
+  const { phoneNumber, password } = req.body;
+  if (password !== process.env.ADMIN_PASSWORD) {
+    return res.status(401).json({ error: 'Senha incorreta' });
+  }
+  if (!phoneNumber) {
+    return res.status(400).json({ error: 'Número de telefone é obrigatório' });
+  }
+  try {
+    const player = await Player.findOne({ phoneNumber });
+    if (!player) {
+      return res.status(404).json({ error: 'Jogador não encontrado' });
+    }
+    await Cartela.deleteMany({ playerName: player.playerName });
+    await Player.deleteOne({ phoneNumber });
+    await Winner.deleteMany({ playerName: player.playerName });
+    wss.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({ type: 'update', game: null, winners: [] }));
+      }
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Erro ao excluir cartelas por telefone:', err);
+    res.status(500).json({ error: 'Erro ao excluir cartelas' });
+  }
+});
+
 // Função para sortear número
 async function drawNumber() {
   const game = await Game.findOne() || new Game({ drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' });
@@ -220,7 +295,6 @@ async function drawNumber() {
   game.lastNumber = newNumber;
   await game.save();
   
-  // Marcar número nas cartelas e verificar vitórias
   const cartelas = await Cartela.find();
   const winners = [];
   for (const cartela of cartelas) {
@@ -228,7 +302,6 @@ async function drawNumber() {
       cartela.markedNumbers.push(newNumber);
       if (checkWin(cartela)) {
         winners.push(cartela.cartelaId);
-        // Salvar vencedor na coleção winners
         await new Winner({
           cartelaId: cartela.cartelaId,
           playerName: cartela.playerName,
@@ -262,18 +335,24 @@ function checkWin(cartela) {
 
 // Endpoint para sortear número
 app.post('/draw', isAuthenticated, async (req, res) => {
-  const result = await drawNumber();
-  if (result && result.newNumber) {
-    const game = await Game.findOne();
-    const { newNumber, winners } = result;
-    wss.clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({ type: 'update', game, winners }));
-      }
-    });
-    res.json({ number: newNumber, winners });
-  } else {
-    res.status(400).json({ error: 'Não há mais números para sortear' });
+  try {
+    const result = await drawNumber();
+    if (result && result.newNumber) {
+      const game = await Game.findOne();
+      const { newNumber, winners } = result;
+      console.log(`Número sorteado: ${newNumber}, Vencedores: ${winners}`);
+      wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({ type: 'update', game, winners }));
+        }
+      });
+      res.json({ number: newNumber, winners });
+    } else {
+      res.status(400).json({ error: 'Não há mais números para sortear' });
+    }
+  } catch (err) {
+    console.error('Erro na rota /draw:', err);
+    res.status(500).json({ error: 'Erro ao sortear número' });
   }
 });
 
@@ -327,10 +406,16 @@ app.get('/game', async (req, res) => {
 
 // WebSocket
 wss.on('connection', ws => {
+  console.log('Novo cliente WebSocket conectado');
   Game.findOne().then(game => {
     Cartela.find().then(cartelas => {
       ws.send(JSON.stringify({ type: 'update', game: game || { drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' }, winners: [] }));
     });
+  }).catch(err => {
+    console.error('Erro ao inicializar WebSocket:', err);
+  });
+  ws.on('error', err => {
+    console.error('Erro no WebSocket:', err);
   });
 });
 
