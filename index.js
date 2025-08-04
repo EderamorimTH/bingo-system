@@ -121,19 +121,25 @@ app.get('/display', (req, res) => {
   res.render('display');
 });
 
-app.get('/cartela', async (req, res) => {
-  const { cartelaId } = req.query;
-  const cartela = await Cartela.findOne({ cartelaId });
-  if (!cartela) {
-    return res.status(404).send('Cartela não encontrada');
+app.get('/cartelas', async (req, res) => {
+  const { playerName } = req.query;
+  if (!playerName) {
+    return res.status(400).send('Nome do jogador é obrigatório');
+  }
+  const cartelas = await Cartela.find({ playerName });
+  if (cartelas.length === 0) {
+    return res.status(404).send('Nenhuma cartela encontrada para este jogador');
   }
   const game = await Game.findOne() || { drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' };
-  res.render('cartela', { cartela, game });
+  res.render('cartela', { cartelas, playerName, game });
 });
 
 // Rota para gerar cartela
 app.post('/generate-cartela', isAuthenticated, async (req, res) => {
   const { playerName, quantity } = req.body;
+  if (!playerName) {
+    return res.status(400).json({ error: 'Nome do jogador é obrigatório' });
+  }
   const qty = parseInt(quantity) || 1;
   const cartelaIds = [];
   for (let i = 0; i < qty; i++) {
@@ -142,14 +148,14 @@ app.post('/generate-cartela', isAuthenticated, async (req, res) => {
     const cartela = new Cartela({
       cartelaId,
       numbers,
-      playerName: playerName || 'Anônimo',
+      playerName,
       markedNumbers: [],
       createdAt: new Date()
     });
     await cartela.save();
     cartelaIds.push(cartelaId);
   }
-  res.json({ cartelaIds });
+  res.json({ playerName, cartelaIds });
 });
 
 // Função para sortear número
