@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bingo System</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+  <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md text-center">
+    <h1 class="text-3xl font-bold mb-6">Bem-vindo ao Bingo System</h1>
+    <p class="mb-4">Escolha uma opção:</p>
+    <div class="space-y-4">
+      <a href="/admin" class="block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Painel de Administração</a>
+      <a href="/display" class="block bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Exibição Pública</a>
+      <div class="mt-4">
+        <label for="rifaNumber" class="block text-sm font-medium text-gray-700">Consulte sua cartela:</label>
+        <input type="text" id="rifaNumber" class="mt-1 p-2 border rounded w-full" placeholder="Digite o número da rifa (ex.: 001)">
+        <button id="checkCardButton" class="mt-2 bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 w-full">Ver Cartela</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    document.getElementById('checkCardButton').addEventListener('click', () => {
+      const rifaNumber = document.getElementById('rifaNumber').value.padStart(3, '0');
+      if (/^\d{3}$/.test(rifaNumber)) {
+        window.location.href = `/card/${rifaNumber}`;
+      } else {
+        alert('Por favor, insira um número de rifa válido (ex.: 001)');
+      }
+    });
+  </script>
+</body>
+</html>
