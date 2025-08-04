@@ -99,16 +99,26 @@
     const ws = new WebSocket('wss://' + window.location.host);
     ws.onopen = () => console.log('WebSocket conectado em /cartelas');
     ws.onmessage = (event) => {
-      console.log('Mensagem WebSocket recebida:', event.data);
-      const data = JSON.parse(event.data);
-      if (data.type === 'update') {
-        updateUI(data.game, data.winners || []);
+      console.log('Mensagem WebSocket recebida em /cartelas:', event.data);
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'update') {
+          updateUI(data.game, data.winners || []);
+        }
+      } catch (err) {
+        console.error('Erro ao processar mensagem WebSocket em /cartelas:', err);
       }
     };
-    ws.onerror = (err) => console.error('Erro no WebSocket:', err);
-    ws.onclose = () => console.log('WebSocket desconectado');
+    ws.onerror = (err) => console.error('Erro no WebSocket em /cartelas:', err);
+    ws.onclose = () => {
+      console.log('WebSocket desconectado em /cartelas, tentando reconectar...');
+      setTimeout(() => {
+        window.location.reload();
+      }, 5000);
+    };
 
     function updateUI(game, winners) {
+      console.log('Atualizando UI com dados:', game, winners);
       document.getElementById('currentPrize').textContent = game.currentPrize || '--';
       document.getElementById('additionalInfo').textContent = game.additionalInfo || '--';
       <% cartelas.forEach(cartela => { %>
@@ -135,9 +145,9 @@
 
     // Carregar estado inicial
     fetch('/game').then(res => res.json()).then(game => {
-      console.log('Estado inicial do jogo:', game);
+      console.log('Estado inicial do jogo em /cartelas:', game);
       updateUI(game, []);
-    }).catch(err => console.error('Erro ao carregar estado inicial:', err));
+    }).catch(err => console.error('Erro ao carregar estado inicial em /cartelas:', err));
   </script>
 </body>
 </html>
