@@ -91,7 +91,7 @@ function generateCartelaNumbers() {
     { min: 46, max: 60 }, // G
     { min: 61, max: 75 } // O
   ];
-  for (let col = 0; col < 5; col++) {
+  for (let col = 0; col < 5; COL++) {
     const column = [];
     const { min, max } = ranges[col];
     const available = Array.from({ length: max - min + 1 }, (_, i) => min + i);
@@ -134,12 +134,12 @@ app.post('/login', (req, res) => {
 app.get('/admin', isAuthenticated, async (req, res) => {
   const players = await Player.find().sort({ createdAt: -1 });
   const winners = await Winner.find().sort({ createdAt: -1 });
-  res.render('admin', { players, winners });
+  const game = await Game.findOne() || { drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' };
+  res.render('admin', { players, winners, game });
 });
 
 app.get('/display', async (req, res) => {
-  const isAuthenticated = req.cookies.auth === 'true';
-  res.render('display', { isAuthenticated });
+  res.render('display');
 });
 
 app.get('/cartelas', async (req, res) => {
@@ -228,6 +228,7 @@ app.post('/reset', isAuthenticated, async (req, res) => {
   wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify({ type: 'update', game, winners: [] }));
+      console.log('Enviado update WebSocket para cliente:', JSON.stringify({ type: 'update', game, winners: [] }));
     }
   });
   res.json({ success: true });
@@ -246,6 +247,7 @@ app.post('/delete-all-cartelas', isAuthenticated, async (req, res) => {
     wss.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(JSON.stringify({ type: 'update', game: null, winners: [] }));
+        console.log('Enviado update WebSocket para exclusão de cartelas');
       }
     });
     res.json({ success: true });
@@ -275,6 +277,7 @@ app.post('/delete-cartelas-by-phone', isAuthenticated, async (req, res) => {
     wss.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(JSON.stringify({ type: 'update', game: null, winners: [] }));
+        console.log('Enviado update WebSocket para exclusão por telefone');
       }
     });
     res.json({ success: true });
@@ -344,6 +347,7 @@ app.post('/draw', isAuthenticated, async (req, res) => {
       wss.clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
           client.send(JSON.stringify({ type: 'update', game, winners }));
+          console.log('Enviado update WebSocket para sorteio:', JSON.stringify({ type: 'update', game, winners }));
         }
       });
       res.json({ number: newNumber, winners });
@@ -365,6 +369,7 @@ app.post('/update-prize', isAuthenticated, async (req, res) => {
   wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify({ type: 'update', game, winners: [] }));
+      console.log('Enviado update WebSocket para prêmio:', JSON.stringify({ type: 'update', game, winners: [] }));
     }
   });
   res.json({ success: true });
@@ -379,6 +384,7 @@ app.post('/update-info', isAuthenticated, async (req, res) => {
   wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify({ type: 'update', game, winners: [] }));
+      console.log('Enviado update WebSocket para informações:', JSON.stringify({ type: 'update', game, winners: [] }));
     }
   });
   res.json({ success: true });
@@ -393,6 +399,7 @@ app.post('/update-start-message', isAuthenticated, async (req, res) => {
   wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify({ type: 'update', game, winners: [] }));
+      console.log('Enviado update WebSocket para mensagem inicial:', JSON.stringify({ type: 'update', game, winners: [] }));
     }
   });
   res.json({ success: true });
@@ -401,6 +408,7 @@ app.post('/update-start-message', isAuthenticated, async (req, res) => {
 // Endpoint para obter estado do jogo
 app.get('/game', async (req, res) => {
   const game = await Game.findOne() || { drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' };
+  console.log('Estado do jogo enviado para /game:', game);
   res.json(game);
 });
 
@@ -409,13 +417,18 @@ wss.on('connection', ws => {
   console.log('Novo cliente WebSocket conectado');
   Game.findOne().then(game => {
     Cartela.find().then(cartelas => {
-      ws.send(JSON.stringify({ type: 'update', game: game || { drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' }, winners: [] }));
+      const data = JSON.stringify({ type: 'update', game: game || { drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' }, winners: [] });
+      ws.send(data);
+      console.log('Enviado estado inicial WebSocket:', data);
     });
   }).catch(err => {
     console.error('Erro ao inicializar WebSocket:', err);
   });
   ws.on('error', err => {
     console.error('Erro no WebSocket:', err);
+  });
+  ws.on('close', () => {
+    console.log('Cliente WebSocket desconectado');
   });
 });
 
