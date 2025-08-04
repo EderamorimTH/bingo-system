@@ -43,6 +43,23 @@ const cartelaSchema = new mongoose.Schema({
 });
 const Cartela = mongoose.model('Cartela', cartelaSchema);
 
+// Schema do jogador (para armazenar nome, telefone e link)
+const playerSchema = new mongoose.Schema({
+  playerName: String,
+  phoneNumber: String,
+  link: String,
+  createdAt: Date
+});
+const Player = mongoose.model('Player', playerSchema);
+
+// Schema do vencedor (para armazenar cartelas vencedoras)
+const winnerSchema = new mongoose.Schema({
+  cartelaId: String,
+  playerName: String,
+  createdAt: Date
+});
+const Winner = mongoose.model('Winner', winnerSchema);
+
 // Conexão com MongoDB e inicialização automática
 mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(async () => {
@@ -113,8 +130,10 @@ app.post('/login', (req, res) => {
 });
 
 // Rotas para renderizar páginas
-app.get('/admin', isAuthenticated, (req, res) => {
-  res.render('admin');
+app.get('/admin', isAuthenticated, async (req, res) => {
+  const players = await Player.find().sort({ createdAt: -1 });
+  const winners = await Winner.find().sort({ createdAt: -1 });
+  res.render('admin', { players, winners });
 });
 
 app.get('/display', (req, res) => {
@@ -131,12 +150,24 @@ app.get('/cartelas', async (req, res) => {
     return res.status(404).send('Nenhuma cartela encontrada para este jogador');
   }
   const game = await Game.findOne() || { drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' };
-  res.render('cartela', { cartelas, playerName, game });
+  res.render('cartelas', { cartelas, playerName, game });
+});
+
+// Rota para obter lista de jogadores
+app.get('/players', isAuthenticated, async (req, res) => {
+  const players = await Player.find().sort({ createdAt: -1 });
+  res.json(players);
+});
+
+// Rota para obter lista de vencedores
+app.get('/winners', isAuthenticated, async (req, res) => {
+  const winners = await Winner.find().sort({ createdAt: -1 });
+  res.json(winners);
 });
 
 // Rota para gerar cartela
 app.post('/generate-cartela', isAuthenticated, async (req, res) => {
-  const { playerName, quantity } = req.body;
+  const { playerName, phoneNumber, quantity } = req.body;
   if (!playerName) {
     return res.status(400).json({ error: 'Nome do jogador é obrigatório' });
   }
@@ -155,7 +186,27 @@ app.post('/generate-cartela', isAuthenticated, async (req, res) => {
     await cartela.save();
     cartelaIds.push(cartelaId);
   }
-  res.json({ playerName, cartelaIds });
+  // Salvar jogador, telefone e link na coleção players
+  const link = `${req.protocol}://${req.get('host')}/cartelas?playerName=${encodeURIComponent(playerName)}`;
+  await Player.findOneAndUpdate(
+    { playerName },
+    { playerName, phoneNumber: phoneNumber || '', link, createdAt: new Date() },
+    { upsert: true }
+  );
+  res.json({ playerName, phoneNumber, cartelaIds, link });
+});
+
+// Rota para reiniciar o bingo
+app.post('/reset', isAuthenticated, async (req, res) => {
+  await Game.updateOne({}, { drawnNumbers: [], lastNumber: null });
+  await Cartela.updateMany({}, { markedNumbers: [] });
+  const game = await Game.findOne();
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({ type: 'update', game, winners: [] }));
+    }
+  });
+  res.json({ success: true });
 });
 
 // Função para sortear número
@@ -177,6 +228,12 @@ async function drawNumber() {
       cartela.markedNumbers.push(newNumber);
       if (checkWin(cartela)) {
         winners.push(cartela.cartelaId);
+        // Salvar vencedor na coleção winners
+        await new Winner({
+          cartelaId: cartela.cartelaId,
+          playerName: cartela.playerName,
+          createdAt: new Date()
+        }).save();
       }
       await cartela.save();
     }
@@ -206,7 +263,7 @@ function checkWin(cartela) {
 // Endpoint para sortear número
 app.post('/draw', isAuthenticated, async (req, res) => {
   const result = await drawNumber();
-  if (result.newNumber) {
+  if (result && result.newNumber) {
     const game = await Game.findOne();
     const { newNumber, winners } = result;
     wss.clients.forEach(client => {
