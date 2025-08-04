@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cartela de Bingo</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+  <style>
+    .cartela-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 5px;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+    .cartela-cell {
+      background-color: #e5e7eb;
+      padding: 10px;
+      text-align: center;
+      border-radius: 5px;
+      font-weight: bold;
+    }
+    .cartela-cell.free {
+      background-color: #10b981;
+      color: white;
+    }
+    .cartela-cell.marked {
+      background-color: #3b82f6;
+      color: white;
+    }
+    .cartela-header {
+      background-color: #1f2937;
+      color: white;
+      padding: 10px;
+      text-align: center;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+  <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+    <h1 class="text-2xl font-bold text-center mb-6">Cartela de Bingo</h1>
+    <p class="text-center mb-4">Jogador: <span id="playerName"><%= cartela.playerName %></span></p>
+    <div id="winnerMessage" class="hidden text-center text-green-600 font-bold mb-4"></div>
+    <div class="cartela-grid">
+      <div class="cartela-header">B</div>
+      <div class="cartela-header">I</div>
+      <div class="cartela-header">N</div>
+      <div class="cartela-header">G</div>
+      <div class="cartela-header">O</div>
+      <% for (let row = 0; row < 5; row++) { %>
+        <% for (let col = 0; col < 5; col++) { %>
+          <div class="cartela-cell <%= cartela.numbers[col][row] === 0 ? 'free' : '' %> <%= cartela.markedNumbers.includes(cartela.numbers[col][row]) ? 'marked' : '' %>" data-row="<%= row %>" data-col="<%= col %>">
+            <%= cartela.numbers[col][row] === 0 ? 'Free' : cartela.numbers[col][row] %>
+          </div>
+        <% } %>
+      <% } %>
+    </div>
+  </div>
+  <script>
+    const cartelaId = '<%= cartela.cartelaId %>';
+    const ws = new WebSocket('wss://' + window.location.host);
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'update') {
+        updateCartela(data.game, data.winners);
+      }
+    };
+
+    function updateCartela(game, winners) {
+      const cells = document.querySelectorAll('.cartela-cell');
+      cells.forEach(cell => {
+        const row = parseInt(cell.dataset.row);
+        const col = parseInt(cell.dataset.col);
+        const num = parseInt(cell.textContent) || 0;
+        if (num !== 0 && game.drawnNumbers.includes(num)) {
+          cell.classList.add('marked');
+        }
+      });
+      if (winners && winners.includes(cartelaId)) {
+        document.getElementById('winnerMessage').classList.remove('hidden');
+        document.getElementById('winnerMessage').textContent = 'Parabéns! Sua cartela venceu!';
+      }
+    }
+
+    // Carregar estado inicial
+    fetch('/game').then(res => res.json()).then(game => {
+      updateCartela(game, []);
+    });
+  </script>
+</body>
+</html>
