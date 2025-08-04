@@ -151,16 +151,23 @@
     });
 
     document.getElementById('generateCartelaButton').addEventListener('click', async () => {
-      const playerName = document.getElementById('playerName').value || 'Anônimo';
+      const playerName = document.getElementById('playerName').value;
       const quantity = document.getElementById('quantity').value;
+      if (!playerName) {
+        alert('Por favor, insira o nome do jogador');
+        return;
+      }
       const response = await fetch('/generate-cartela', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playerName, quantity })
       });
       const data = await response.json();
-      const links = data.cartelaIds.map(id => `${window.location.origin}/cartela?cartelaId=${id}`);
-      alert(`Cartela(s) gerada(s)!\nLinks:\n${links.join('\n')}`);
+      if (data.error) {
+        alert(data.error);
+        return;
+      }
+      alert(`Cartela(s) gerada(s)!\nLink: ${window.location.origin}/cartelas?playerName=${encodeURIComponent(data.playerName)}`);
     });
 
     document.getElementById('updateStartMessageButton').addEventListener('click', async () => {
