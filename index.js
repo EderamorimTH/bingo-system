@@ -33,6 +33,16 @@ const gameSchema = new mongoose.Schema({
 });
 const Game = mongoose.model('Game', gameSchema);
 
+// Schema da cartela
+const cartelaSchema = new mongoose.Schema({
+  cartelaId: String,
+  numbers: [[Number]], // Matriz 5x5
+  playerName: String,
+  markedNumbers: [Number],
+  createdAt: Date
+});
+const Cartela = mongoose.model('Cartela', cartelaSchema);
+
 // Conexão com MongoDB e inicialização automática
 mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(async () => {
@@ -51,6 +61,33 @@ function isAuthenticated(req, res, next) {
     return next();
   }
   res.redirect('/login');
+}
+
+// Função para gerar números da cartela
+function generateCartelaNumbers() {
+  const numbers = [];
+  const ranges = [
+    { min: 1, max: 15 }, // B
+    { min: 16, max: 30 }, // I
+    { min: 31, max: 45 }, // N
+    { min: 46, max: 60 }, // G
+    { min: 61, max: 75 } // O
+  ];
+  for (let col = 0; col < 5; col++) {
+    const column = [];
+    const { min, max } = ranges[col];
+    const available = Array.from({ length: max - min + 1 }, (_, i) => min + i);
+    for (let row = 0; row < 5; row++) {
+      if (col === 2 && row === 2) {
+        column.push(0); // Espaço livre
+        continue;
+      }
+      const index = Math.floor(Math.random() * available.length);
+      column.push(available.splice(index, 1)[0]);
+    }
+    numbers.push(column);
+  }
+  return numbers;
 }
 
 // Rota para a raiz (redireciona para /display)
@@ -84,6 +121,31 @@ app.get('/display', (req, res) => {
   res.render('display');
 });
 
+app.get('/cartela', async (req, res) => {
+  const { cartelaId } = req.query;
+  const cartela = await Cartela.findOne({ cartelaId });
+  if (!cartela) {
+    return res.status(404).send('Cartela não encontrada');
+  }
+  res.render('cartela', { cartela });
+});
+
+// Rota para gerar cartela
+app.post('/generate-cartela', isAuthenticated, async (req, res) => {
+  const { playerName } = req.body;
+  const cartelaId = Math.random().toString(36).substr(2, 9);
+  const numbers = generateCartelaNumbers();
+  const cartela = new Cartela({
+    cartelaId,
+    numbers,
+    playerName: playerName || 'Anônimo',
+    markedNumbers: [],
+    createdAt: new Date()
+  });
+  await cartela.save();
+  res.json({ cartelaId });
+});
+
 // Função para sortear número
 async function drawNumber() {
   const game = await Game.findOne() || new Game({ drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' });
@@ -94,20 +156,53 @@ async function drawNumber() {
   game.drawnNumbers.push(newNumber);
   game.lastNumber = newNumber;
   await game.save();
-  return newNumber;
+  
+  // Marcar número nas cartelas e verificar vitórias
+  const cartelas = await Cartela.find();
+  const winners = [];
+  for (const cartela of cartelas) {
+    if (cartela.numbers.flat().includes(newNumber)) {
+      cartela.markedNumbers.push(newNumber);
+      if (checkWin(cartela)) {
+        winners.push(cartela.cartelaId);
+      }
+      await cartela.save();
+    }
+  }
+  
+  return { newNumber, winners };
+}
+
+// Função para verificar vitória (linha horizontal)
+function checkWin(cartela) {
+  const marked = cartela.markedNumbers;
+  for (let row = 0; row < 5; row++) {
+    let markedInRow = 0;
+    for (let col = 0; col < 5; col++) {
+      const num = cartela.numbers[col][row];
+      if (num === 0 || marked.includes(num)) {
+        markedInRow++;
+      }
+    }
+    if (markedInRow === 5) {
+      return true;
+    }
+  }
+  return false;
 }
 
 // Endpoint para sortear número
 app.post('/draw', isAuthenticated, async (req, res) => {
-  const newNumber = await drawNumber();
-  if (newNumber) {
+  const result = await drawNumber();
+  if (result.newNumber) {
     const game = await Game.findOne();
+    const { newNumber, winners } = result;
     wss.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({ type: 'update', game }));
+        client.send(JSON.stringify({ type: 'update', game, winners }));
       }
     });
-    res.json({ number: newNumber });
+    res.json({ number: newNumber, winners });
   } else {
     res.status(400).json({ error: 'Não há mais números para sortear' });
   }
@@ -121,7 +216,7 @@ app.post('/update-prize', isAuthenticated, async (req, res) => {
   await game.save();
   wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify({ type: 'update', game }));
+      client.send(JSON.stringify({ type: 'update', game, winners: [] }));
     }
   });
   res.json({ success: true });
@@ -135,7 +230,7 @@ app.post('/update-info', isAuthenticated, async (req, res) => {
   await game.save();
   wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify({ type: 'update', game }));
+      client.send(JSON.stringify({ type: 'update', game, winners: [] }));
     }
   });
   res.json({ success: true });
@@ -149,7 +244,7 @@ app.post('/update-start-message', isAuthenticated, async (req, res) => {
   await game.save();
   wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify({ type: 'update', game }));
+      client.send(JSON.stringify({ type: 'update', game, winners: [] }));
     }
   });
   res.json({ success: true });
@@ -164,7 +259,9 @@ app.get('/game', async (req, res) => {
 // WebSocket
 wss.on('connection', ws => {
   Game.findOne().then(game => {
-    ws.send(JSON.stringify({ type: 'update', game: game || { drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' } }));
+    Cartela.find().then(cartelas => {
+      ws.send(JSON.stringify({ type: 'update', game: game || { drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' }, winners: [] }));
+    });
   });
 });
 
