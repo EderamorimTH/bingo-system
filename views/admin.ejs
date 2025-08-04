@@ -51,7 +51,7 @@
       <form id="updatePrizeForm" class="space-y-4">
         <div>
           <label for="currentPrize" class="block text-sm font-medium text-gray-700">Prêmio Atual</label>
-          <input type="text" id="currentPrize" name="currentPrize" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
+          <input type="text" id="currentPrize" name="currentPrize" value="<%= game.currentPrize || '' %>" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
         </div>
         <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Atualizar Prêmio</button>
       </form>
@@ -63,7 +63,7 @@
       <form id="updateInfoForm" class="space-y-4">
         <div>
           <label for="additionalInfo" class="block text-sm font-medium text-gray-700">Informações Adicionais</label>
-          <input type="text" id="additionalInfo" name="additionalInfo" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
+          <input type="text" id="additionalInfo" name="additionalInfo" value="<%= game.additionalInfo || '' %>" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
         </div>
         <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Atualizar Informações</button>
       </form>
@@ -75,7 +75,7 @@
       <form id="updateStartMessageForm" class="space-y-4">
         <div>
           <label for="startMessage" class="block text-sm font-medium text-gray-700">Mensagem Inicial</label>
-          <input type="text" id="startMessage" name="startMessage" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
+          <input type="text" id="startMessage" name="startMessage" value="<%= game.startMessage || 'Em Breve o Bingo Irá Começar' %>" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
         </div>
         <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Atualizar Mensagem</button>
       </form>
@@ -101,8 +101,23 @@
           <strong>O (61-75):</strong> <span id="drawnO">--</span>
         </div>
       </div>
-      <div class="mt-4">
-        <button id="drawNumber" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Sortear Número</button>
+      <div class="mt-4 space-y-4">
+        <!-- Sorteio Automático -->
+        <div>
+          <button id="drawNumber" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Sortear Número (Automático)</button>
+        </div>
+        <!-- Marcação Manual -->
+        <form id="markNumberForm" class="space-y-4">
+          <div>
+            <label for="manualNumber" class="block text-sm font-medium text-gray-700">Marcar Número Manual (1-75)</label>
+            <input type="number" id="manualNumber" name="number" min="1" max="75" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+          </div>
+          <div>
+            <label for="manualPassword" class="block text-sm font-medium text-gray-700">Senha</label>
+            <input type="password" id="manualPassword" name="password" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+          </div>
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Marcar Número (Manual)</button>
+        </form>
       </div>
     </div>
 
@@ -110,11 +125,26 @@
     <div class="highlight-box">
       <h2 class="text-xl font-semibold mb-2 text-gray-700">Ações</h2>
       <div class="flex space-x-4">
-        <form action="/reset" method="POST">
-          <button type="submit" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Reiniciar o Bingo</button>
-        </form>
+        <button id="resetBingo" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Reiniciar o Bingo</button>
         <button id="deleteAllCartelas" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Excluir Todas as Cartelas</button>
         <button id="deleteByPhone" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Excluir por Número de Telefone</button>
+      </div>
+    </div>
+
+    <!-- Modal para Reiniciar o Bingo -->
+    <div id="resetModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden">
+      <div class="bg-white p-6 rounded-lg shadow-lg">
+        <h2 class="text-xl font-semibold mb-4">Confirmar Reinicialização do Bingo</h2>
+        <form id="resetForm">
+          <div class="mb-4">
+            <label for="resetPassword" class="block text-sm font-medium text-gray-700">Senha</label>
+            <input type="password" id="resetPassword" name="password" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500">
+          </div>
+          <div class="flex justify-end space-x-4">
+            <button type="button" id="cancelReset" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">Cancelar</button>
+            <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Reiniciar</button>
+          </div>
+        </form>
       </div>
     </div>
 
@@ -223,14 +253,21 @@
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'update') {
-          formatDrawnNumbers(data.game.drawnNumbers);
+          formatDrawnNumbers(data.game.drawnNumbers || []);
+          fetchPlayers();
+          fetchWinners();
         }
       } catch (err) {
         console.error('Erro ao processar mensagem WebSocket em /admin:', err);
       }
     };
     ws.onerror = (err) => console.error('Erro no WebSocket em /admin:', err);
-    ws.onclose = () => console.log('WebSocket desconectado em /admin');
+    ws.onclose = () => {
+      console.log('WebSocket desconectado em /admin, tentando reconectar...');
+      setTimeout(() => {
+        window.location.reload();
+      }, 5000);
+    };
 
     // Gerar cartela
     document.getElementById('generateCartelaForm').addEventListener('submit', async (e) => {
@@ -323,7 +360,7 @@
       }
     });
 
-    // Sortear número
+    // Sortear número (automático)
     document.getElementById('drawNumber').addEventListener('click', async () => {
       try {
         const res = await fetch('/draw', {
@@ -340,6 +377,58 @@
         console.error('Erro ao sortear número:', err);
         alert('Erro ao sortear número');
       }
+    });
+
+    // Marcar número (manual)
+    document.getElementById('markNumberForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const number = document.getElementById('manualNumber').value;
+      const password = document.getElementById('manualPassword').value;
+      try {
+        const res = await fetch('/mark-number', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ number, password })
+        });
+        const data = await res.json();
+        if (data.error) {
+          alert(data.error);
+        } else {
+          fetchWinners();
+        }
+      } catch (err) {
+        console.error('Erro ao marcar número manualmente:', err);
+        alert('Erro ao marcar número');
+      }
+    });
+
+    // Reiniciar o bingo
+    document.getElementById('resetBingo').addEventListener('click', () => {
+      document.getElementById('resetModal').classList.remove('hidden');
+    });
+    document.getElementById('cancelReset').addEventListener('click', () => {
+      document.getElementById('resetModal').classList.add('hidden');
+    });
+    document.getElementById('resetForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const password = document.getElementById('resetPassword').value;
+      try {
+        const res = await fetch('/reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        const data = await res.json();
+        if (data.error) {
+          alert(data.error);
+        } else {
+          window.location.href = '/admin';
+        }
+      } catch (err) {
+        console.error('Erro ao reiniciar o bingo:', err);
+        alert('Erro ao reiniciar o bingo');
+      }
+      document.getElementById('resetModal').classList.add('hidden');
     });
 
     // Excluir todas as cartelas
