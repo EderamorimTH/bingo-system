@@ -46,7 +46,7 @@
       <p id="lastNumber" class="text-4xl font-bold text-center text-gray-800">--</p>
     </div>
     <div class="highlight-box">
-      <h2 class="text-2xl font-semibold text-center text-gray-700">Números Sorteados</h2>
+      <h2 class="text-2xl font-semibold text-center text-gray-700">Últimos 5 Números Sorteados</h2>
       <p id="drawnNumbers" class="text-xl text-center text-gray-800">--</p>
     </div>
   </div>
@@ -54,14 +54,14 @@
     const ws = new WebSocket('wss://' + window.location.host);
     ws.onopen = () => console.log('WebSocket conectado em /display');
     ws.onmessage = (event) => {
-      console.log('Mensagem WebSocket recebida:', event.data);
+      console.log('Mensagem WebSocket recebida em /display:', event.data);
       const data = JSON.parse(event.data);
       if (data.type === 'update') {
         updateUI(data.game, data.winners || []);
       }
     };
-    ws.onerror = (err) => console.error('Erro no WebSocket:', err);
-    ws.onclose = () => console.log('WebSocket desconectado');
+    ws.onerror = (err) => console.error('Erro no WebSocket em /display:', err);
+    ws.onclose = () => console.log('WebSocket desconectado em /display');
 
     function updateUI(game, winners) {
       document.getElementById('startMessage').classList.toggle('hidden', game.drawnNumbers.length > 0);
@@ -69,7 +69,8 @@
       document.getElementById('currentPrize').textContent = game.currentPrize || '--';
       document.getElementById('additionalInfo').textContent = game.additionalInfo || '--';
       document.getElementById('lastNumber').textContent = game.lastNumber ? getLetterNumber(game.lastNumber) : '--';
-      document.getElementById('drawnNumbers').textContent = game.drawnNumbers.length > 0 ? game.drawnNumbers.map(num => getLetterNumber(num)).join(', ') : '--';
+      const lastFive = game.drawnNumbers.slice(-5);
+      document.getElementById('drawnNumbers').textContent = lastFive.length > 0 ? lastFive.map(num => getLetterNumber(num)).join(', ') : '--';
     }
 
     function getLetterNumber(number) {
@@ -83,9 +84,9 @@
 
     // Carregar estado inicial
     fetch('/game').then(res => res.json()).then(game => {
-      console.log('Estado inicial do jogo:', game);
+      console.log('Estado inicial do jogo em /display:', game);
       updateUI(game, []);
-    }).catch(err => console.error('Erro ao carregar estado inicial:', err));
+    }).catch(err => console.error('Erro ao carregar estado inicial em /display:', err));
   </script>
 </body>
 </html>
