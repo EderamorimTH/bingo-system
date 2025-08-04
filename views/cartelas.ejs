@@ -7,40 +7,84 @@
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
   <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+  <style>
+    body {
+      background: linear-gradient(135deg, #34d399, #3b82f6);
+      font-family: 'Arial', sans-serif;
+    }
+    .cartela-container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .cartela-table {
+      border-collapse: separate;
+      border-spacing: 0;
+      width: 100%;
+    }
+    .cartela-table th {
+      background: #10b981;
+      color: white;
+      padding: 0.75rem;
+      font-size: 1.25rem;
+    }
+    .cartela-table td {
+      background: #f3f4f6;
+      border: 2px solid #e5e7eb;
+      padding: 0.75rem;
+      font-size: 1.1rem;
+      font-weight: bold;
+      transition: background 0.3s;
+    }
+    .cartela-table td.marked {
+      background: #facc15;
+      color: #1f2937;
+    }
+    .cartela-table td.free {
+      background: #60a5fa;
+      color: white;
+    }
+    .highlight-box {
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+  </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
-  <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-4xl">
-    <h1 class="text-3xl font-bold text-center mb-6 text-green-600"><%= playerName %></h1>
-    <div id="startMessage" class="text-xl font-semibold text-center mb-4 animate-pulse <%= game.drawnNumbers.length > 0 ? 'hidden' : '' %>">
-      <%= game.startMessage || 'Em Breve o Bingo Irá Começar' %>
+<body class="flex items-center justify-center min-h-screen">
+  <div class="w-full max-w-4xl p-6">
+    <h1 class="text-4xl font-bold text-center mb-6 text-white drop-shadow-lg"><%= playerName %></h1>
+    <div class="highlight-box">
+      <h2 class="text-2xl font-semibold text-center text-green-600">Prêmio Atual</h2>
+      <p id="currentPrize" class="text-3xl font-bold text-center text-green-700 pulse">--</p>
     </div>
-    <div class="mb-4">
-      <h2 class="text-xl font-semibold text-center">Prêmio Atual</h2>
-      <p id="currentPrize" class="text-lg text-center"><%= game.currentPrize || '--' %></p>
-    </div>
-    <div class="mb-4">
-      <h2 class="text-xl font-semibold text-center">Informações Adicionais</h2>
-      <p id="additionalInfo" class="text-lg text-center"><%= game.additionalInfo || '--' %></p>
+    <div class="highlight-box">
+      <h2 class="text-2xl font-semibold text-center text-blue-600">Informações Adicionais</h2>
+      <p id="additionalInfo" class="text-xl text-center text-blue-700">--</p>
     </div>
     <% cartelas.forEach((cartela, index) => { %>
-      <div class="mb-8">
-        <h2 class="text-xl font-semibold mb-2">Cartela <%= index + 1 %> (ID: <%= cartela.cartelaId %>)</h2>
-        <div id="winnerMessage-<%= cartela.cartelaId %>" class="text-xl font-bold text-green-600 text-center hidden">Parabéns! Esta cartela venceu!</div>
-        <table class="w-full border-collapse">
+      <div class="cartela-container">
+        <h2 class="text-xl font-semibold mb-2 text-gray-700">Cartela <%= index + 1 %> (ID: <%= cartela.cartelaId %>)</h2>
+        <div id="winnerMessage-<%= cartela.cartelaId %>" class="text-2xl font-bold text-center text-green-600 hidden mb-4">Parabéns! Esta cartela venceu!</div>
+        <table class="cartela-table">
           <thead>
-            <tr class="bg-gray-200">
-              <th class="border p-2">B</th>
-              <th class="border p-2">I</th>
-              <th class="border p-2">N</th>
-              <th class="border p-2">G</th>
-              <th class="border p-2">O</th>
+            <tr>
+              <th>B</th>
+              <th>I</th>
+              <th>N</th>
+              <th>G</th>
+              <th>O</th>
             </tr>
           </thead>
           <tbody>
             <% for (let row = 0; row < 5; row++) { %>
               <tr>
                 <% for (let col = 0; col < 5; col++) { %>
-                  <td class="border p-2 text-center <%= cartela.markedNumbers.includes(cartela.numbers[col][row]) ? 'bg-yellow-300' : '' %>">
+                  <td class="<%= cartela.markedNumbers.includes(cartela.numbers[col][row]) ? 'marked' : cartela.numbers[col][row] === 0 ? 'free' : '' %> text-center">
                     <%= cartela.numbers[col][row] === 0 ? 'X' : cartela.numbers[col][row] %>
                   </td>
                 <% } %>
@@ -53,16 +97,18 @@
   </div>
   <script>
     const ws = new WebSocket('wss://' + window.location.host);
+    ws.onopen = () => console.log('WebSocket conectado em /cartelas');
     ws.onmessage = (event) => {
+      console.log('Mensagem WebSocket recebida:', event.data);
       const data = JSON.parse(event.data);
       if (data.type === 'update') {
         updateUI(data.game, data.winners || []);
       }
     };
+    ws.onerror = (err) => console.error('Erro no WebSocket:', err);
+    ws.onclose = () => console.log('WebSocket desconectado');
 
     function updateUI(game, winners) {
-      document.getElementById('startMessage').classList.toggle('hidden', game.drawnNumbers.length > 0);
-      document.getElementById('startMessage').textContent = game.startMessage || 'Em Breve o Bingo Irá Começar';
       document.getElementById('currentPrize').textContent = game.currentPrize || '--';
       document.getElementById('additionalInfo').textContent = game.additionalInfo || '--';
       <% cartelas.forEach(cartela => { %>
@@ -77,10 +123,10 @@
           for (let col = 0; col < 5; col++) {
             const num = <%= JSON.stringify(cartela.numbers) %>[col][row];
             const cell = table.rows[row + 1].cells[col];
-            if (game.drawnNumbers.includes(num)) {
-              cell.classList.add('bg-yellow-300');
-            } else {
-              cell.classList.remove('bg-yellow-300');
+            if (num !== 0 && game.drawnNumbers.includes(num)) {
+              cell.classList.add('marked');
+            } else if (num !== 0) {
+              cell.classList.remove('marked');
             }
           }
         }
@@ -88,7 +134,10 @@
     }
 
     // Carregar estado inicial
-    fetch('/game').then(res => res.json()).then(game => updateUI(game, []));
+    fetch('/game').then(res => res.json()).then(game => {
+      console.log('Estado inicial do jogo:', game);
+      updateUI(game, []);
+    }).catch(err => console.error('Erro ao carregar estado inicial:', err));
   </script>
 </body>
 </html>
