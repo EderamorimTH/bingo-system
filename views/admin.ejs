@@ -15,6 +15,15 @@
       <button id="drawButton" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full">Sortear Número</button>
     </div>
     <div class="mb-4">
+      <label for="playerName" class="block text-sm font-medium text-gray-700">Nome do Jogador:</label>
+      <input type="text" id="playerName" class="mt-1 p-2 border rounded w-full" placeholder="Ex.: João">
+      <button id="generateCartelaButton" class="mt-2 bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 w-full">Gerar Cartela</button>
+    </div>
+    <div class="mb-4">
+      <h2 class="text-xl font-semibold">Cartelas Vencedoras</h2>
+      <div id="winners" class="mt-2 text-center"></div>
+    </div>
+    <div class="mb-4">
       <label for="startMessage" class="block text-sm font-medium text-gray-700">Mensagem Inicial:</label>
       <input type="text" id="startMessage" class="mt-1 p-2 border rounded w-full" placeholder="Ex.: Em Breve o Bingo Irá Começar">
       <button id="updateStartMessageButton" class="mt-2 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 w-full">Atualizar Mensagem Inicial</button>
@@ -73,11 +82,11 @@
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.type === 'update') {
-        updateUI(data.game);
+        updateUI(data.game, data.winners || []);
       }
     };
 
-    function updateUI(game) {
+    function updateUI(game, winners) {
       document.getElementById('lastNumber').textContent = game.lastNumber ? `${getBingoLetter(game.lastNumber)}-${game.lastNumber}` : '--';
       const bNumbersDiv = document.getElementById('bNumbers');
       const iNumbersDiv = document.getElementById('iNumbers');
@@ -127,6 +136,8 @@
       document.getElementById('startMessage').value = game.startMessage || 'Em Breve o Bingo Irá Começar';
       document.getElementById('currentPrize').value = game.currentPrize || '';
       document.getElementById('additionalInfo').value = game.additionalInfo || '';
+      const winnersDiv = document.getElementById('winners');
+      winnersDiv.innerHTML = winners.length > 0 ? `Cartelas Vencedoras: ${winners.join(', ')}` : 'Nenhuma cartela venceu ainda';
     }
 
     document.getElementById('drawButton').addEventListener('click', async () => {
@@ -135,6 +146,17 @@
       if (data.error) {
         alert(data.error);
       }
+    });
+
+    document.getElementById('generateCartelaButton').addEventListener('click', async () => {
+      const playerName = document.getElementById('playerName').value || 'Anônimo';
+      const response = await fetch('/generate-cartela', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerName })
+      });
+      const data = await response.json();
+      alert(`Cartela gerada! Link: ${window.location.origin}/cartela?cartelaId=${data.cartelaId}`);
     });
 
     document.getElementById('updateStartMessageButton').addEventListener('click', async () => {
@@ -165,7 +187,7 @@
     });
 
     // Carregar estado inicial
-    fetch('/game').then(res => res.json()).then(updateUI);
+    fetch('/game').then(res => res.json()).then(game => updateUI(game, []));
   </script>
 </body>
 </html>
