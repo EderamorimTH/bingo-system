@@ -269,7 +269,7 @@
         if (data.error) {
           alert(data.error);
         } else {
-          alert(`Cartela(s) gerada(s) com sucesso! Link: ${data.link}`);
+          alert(`Cartela(s) gerada(s) com sucesso!\nID(s): ${data.cartelaIds.join(', ')}\nLink: ${data.link}`);
         }
         fetchPlayers();
       } catch (err) {
