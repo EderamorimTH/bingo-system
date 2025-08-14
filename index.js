@@ -21,7 +21,24 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-mongoose.set('strictQuery', true);
+// Redirecionar /CARTELA-XXX para /cartelas?cartelaId=CARTELA-XXX
+app.get('/:cartelaId', async (req, res) => {
+  const { cartelaId } = req.params;
+  if (cartelaId.startsWith('CARTELA-')) {
+    try {
+      const cartela = await Cartela.findOne({ cartelaId });
+      if (!cartela) {
+        return res.status(404).render('cartelas', { error: `Cartela ${cartelaId} não encontrada. Verifique o ID ou registre em /registro.`, cartelas: [], playerName: '', game: {} });
+      }
+      return res.redirect(`/cartelas?cartelaId=${cartelaId}`);
+    } catch (err) {
+      console.error('Erro ao redirecionar cartela:', err);
+      res.status(500).render('cartelas', { error: 'Erro interno do servidor.', cartelas: [], playerName: '', game: {} });
+    }
+  } else {
+    res.status(404).send('Cannot GET /' + cartelaId);
+  }
+});
 
 // Schemas
 const gameSchema = new mongoose.Schema({
@@ -61,6 +78,7 @@ const winnerSchema = new mongoose.Schema({
 const Winner = mongoose.model('Winner', winnerSchema);
 
 // Conexão MongoDB
+mongoose.set('strictQuery', true);
 mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(async () => {
     console.log('Conectado ao MongoDB');
@@ -164,8 +182,8 @@ async function generateCartelaImage(cartelaId, numbers) {
   ctx.font = '12px Arial';
   ctx.textAlign = 'left';
   ctx.fillText('Escaneie para acessar sua cartela online:', 50, 530);
-  ctx.fillText(`Vendida para: ________________`, 50, 670);
-  ctx.fillText(`Telefone: ________________`, 50, 690);
+  ctx.fillText('Vendida para: ________________', 50, 670);
+  ctx.fillText('Telefone: ________________', 50, 690);
 
   return canvas.toBuffer('image/png');
 }
@@ -289,7 +307,7 @@ app.post('/generate-cartela', isAuthenticated, async (req, res) => {
   const cartelaIds = [];
   try {
     for (let i = 0; i < qty; i++) {
-      const cartelaId = `CARTELA-${Math.random().toString(36).substr(2, 6).toUpperCase()}`; // ID mais legível
+      const cartelaId = `CARTELA-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
       const numbers = generateCartelaNumbers();
       const cartela = new Cartela({
         cartelaId,
@@ -327,29 +345,53 @@ app.post('/generate-print-cartelas', isAuthenticated, async (req, res) => {
   const qty = parseInt(quantity) || 500;
   const zip = new AdmZip();
   const cartelaIds = [];
+  const batchSize = 100; // Processar em lotes de 100
+
   try {
-    for (let i = 1; i <= qty; i++) {
-      const cartelaId = `CARTELA-${String(i).padStart(3, '0')}`;
-      const numbers = generateCartelaNumbers();
-      const cartela = new Cartela({
-        cartelaId,
-        numbers,
-        markedNumbers: [],
-        createdAt: new Date(),
-        isRegistered: false
-      });
-      await cartela.save();
-      cartelaIds.push(cartelaId);
-      const imageBuffer = await generateCartelaImage(cartelaId, numbers);
-      zip.addFile(`cartela-${cartelaId}.png`, imageBuffer);
+    for (let batch = 0; batch < Math.ceil(qty / batchSize); batch++) {
+      const currentBatchSize = Math.min(batchSize, qty - batch * batchSize);
+      const batchCartelas = [];
+      
+      // Gerar cartelas em lote
+      for (let i = 1; i <= currentBatchSize; i++) {
+        const index = batch * batchSize + i;
+        const cartelaId = `CARTELA-${String(index).padStart(3, '0')}`;
+        const numbers = generateCartelaNumbers();
+        batchCartelas.push({
+          cartelaId,
+          numbers,
+          markedNumbers: [],
+          createdAt: new Date(),
+          isRegistered: false
+        });
+        cartelaIds.push(cartelaId);
+      }
+
+      // Salvar cartelas no MongoDB
+      await Cartela.insertMany(batchCartelas);
+      console.log(`Lote ${batch + 1}: ${currentBatchSize} cartelas salvas`);
+
+      // Gerar imagens para o lote
+      for (const cartela of batchCartelas) {
+        try {
+          const imageBuffer = await generateCartelaImage(cartela.cartelaId, cartela.numbers);
+          zip.addFile(`cartela-${cartela.cartelaId}.png`, imageBuffer);
+        } catch (imageErr) {
+          console.error(`Erro ao gerar imagem para ${cartela.cartelaId}:`, imageErr);
+          throw new Error(`Erro ao gerar imagem para ${cartela.cartelaId}`);
+        }
+      }
     }
+
+    // Gerar e enviar ZIP
     const zipBuffer = zip.toBuffer();
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', 'attachment; filename=cartelas_bingo.zip');
     res.send(zipBuffer);
+    console.log(`ZIP com ${qty} cartelas gerado com sucesso`);
   } catch (err) {
     console.error('Erro ao gerar cartelas para impressão:', err);
-    res.status(500).json({ error: 'Erro ao gerar cartelas' });
+    res.status(500).json({ error: `Erro ao gerar cartelas: ${err.message}` });
   }
 });
 
@@ -612,5 +654,5 @@ wss.on('connection', ws => {
   ws.on('close', () => console.log('Cliente WebSocket desconectado'));
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
