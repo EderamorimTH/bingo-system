@@ -1,17 +1,19 @@
 {
   "name": "bingo-system",
   "version": "1.0.0",
-  "description": "Sistema de bingo online",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "cookie-parser": "^1.4.6",
-    "dotenv": "^10.0.0",
-    "ejs": "^3.1.6",
     "express": "^4.17.1",
-    "mongoose": "^6.0.12",
-    "ws": "^8.2.3"
+    "ws": "^8.8.1",
+    "mongoose": "^6.5.2",
+    "ejs": "^3.1.8",
+    "cookie-parser": "^1.4.6",
+    "dotenv": "^16.0.2",
+    "canvas": "^2.10.2",
+    "qrcode": "^1.5.1",
+    "adm-zip": "^0.5.9"
   }
 }
