@@ -6,28 +6,18 @@
   <title>Painel de Administração - Bingo</title>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
-  <link rel="icon" href="data:;base64,iVBORw0KGgo=">
   <style>
-    body {
-      background: linear-gradient(135deg, #34d399, #3b82f6);
-      font-family: 'Arial', sans-serif;
-    }
-    .highlight-box {
-      background: rgba(255, 255, 255, 0.9);
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
-    }
+    body { background: linear-gradient(135deg, #34d399, #3b82f6); font-family: Arial, sans-serif; }
+    .highlight-box { background: rgba(255, 255, 255, 0.9); border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); padding: 1.5rem; margin-bottom: 1.5rem; }
   </style>
 </head>
 <body class="flex items-center justify-center min-h-screen">
   <div class="w-full max-w-4xl p-6">
     <h1 class="text-4xl font-bold text-center mb-6 text-white drop-shadow-lg">Painel de Administração</h1>
-    
-    <!-- Gerar Cartela -->
+
+    <!-- Gerar Cartela Online -->
     <div class="highlight-box">
-      <h2 class="text-xl font-semibold mb-2 text-gray-700">Gerar Cartela</h2>
+      <h2 class="text-xl font-semibold mb-2 text-gray-700">Gerar Cartela Online</h2>
       <form id="generateCartelaForm" class="space-y-4">
         <div>
           <label for="playerName" class="block text-sm font-medium text-gray-700">Nome do Jogador</label>
@@ -42,6 +32,18 @@
           <input type="number" id="quantity" name="quantity" min="1" value="1" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
         </div>
         <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Gerar Cartela(s)</button>
+      </form>
+    </div>
+
+    <!-- Gerar Cartelas para Impressão -->
+    <div class="highlight-box">
+      <h2 class="text-xl font-semibold mb-2 text-gray-700">Gerar Cartelas para Impressão</h2>
+      <form id="generatePrintCartelasForm" class="space-y-4">
+        <div>
+          <label for="printQuantity" class="block text-sm font-medium text-gray-700">Quantidade de Cartelas</label>
+          <input type="number" id="printQuantity" name="quantity" min="1" value="500" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
+        </div>
+        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Gerar Cartelas com QR Code (Imagens)</button>
       </form>
     </div>
 
@@ -85,28 +87,16 @@
     <div class="highlight-box">
       <h2 class="text-xl font-semibold mb-2 text-gray-700">Números Sorteados</h2>
       <div id="drawnNumbers" class="space-y-2">
-        <div>
-          <strong>B (1-15):</strong> <span id="drawnB">--</span>
-        </div>
-        <div>
-          <strong>I (16-30):</strong> <span id="drawnI">--</span>
-        </div>
-        <div>
-          <strong>N (31-45):</strong> <span id="drawnN">--</span>
-        </div>
-        <div>
-          <strong>G (46-60):</strong> <span id="drawnG">--</span>
-        </div>
-        <div>
-          <strong>O (61-75):</strong> <span id="drawnO">--</span>
-        </div>
+        <div><strong>B (1-15):</strong> <span id="drawnB">--</span></div>
+        <div><strong>I (16-30):</strong> <span id="drawnI">--</span></div>
+        <div><strong>N (31-45):</strong> <span id="drawnN">--</span></div>
+        <div><strong>G (46-60):</strong> <span id="drawnG">--</span></div>
+        <div><strong>O (61-75):</strong> <span id="drawnO">--</span></div>
       </div>
       <div class="mt-4 space-y-4">
-        <!-- Sorteio Automático -->
         <div>
           <button id="drawNumber" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Sortear Número (Automático)</button>
         </div>
-        <!-- Marcação Manual -->
         <form id="markNumberForm" class="space-y-4">
           <div>
             <label for="manualNumber" class="block text-sm font-medium text-gray-700">Marcar Número Manual (1-75)</label>
@@ -219,7 +209,6 @@
   </div>
 
   <script>
-    // Função para formatar números sorteados por letras
     function formatDrawnNumbers(numbers) {
       const ranges = {
         B: { min: 1, max: 15, numbers: [] },
@@ -242,10 +231,8 @@
       document.getElementById('drawnO').textContent = ranges.O.numbers.length > 0 ? ranges.O.numbers.join(', ') : '--';
     }
 
-    // Carregar números sorteados iniciais
     formatDrawnNumbers(<%- JSON.stringify(game.drawnNumbers) %>);
 
-    // WebSocket para atualizar números sorteados
     const ws = new WebSocket('wss://' + window.location.host);
     ws.onopen = () => console.log('WebSocket conectado em /admin');
     ws.onmessage = (event) => {
@@ -264,12 +251,9 @@
     ws.onerror = (err) => console.error('Erro no WebSocket em /admin:', err);
     ws.onclose = () => {
       console.log('WebSocket desconectado em /admin, tentando reconectar...');
-      setTimeout(() => {
-        window.location.reload();
-      }, 5000);
+      setTimeout(() => window.location.reload(), 5000);
     };
 
-    // Gerar cartela
     document.getElementById('generateCartelaForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const playerName = document.getElementById('playerName').value;
@@ -294,7 +278,33 @@
       }
     });
 
-    // Atualizar prêmio
+    document.getElementById('generatePrintCartelasForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const quantity = document.getElementById('printQuantity').value;
+      try {
+        const res = await fetch('/generate-print-cartelas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ quantity })
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Erro ao gerar cartelas');
+        }
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'cartelas_bingo.zip';
+        a.click();
+        window.URL.revokeObjectURL(url);
+        alert('Cartelas geradas com sucesso! O download do ZIP começará em breve.');
+      } catch (err) {
+        console.error('Erro ao gerar cartelas para impressão:', err);
+        alert('Erro ao gerar cartelas para impressão');
+      }
+    });
+
     document.getElementById('updatePrizeForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const currentPrize = document.getElementById('currentPrize').value;
@@ -316,7 +326,6 @@
       }
     });
 
-    // Atualizar informações adicionais
     document.getElementById('updateInfoForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const additionalInfo = document.getElementById('additionalInfo').value;
@@ -338,7 +347,6 @@
       }
     });
 
-    // Atualizar mensagem inicial
     document.getElementById('updateStartMessageForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const startMessage = document.getElementById('startMessage').value;
@@ -360,7 +368,6 @@
       }
     });
 
-    // Sortear número (automático)
     document.getElementById('drawNumber').addEventListener('click', async () => {
       try {
         const res = await fetch('/draw', {
@@ -379,7 +386,6 @@
       }
     });
 
-    // Marcar número (manual)
     document.getElementById('markNumberForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const number = document.getElementById('manualNumber').value;
@@ -402,7 +408,6 @@
       }
     });
 
-    // Reiniciar o bingo
     document.getElementById('resetBingo').addEventListener('click', () => {
       document.getElementById('resetModal').classList.remove('hidden');
     });
@@ -431,7 +436,6 @@
       document.getElementById('resetModal').classList.add('hidden');
     });
 
-    // Excluir todas as cartelas
     document.getElementById('deleteAllCartelas').addEventListener('click', () => {
       document.getElementById('deleteAllModal').classList.remove('hidden');
     });
@@ -462,7 +466,6 @@
       document.getElementById('deleteAllModal').classList.add('hidden');
     });
 
-    // Excluir por número de telefone
     document.getElementById('deleteByPhone').addEventListener('click', () => {
       document.getElementById('deletePhoneModal').classList.remove('hidden');
     });
@@ -494,7 +497,6 @@
       document.getElementById('deletePhoneModal').classList.add('hidden');
     });
 
-    // Carregar jogadores
     async function fetchPlayers() {
       try {
         const res = await fetch('/players');
@@ -516,7 +518,6 @@
       }
     }
 
-    // Carregar vencedores
     async function fetchWinners() {
       try {
         const res = await fetch('/winners');
@@ -537,7 +538,6 @@
       }
     }
 
-    // Carregar dados iniciais
     fetchPlayers();
     fetchWinners();
   </script>
