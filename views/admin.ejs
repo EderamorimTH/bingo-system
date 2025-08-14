@@ -269,7 +269,8 @@
         if (data.error) {
           alert(data.error);
         } else {
-          alert(`Cartela(s) gerada(s) com sucesso!\nID(s): ${data.cartelaIds.join(', ')}\nLink: ${data.link}`);
+          const links = data.cartelaIds.map(id => `https://bingo-system.onrender.com/cartelas?cartelaId=${id}`);
+          alert(`Cartela(s) gerada(s) com sucesso!\nID(s): ${data.cartelaIds.join(', ')}\nLink(s):\n${links.join('\n')}`);
         }
         fetchPlayers();
       } catch (err) {
@@ -301,7 +302,7 @@
         alert('Cartelas geradas com sucesso! O download do ZIP começará em breve.');
       } catch (err) {
         console.error('Erro ao gerar cartelas para impressão:', err);
-        alert('Erro ao gerar cartelas para impressão');
+        alert(`Erro ao gerar cartelas para impressão: ${err.message}`);
       }
     });
 
