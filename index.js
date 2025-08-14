@@ -204,20 +204,20 @@ app.get('/cartelas', async (req, res) => {
   try {
     const { cartelaId } = req.query;
     if (!cartelaId) {
-      return res.redirect('/registro');
+      return res.status(400).render('cartelas', { error: 'Nenhum cartelaId fornecido. Acesse /registro para registrar uma cartela.', cartelas: [], playerName: '', game: {} });
     }
     const cartela = await Cartela.findOne({ cartelaId });
     if (!cartela) {
-      return res.status(404).send('Cartela não encontrada');
+      return res.status(404).render('cartelas', { error: `Cartela ${cartelaId} não encontrada. Verifique o ID ou registre em /registro.`, cartelas: [], playerName: '', game: {} });
     }
     if (!cartela.isRegistered) {
-      return res.redirect('/registro?cartelaId=' + cartelaId);
+      return res.redirect(`/registro?cartelaId=${cartelaId}`);
     }
     const game = await Game.findOne() || { drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' };
-    res.render('cartelas', { cartelas: [cartela], playerName: cartela.playerName, game });
+    res.render('cartelas', { cartelas: [cartela], playerName: cartela.playerName, game, error: null });
   } catch (err) {
     console.error('Erro na rota /cartelas:', err);
-    res.status(500).send(`Erro interno: ${err.message}`);
+    res.status(500).render('cartelas', { error: 'Erro interno do servidor. Tente novamente mais tarde.', cartelas: [], playerName: '', game: {} });
   }
 });
 
@@ -289,7 +289,7 @@ app.post('/generate-cartela', isAuthenticated, async (req, res) => {
   const cartelaIds = [];
   try {
     for (let i = 0; i < qty; i++) {
-      const cartelaId = Math.random().toString(36).substr(2, 9);
+      const cartelaId = `CARTELA-${Math.random().toString(36).substr(2, 6).toUpperCase()}`; // ID mais legível
       const numbers = generateCartelaNumbers();
       const cartela = new Cartela({
         cartelaId,
@@ -299,7 +299,7 @@ app.post('/generate-cartela', isAuthenticated, async (req, res) => {
         link: `https://bingo-system.onrender.com/cartelas?cartelaId=${cartelaId}`,
         markedNumbers: [],
         createdAt: new Date(),
-        isRegistered: true
+        isRegistered: true // Marcar como registrada automaticamente
       });
       await cartela.save();
       cartelaIds.push(cartelaId);
@@ -589,8 +589,13 @@ app.post('/update-start-message', isAuthenticated, async (req, res) => {
 });
 
 app.get('/game', async (req, res) => {
-  const game = await Game.findOne() || { drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' };
-  res.json(game);
+  try {
+    const game = await Game.findOne() || { drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' };
+    res.json(game);
+  } catch (err) {
+    console.error('Erro na rota /game:', err);
+    res.status(500).json({ error: 'Erro ao obter estado do jogo' });
+  }
 });
 
 wss.on('connection', ws => {
