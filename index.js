@@ -5,26 +5,25 @@ const mongoose = require('mongoose');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const fs = require('fs').promises;
+const { createCanvas } = require('canvas');
+const QRCode = require('qrcode');
+const AdmZip = require('adm-zip');
 require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-// Configurar EJS
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
-
-// Servir arquivos estáticos (CSS)
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Configurar Mongoose
 mongoose.set('strictQuery', true);
 
-// Schema do jogo
+// Schemas
 const gameSchema = new mongoose.Schema({
   drawnNumbers: [Number],
   lastNumber: Number,
@@ -34,17 +33,18 @@ const gameSchema = new mongoose.Schema({
 });
 const Game = mongoose.model('Game', gameSchema);
 
-// Schema da cartela
 const cartelaSchema = new mongoose.Schema({
   cartelaId: String,
-  numbers: [[Number]], // Matriz 5x5
+  numbers: [[Number]],
   playerName: String,
+  phoneNumber: String,
+  link: String,
   markedNumbers: [Number],
-  createdAt: Date
+  createdAt: Date,
+  isRegistered: { type: Boolean, default: false }
 });
 const Cartela = mongoose.model('Cartela', cartelaSchema);
 
-// Schema do jogador
 const playerSchema = new mongoose.Schema({
   playerName: String,
   phoneNumber: String,
@@ -53,7 +53,6 @@ const playerSchema = new mongoose.Schema({
 });
 const Player = mongoose.model('Player', playerSchema);
 
-// Schema do vencedor
 const winnerSchema = new mongoose.Schema({
   cartelaId: String,
   playerName: String,
@@ -61,7 +60,7 @@ const winnerSchema = new mongoose.Schema({
 });
 const Winner = mongoose.model('Winner', winnerSchema);
 
-// Conexão com MongoDB
+// Conexão MongoDB
 mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(async () => {
     console.log('Conectado ao MongoDB');
@@ -73,7 +72,7 @@ mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTop
   })
   .catch(err => console.error('Erro ao conectar ao MongoDB:', err));
 
-// Middleware para proteger rotas
+// Middleware de autenticação
 function isAuthenticated(req, res, next) {
   if (req.cookies.auth === 'true') {
     return next();
@@ -108,20 +107,80 @@ function generateCartelaNumbers() {
   return numbers;
 }
 
-// Rota para a raiz (redireciona para /display)
+// Função para gerar imagem PNG de uma cartela
+async function generateCartelaImage(cartelaId, numbers) {
+  const canvas = createCanvas(595, 842); // A4 em pixels a 72 DPI
+  const ctx = canvas.getContext('2d');
+
+  // Fundo gradiente
+  const gradient = ctx.createLinearGradient(0, 0, 595, 842);
+  gradient.addColorStop(0, '#34d399');
+  gradient.addColorStop(1, '#3b82f6');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 595, 842);
+
+  // Logo e título
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 24px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('Bingo da Evelyn', 297.5, 50);
+  ctx.font = 'bold 18px Arial';
+  ctx.fillText(`Cartela de Bingo - ID: ${cartelaId}`, 297.5, 80);
+
+  // Grade de números
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 2;
+  const cellSize = 50;
+  const gridX = 147.5;
+  const gridY = 150;
+  ctx.font = '16px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const letters = ['B', 'I', 'N', 'G', 'O'];
+  for (let col = 0; col < 5; col++) {
+    ctx.fillText(letters[col], gridX + col * cellSize + cellSize / 2, gridY - 20);
+    for (let row = 0; row < 5; row++) {
+      ctx.fillRect(gridX + col * cellSize, gridY + row * cellSize, cellSize, cellSize);
+      ctx.strokeRect(gridX + col * cellSize, gridY + row * cellSize, cellSize, cellSize);
+      const num = numbers[col][row];
+      ctx.fillStyle = num === 0 ? '#60a5fa' : '#000000';
+      ctx.fillText(num === 0 ? 'Free' : num, gridX + col * cellSize + cellSize / 2, gridY + row * cellSize + cellSize / 2);
+    }
+  }
+
+  // QR Code
+  const url = `https://bingo-system.onrender.com/cartelas?cartelaId=${cartelaId}`;
+  const qrData = await QRCode.toDataURL(url, { width: 100 });
+  const qrImg = new Image();
+  qrImg.src = qrData;
+  await new Promise(resolve => {
+    qrImg.onload = () => {
+      ctx.drawImage(qrImg, 50, 550, 100, 100);
+      resolve();
+    };
+  });
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '12px Arial';
+  ctx.textAlign = 'left';
+  ctx.fillText('Escaneie para acessar sua cartela online:', 50, 530);
+  ctx.fillText(`Vendida para: ________________`, 50, 670);
+  ctx.fillText(`Telefone: ________________`, 50, 690);
+
+  return canvas.toBuffer('image/png');
+}
+
+// Rotas
 app.get('/', (req, res) => {
   res.redirect('/display');
 });
 
-// Rota de login
 app.get('/login', (req, res) => {
   res.render('login', { error: null });
 });
 
 app.post('/login', (req, res) => {
   const { password } = req.body;
-  console.log('Senha enviada:', password);
-  console.log('ADMIN_PASSWORD:', process.env.ADMIN_PASSWORD);
   if (password === process.env.ADMIN_PASSWORD) {
     res.cookie('auth', 'true', { httpOnly: true });
     res.redirect('/admin');
@@ -130,7 +189,6 @@ app.post('/login', (req, res) => {
   }
 });
 
-// Rotas para renderizar páginas
 app.get('/admin', isAuthenticated, async (req, res) => {
   const players = await Player.find().sort({ createdAt: -1 });
   const winners = await Winner.find().sort({ createdAt: -1 });
@@ -144,37 +202,70 @@ app.get('/display', async (req, res) => {
 
 app.get('/cartelas', async (req, res) => {
   try {
-    const viewPath = path.join(__dirname, 'views', 'cartelas.ejs');
-    console.log(`Verificando existência de ${viewPath}`);
-    await fs.access(viewPath);
-    console.log('Arquivo cartelas.ejs encontrado');
-    const { playerName } = req.query;
-    console.log(`Buscando cartelas para playerName: ${playerName}`);
-    if (!playerName) {
-      console.log('Erro: Nome do jogador é obrigatório');
-      return res.status(400).send('Nome do jogador é obrigatório');
+    const { cartelaId } = req.query;
+    if (!cartelaId) {
+      return res.redirect('/registro');
     }
-    const cartelas = await Cartela.find({ playerName });
-    console.log(`Cartelas encontradas: ${cartelas.length}`);
-    if (cartelas.length === 0) {
-      console.log(`Nenhuma cartela encontrada para playerName: ${playerName}`);
-      return res.status(404).send('Nenhuma cartela encontrada para este jogador');
+    const cartela = await Cartela.findOne({ cartelaId });
+    if (!cartela) {
+      return res.status(404).send('Cartela não encontrada');
+    }
+    if (!cartela.isRegistered) {
+      return res.redirect('/registro?cartelaId=' + cartelaId);
     }
     const game = await Game.findOne() || { drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' };
-    console.log('Renderizando cartelas.ejs');
-    res.render('cartelas', { cartelas, playerName, game });
+    res.render('cartelas', { cartelas: [cartela], playerName: cartela.playerName, game });
   } catch (err) {
     console.error('Erro na rota /cartelas:', err);
-    res.status(500).send(`Internal Server Error: ${err.message}`);
+    res.status(500).send(`Erro interno: ${err.message}`);
   }
 });
 
-// Rota para obter lista de jogadores com contagem de cartelas
+app.get('/registro', (req, res) => {
+  const { cartelaId } = req.query;
+  res.render('registro', { error: null, cartelaId: cartelaId || '' });
+});
+
+app.post('/registro', async (req, res) => {
+  const { cartelaId, playerName, phoneNumber } = req.body;
+  if (!cartelaId || !playerName) {
+    return res.render('registro', { error: 'Número da cartela e nome são obrigatórios', cartelaId });
+  }
+  try {
+    const cartela = await Cartela.findOne({ cartelaId });
+    if (!cartela) {
+      return res.render('registro', { error: 'Cartela não encontrada', cartelaId });
+    }
+    if (cartela.isRegistered) {
+      return res.render('registro', { error: 'Cartela já registrada', cartelaId });
+    }
+    cartela.playerName = playerName;
+    cartela.phoneNumber = phoneNumber || '';
+    cartela.link = `https://bingo-system.onrender.com/cartelas?cartelaId=${cartelaId}`;
+    cartela.isRegistered = true;
+    await cartela.save();
+    await Player.findOneAndUpdate(
+      { playerName },
+      { playerName, phoneNumber: phoneNumber || '', link: cartela.link, createdAt: new Date() },
+      { upsert: true }
+    );
+    wss.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({ type: 'update', game: null, winners: [] }));
+      }
+    });
+    res.redirect(`/cartelas?cartelaId=${cartelaId}`);
+  } catch (err) {
+    console.error('Erro ao registrar cartela:', err);
+    res.render('registro', { error: 'Erro ao registrar cartela', cartelaId });
+  }
+});
+
 app.get('/players', isAuthenticated, async (req, res) => {
   try {
     const players = await Player.find().sort({ createdAt: -1 });
     const playersWithCartelaCount = await Promise.all(players.map(async (player) => {
-      const cartelaCount = await Cartela.countDocuments({ playerName: player.playerName });
+      const cartelaCount = await Cartela.countDocuments({ playerName: player.playerName, isRegistered: true });
       return { ...player._doc, cartelaCount };
     }));
     res.json(playersWithCartelaCount);
@@ -184,13 +275,11 @@ app.get('/players', isAuthenticated, async (req, res) => {
   }
 });
 
-// Rota para obter lista de vencedores
 app.get('/winners', isAuthenticated, async (req, res) => {
   const winners = await Winner.find().sort({ createdAt: -1 });
   res.json(winners);
 });
 
-// Rota para gerar cartela
 app.post('/generate-cartela', isAuthenticated, async (req, res) => {
   const { playerName, phoneNumber, quantity } = req.body;
   if (!playerName) {
@@ -206,33 +295,64 @@ app.post('/generate-cartela', isAuthenticated, async (req, res) => {
         cartelaId,
         numbers,
         playerName,
+        phoneNumber: phoneNumber || '',
+        link: `https://bingo-system.onrender.com/cartelas?cartelaId=${cartelaId}`,
         markedNumbers: [],
-        createdAt: new Date()
+        createdAt: new Date(),
+        isRegistered: true
       });
       await cartela.save();
       cartelaIds.push(cartelaId);
     }
-    const link = `${req.protocol}://${req.get('host')}/cartelas?playerName=${encodeURIComponent(playerName)}`;
     await Player.findOneAndUpdate(
       { playerName },
-      { playerName, phoneNumber: phoneNumber || '', link, createdAt: new Date() },
+      { playerName, phoneNumber: phoneNumber || '', link: cartelaIds[0], createdAt: new Date() },
       { upsert: true }
     );
     const game = await Game.findOne();
     wss.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(JSON.stringify({ type: 'update', game, winners: [] }));
-        console.log('Enviado update WebSocket após gerar cartela:', JSON.stringify({ type: 'update', game, winners: [] }));
       }
     });
-    res.json({ playerName, phoneNumber, cartelaIds, link });
+    res.json({ playerName, phoneNumber, cartelaIds, link: cartelaIds[0] });
   } catch (err) {
     console.error('Erro ao gerar cartela:', err);
     res.status(500).json({ error: 'Erro ao gerar cartela' });
   }
 });
 
-// Rota para reiniciar o bingo
+app.post('/generate-print-cartelas', isAuthenticated, async (req, res) => {
+  const { quantity } = req.body;
+  const qty = parseInt(quantity) || 500;
+  const zip = new AdmZip();
+  const cartelaIds = [];
+  try {
+    for (let i = 1; i <= qty; i++) {
+      const cartelaId = `CARTELA-${String(i).padStart(3, '0')}`;
+      const numbers = generateCartelaNumbers();
+      const cartela = new Cartela({
+        cartelaId,
+        numbers,
+        markedNumbers: [],
+        createdAt: new Date(),
+        isRegistered: false
+      });
+      await cartela.save();
+      cartelaIds.push(cartelaId);
+      const imageBuffer = await generateCartelaImage(cartelaId, numbers);
+      zip.addFile(`cartela-${cartelaId}.png`, imageBuffer);
+    }
+    const zipBuffer = zip.toBuffer();
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename=cartelas_bingo.zip');
+    res.send(zipBuffer);
+  } catch (err) {
+    console.error('Erro ao gerar cartelas para impressão:', err);
+    res.status(500).json({ error: 'Erro ao gerar cartelas' });
+  }
+});
+
 app.post('/reset', isAuthenticated, async (req, res) => {
   const { password } = req.body;
   if (password !== process.env.ADMIN_PASSWORD) {
@@ -245,7 +365,6 @@ app.post('/reset', isAuthenticated, async (req, res) => {
     wss.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(JSON.stringify({ type: 'update', game, winners: [] }));
-        console.log('Enviado update WebSocket para reset:', JSON.stringify({ type: 'update', game, winners: [] }));
       }
     });
     res.redirect('/admin');
@@ -255,7 +374,6 @@ app.post('/reset', isAuthenticated, async (req, res) => {
   }
 });
 
-// Rota para excluir todas as cartelas
 app.post('/delete-all-cartelas', isAuthenticated, async (req, res) => {
   const { password } = req.body;
   if (password !== process.env.ADMIN_PASSWORD) {
@@ -269,7 +387,6 @@ app.post('/delete-all-cartelas', isAuthenticated, async (req, res) => {
     wss.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(JSON.stringify({ type: 'update', game, winners: [] }));
-        console.log('Enviado update WebSocket para exclusão de cartelas');
       }
     });
     res.json({ success: true });
@@ -279,7 +396,6 @@ app.post('/delete-all-cartelas', isAuthenticated, async (req, res) => {
   }
 });
 
-// Rota para excluir cartelas por número de telefone
 app.post('/delete-cartelas-by-phone', isAuthenticated, async (req, res) => {
   const { phoneNumber, password } = req.body;
   if (password !== process.env.ADMIN_PASSWORD) {
@@ -300,7 +416,6 @@ app.post('/delete-cartelas-by-phone', isAuthenticated, async (req, res) => {
     wss.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(JSON.stringify({ type: 'update', game, winners: [] }));
-        console.log('Enviado update WebSocket para exclusão por telefone');
       }
     });
     res.json({ success: true });
@@ -310,7 +425,6 @@ app.post('/delete-cartelas-by-phone', isAuthenticated, async (req, res) => {
   }
 });
 
-// Função para sortear número (automático)
 async function drawNumber() {
   const game = await Game.findOne() || new Game({ drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' });
   const availableNumbers = Array.from({ length: 75 }, (_, i) => i + 1)
@@ -320,7 +434,7 @@ async function drawNumber() {
   game.drawnNumbers.push(newNumber);
   game.lastNumber = newNumber;
   await game.save();
-  
+
   const cartelas = await Cartela.find();
   const winners = [];
   for (const cartela of cartelas) {
@@ -337,11 +451,10 @@ async function drawNumber() {
       await cartela.save();
     }
   }
-  
+
   return { newNumber, winners };
 }
 
-// Função para marcar número manualmente
 async function markNumber(number) {
   if (!Number.isInteger(number) || number < 1 || number > 75) {
     return { error: 'Número inválido (deve ser entre 1 e 75)' };
@@ -353,7 +466,7 @@ async function markNumber(number) {
   game.drawnNumbers.push(number);
   game.lastNumber = number;
   await game.save();
-  
+
   const cartelas = await Cartela.find();
   const winners = [];
   for (const cartela of cartelas) {
@@ -370,11 +483,10 @@ async function markNumber(number) {
       await cartela.save();
     }
   }
-  
+
   return { newNumber: number, winners };
 }
 
-// Função para verificar vitória (linha horizontal)
 function checkWin(cartela) {
   const marked = cartela.markedNumbers;
   for (let row = 0; row < 5; row++) {
@@ -392,18 +504,15 @@ function checkWin(cartela) {
   return false;
 }
 
-// Endpoint para sortear número (automático)
 app.post('/draw', isAuthenticated, async (req, res) => {
   try {
     const result = await drawNumber();
     if (result && result.newNumber) {
       const game = await Game.findOne();
       const { newNumber, winners } = result;
-      console.log(`Número sorteado automaticamente: ${newNumber}, Vencedores: ${winners}`);
       wss.clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
           client.send(JSON.stringify({ type: 'update', game, winners }));
-          console.log('Enviado update WebSocket para sorteio automático:', JSON.stringify({ type: 'update', game, winners }));
         }
       });
       res.json({ number: newNumber, winners });
@@ -416,7 +525,6 @@ app.post('/draw', isAuthenticated, async (req, res) => {
   }
 });
 
-// Endpoint para marcar número manualmente
 app.post('/mark-number', isAuthenticated, async (req, res) => {
   const { number, password } = req.body;
   if (password !== process.env.ADMIN_PASSWORD) {
@@ -429,11 +537,9 @@ app.post('/mark-number', isAuthenticated, async (req, res) => {
     }
     const game = await Game.findOne();
     const { newNumber, winners } = result;
-    console.log(`Número marcado manualmente: ${newNumber}, Vencedores: ${winners}`);
     wss.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(JSON.stringify({ type: 'update', game, winners }));
-        console.log('Enviado update WebSocket para marcação manual:', JSON.stringify({ type: 'update', game, winners }));
       }
     });
     res.json({ number: newNumber, winners });
@@ -443,7 +549,6 @@ app.post('/mark-number', isAuthenticated, async (req, res) => {
   }
 });
 
-// Endpoint para atualizar prêmio atual
 app.post('/update-prize', isAuthenticated, async (req, res) => {
   const { currentPrize } = req.body;
   const game = await Game.findOne() || new Game({ drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' });
@@ -452,13 +557,11 @@ app.post('/update-prize', isAuthenticated, async (req, res) => {
   wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify({ type: 'update', game, winners: [] }));
-      console.log('Enviado update WebSocket para prêmio:', JSON.stringify({ type: 'update', game, winners: [] }));
     }
   });
   res.json({ success: true });
 });
 
-// Endpoint para atualizar informações adicionais
 app.post('/update-info', isAuthenticated, async (req, res) => {
   const { additionalInfo } = req.body;
   const game = await Game.findOne() || new Game({ drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' });
@@ -467,13 +570,11 @@ app.post('/update-info', isAuthenticated, async (req, res) => {
   wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify({ type: 'update', game, winners: [] }));
-      console.log('Enviado update WebSocket para informações:', JSON.stringify({ type: 'update', game, winners: [] }));
     }
   });
   res.json({ success: true });
 });
 
-// Endpoint para atualizar mensagem inicial
 app.post('/update-start-message', isAuthenticated, async (req, res) => {
   const { startMessage } = req.body;
   const game = await Game.findOne() || new Game({ drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' });
@@ -482,37 +583,28 @@ app.post('/update-start-message', isAuthenticated, async (req, res) => {
   wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify({ type: 'update', game, winners: [] }));
-      console.log('Enviado update WebSocket para mensagem inicial:', JSON.stringify({ type: 'update', game, winners: [] }));
     }
   });
   res.json({ success: true });
 });
 
-// Endpoint para obter estado do jogo
 app.get('/game', async (req, res) => {
   const game = await Game.findOne() || { drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' };
-  console.log('Estado do jogo enviado para /game:', game);
   res.json(game);
 });
 
-// WebSocket
 wss.on('connection', ws => {
   console.log('Novo cliente WebSocket conectado');
   Game.findOne().then(game => {
     Cartela.find().then(cartelas => {
       const data = JSON.stringify({ type: 'update', game: game || { drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' }, winners: [] });
       ws.send(data);
-      console.log('Enviado estado inicial WebSocket:', data);
     });
   }).catch(err => {
     console.error('Erro ao inicializar WebSocket:', err);
   });
-  ws.on('error', err => {
-    console.error('Erro no WebSocket:', err);
-  });
-  ws.on('close', () => {
-    console.log('Cliente WebSocket desconectado');
-  });
+  ws.on('error', err => console.error('Erro no WebSocket:', err));
+  ws.on('close', () => console.log('Cliente WebSocket desconectado'));
 });
 
 const PORT = process.env.PORT || 3000;
