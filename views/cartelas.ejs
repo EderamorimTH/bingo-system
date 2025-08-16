@@ -7,7 +7,12 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <a href="/registro">Registrar uma cartela</a>
+  <% if (error) { %>
+    <p style="color: red;"><%= error %></p>
+  <% } %>
+  <% if (!cartelas.length) { %>
+    <a href="/registro">Registrar uma cartela</a>
+  <% } %>
   <h1>Cartela de <%= playerName %></h1>
   <div>
     <h2>Informações do Jogo</h2>
