@@ -3,87 +3,34 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cartelas - Bingo</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <title>Cartela de Bingo</title>
   <link rel="stylesheet" href="/styles.css">
-  <style>
-    body { background: linear-gradient(135deg, #34d399, #3b82f6); font-family: Arial, sans-serif; }
-    .highlight-box { background: rgba(255, 255, 255, 0.9); border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); padding: 1.5rem; margin-bottom: 1.5rem; }
-    .marked { background-color: #facc15; }
-    .free { background-color: #60a5fa; }
-    .error-box { background: #fee2e2; border: 1px solid #ef4444; padding: 1rem; border-radius: 8px; }
-  </style>
 </head>
-<body class="flex items-center justify-center min-h-screen">
-  <div class="w-full max-w-4xl p-6">
-    <% if (error) { %>
-      <div class="highlight-box error-box">
-        <p class="text-red-600"><%= error %></p>
-        <a href="/registro" class="text-blue-500 hover:underline">Registrar uma cartela</a>
-      </div>
-    <% } else { %>
-      <h1 class="text-3xl font-bold text-center mb-6 text-white drop-shadow-lg">Cartela de <%= playerName %></h1>
-      <div class="highlight-box">
-        <h2 class="text-xl font-semibold mb-2 text-gray-700">Informações do Jogo</h2>
-        <p><strong>Prêmio Atual:</strong> <span id="currentPrize"><%= game.currentPrize || 'Aguardando' %></span></p>
-        <p><strong>Informações Adicionais:</strong> <span id="additionalInfo"><%= game.additionalInfo || 'Nenhuma' %></span></p>
-        <p><strong>Mensagem:</strong> <span id="startMessage"><%= game.startMessage || 'Em Breve o Bingo Irá Começar' %></span></p>
-      </div>
-      <% cartelas.forEach(cartela => { %>
-        <div class="highlight-box">
-          <h2 class="text-xl font-semibold mb-2 text-gray-700">Cartela ID: <%= cartela.cartelaId %></h2>
-          <table class="w-full border-collapse">
-            <thead>
-              <tr class="bg-gray-200">
-                <th class="border p-2">B</th>
-                <th class="border p-2">I</th>
-                <th class="border p-2">N</th>
-                <th class="border p-2">G</th>
-                <th class="border p-2">O</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% for (let row = 0; row < 5; row++) { %>
-                <tr>
-                  <% for (let col = 0; col < 5; col++) { %>
-                    <td class="border p-2 text-center <%= cartela.markedNumbers.includes(cartela.numbers[col][row]) ? 'marked' : (cartela.numbers[col][row] === 0 ? 'free' : '') %>">
-                      <%= cartela.numbers[col][row] === 0 ? 'Free' : cartela.numbers[col][row] %>
-                    </td>
-                  <% } %>
-                </tr>
-              <% } %>
-            </tbody>
-          </table>
-        </div>
-      <% }) %>
-    <% } %>
+<body>
+  <a href="/registro">Registrar uma cartela</a>
+  <h1>Cartela de <%= playerName %></h1>
+  <div>
+    <h2>Informações do Jogo</h2>
+    <p>Prêmio Atual: <%= game.currentPrize || '--' %></p>
+    <p>Informações Adicionais: <%= game.additionalInfo || '--' %></p>
+    <p>Mensagem: <%= game.startMessage || '--' %></p>
   </div>
-
-  <script>
-    const ws = new WebSocket('wss://' + window.location.host);
-    ws.onopen = () => console.log('WebSocket conectado em /cartelas');
-    ws.onmessage = (event) => {
-      console.log('Mensagem WebSocket recebida em /cartelas:', event.data);
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'update') {
-          document.getElementById('currentPrize').textContent = data.game.currentPrize || 'Aguardando';
-          document.getElementById('additionalInfo').textContent = data.game.additionalInfo || 'Nenhuma';
-          document.getElementById('startMessage').textContent = data.game.startMessage || 'Em Breve o Bingo Irá Começar';
-          const cells = document.querySelectorAll('td');
-          cells.forEach(cell => {
-            const num = parseInt(cell.textContent);
-            if (!isNaN(num) && data.game.drawnNumbers.includes(num)) {
-              cell.classList.add('marked');
-            }
-          });
-        }
-      } catch (err) {
-        console.error('Erro ao processar mensagem WebSocket em /cartelas:', err);
-      }
-    };
-    ws.onerror = (err) => console.error('Erro no WebSocket em /cartelas:', err);
-    ws.onclose = () => console.log('WebSocket desconectado em /cartelas');
-  </script>
+  <% cartelas.forEach(cartela => { %>
+    <div>
+      <h2>Cartela ID: <%= cartela.cartelaId %></h2>
+      <table>
+        <tr>
+          <th>B</th><th>I</th><th>N</th><th>G</th><th>O</th>
+        </tr>
+        <% for (let row = 0; row < 5; row++) { %>
+          <tr>
+            <% for (let col = 0; col < 5; col++) { %>
+              <td><%= cartela.numbers[col][row] === 0 ? 'Free' : cartela.numbers[col][row] %></td>
+            <% } %>
+          </tr>
+        <% } %>
+      </table>
+    </div>
+  <% }) %>
 </body>
 </html>
