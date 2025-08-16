@@ -3,62 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Registro de Cartela - Bingo</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <title>Registro de Cartela</title>
   <link rel="stylesheet" href="/styles.css">
-  <style>
-    body { background: linear-gradient(135deg, #34d399, #3b82f6); font-family: Arial, sans-serif; }
-    .highlight-box { background: rgba(255, 255, 255, 0.9); border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); padding: 1.5rem; margin-bottom: 1.5rem; }
-  </style>
 </head>
-<body class="flex items-center justify-center min-h-screen">
-  <div class="w-full max-w-md p-6">
-    <h1 class="text-3xl font-bold text-center mb-6 text-white drop-shadow-lg">Registro de Cartela Vendida</h1>
-    <div class="highlight-box">
-      <% if (error) { %>
-        <p class="text-red-500 mb-4"><%= error %></p>
-      <% } %>
-      <form id="registroForm" class="space-y-4">
-        <div>
-          <label for="cartelaId" class="block text-sm font-medium text-gray-700">Número da Cartela</label>
-          <input type="text" id="cartelaId" name="cartelaId" value="<%= cartelaId %>" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500" required>
-        </div>
-        <div>
-          <label for="playerName" class="block text-sm font-medium text-gray-700">Nome do Comprador</label>
-          <input type="text" id="playerName" name="playerName" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500" required>
-        </div>
-        <div>
-          <label for="phoneNumber" class="block text-sm font-medium text-gray-700">Telefone (opcional)</label>
-          <input type="text" id="phoneNumber" name="phoneNumber" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
-        </div>
-        <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300 w-full">Registrar Cartela</button>
-      </form>
-    </div>
-  </div>
-
-  <script>
-    document.getElementById('registroForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const cartelaId = document.getElementById('cartelaId').value;
-      const playerName = document.getElementById('playerName').value;
-      const phoneNumber = document.getElementById('phoneNumber').value;
-      try {
-        const res = await fetch('/registro', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ cartelaId, playerName, phoneNumber })
-        });
-        if (res.redirected) {
-          window.location.href = res.url;
-        } else {
-          const data = await res.text();
-          document.body.innerHTML = data;
-        }
-      } catch (err) {
-        console.error('Erro ao registrar cartela:', err);
-        alert('Erro ao registrar cartela');
-      }
-    });
-  </script>
+<body>
+  <% if (error) { %>
+    <p style="color: red;"><%= error %></p>
+  <% } %>
+  <form action="/registro" method="POST">
+    <h1>Registro de Cartela Vendida</h1>
+    <label>Número da Cartela <input type="text" name="cartelaId" value="<%= cartelaId || '' %>"></label>
+    <label>Nome do Comprador <input type="text" name="playerName"></label>
+    <label>Telefone (opcional) <input type="text" name="phoneNumber"></label>
+    <button type="submit">Registrar Cartela</button>
+  </form>
 </body>
 </html>
