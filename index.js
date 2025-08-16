@@ -401,4 +401,21 @@ app.post('/reset', isAuthenticated, async (req, res) => {
     return res.status(401).json({ error: 'Senha incorreta' });
   }
   try {
-    await Game.updateOne({}, { drawnNumbers: [], lastNumber: null, currentPrize: '',
+    await Game.updateOne({}, { drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' });
+    wss.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({ type: 'update', game: { drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' }, winners: [] }));
+      }
+    });
+    res.json({ message: 'Jogo reiniciado com sucesso' });
+  } catch (err) {
+    console.error('Erro ao reiniciar o jogo:', err);
+    res.status(500).json({ error: 'Erro ao reiniciar o jogo' });
+  }
+});
+
+// Iniciar o servidor
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`Servidor rodando na porta ${PORT}`);
+});
