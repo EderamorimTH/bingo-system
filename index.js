@@ -5,12 +5,11 @@ const http = require('http');
 const WebSocket = require('ws');
 const cookieParser = require('cookie-parser');
 
-// ===== CONFIGURAÇÕES =====
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-// Armazena conexões ativas
+// Conexões ativas
 let clients = [];
 
 // Estado do jogo
@@ -30,8 +29,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Configuração das views
 app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname));
+app.set('views', path.join(__dirname, 'views'));
 
 // ===== ROTAS =====
 app.get('/', (req, res) => {
@@ -60,19 +61,17 @@ app.get('/display', (req, res) => {
 });
 
 app.get('/cartelas', (req, res) => {
-  // Aqui você pode gerar/recuperar as cartelas do jogador
   const playerName = "Jogador";
-  const cartelas = []; // TODO: puxar do banco ou gerar
-
+  const cartelas = []; // aqui você pode puxar cartelas do banco depois
   res.render('cartelas', { playerName, cartelas });
 });
 
-// Endpoint para retornar o estado atual
+// Endpoint para retornar estado atual
 app.get('/game', (req, res) => {
   res.json(gameState);
 });
 
-// ===== FUNÇÃO DE BROADCAST =====
+// ===== BROADCAST =====
 function broadcastUpdate() {
   const payload = JSON.stringify({
     type: "update",
@@ -99,7 +98,6 @@ wss.on('connection', (ws) => {
 });
 
 // ===== ROTAS DE CONTROLE DO BINGO =====
-// Exemplo: sortear número
 app.post('/sorteio', (req, res) => {
   const { numero } = req.body;
   if (numero && !gameState.drawnNumbers.includes(numero)) {
@@ -110,7 +108,6 @@ app.post('/sorteio', (req, res) => {
   res.json({ sucesso: true, game: gameState });
 });
 
-// Atualizar informações adicionais
 app.post('/info', (req, res) => {
   const { currentPrize, additionalInfo } = req.body;
   if (currentPrize) gameState.currentPrize = currentPrize;
@@ -119,7 +116,6 @@ app.post('/info', (req, res) => {
   res.json({ sucesso: true, game: gameState });
 });
 
-// Resetar jogo
 app.post('/reset', (req, res) => {
   gameState = {
     currentPrize: "--",
@@ -133,7 +129,7 @@ app.post('/reset', (req, res) => {
   res.json({ sucesso: true, game: gameState });
 });
 
-// ===== INICIAR SERVIDOR =====
+// ===== START SERVER =====
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Servidor rodando em http://localhost:${PORT}`);
