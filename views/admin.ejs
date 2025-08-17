@@ -3,99 +3,169 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Painel de Administração</title>
+  <title>Painel de Sorteio - Bingo</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
+  <link rel="icon" href="data:;base64,iVBORw0KGgo=">
 </head>
-<body>
-  <h1>Painel de Administração</h1>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+  <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-2xl">
+    <h1 class="text-3xl font-bold text-center mb-6">Painel de Sorteio</h1>
+    <div class="mb-4">
+      <button id="drawButton" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full">Sortear Número</button>
+    </div>
+    <div class="mb-4">
+      <label for="startMessage" class="block text-sm font-medium text-gray-700">Mensagem Inicial:</label>
+      <input type="text" id="startMessage" class="mt-1 p-2 border rounded w-full" placeholder="Ex.: Em Breve o Bingo Irá Começar">
+      <button id="updateStartMessageButton" class="mt-2 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 w-full">Atualizar Mensagem Inicial</button>
+    </div>
+    <div class="mb-4">
+      <label for="currentPrize" class="block text-sm font-medium text-gray-700">Prêmio Atual:</label>
+      <input type="text" id="currentPrize" class="mt-1 p-2 border rounded w-full" placeholder="Ex.: 1ª Linha, Cartela Cheia">
+      <button id="updatePrizeButton" class="mt-2 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 w-full">Atualizar Prêmio</button>
+    </div>
+    <div class="mb-4">
+      <label for="additionalInfo" class="block text-sm font-medium text-gray-700">Informações Adicionais:</label>
+      <input type="text" id="additionalInfo" class="mt-1 p-2 border rounded w-full" placeholder="Ex.: Próximo sorteio às 20h">
+      <button id="updateInfoButton" class="mt-2 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 w-full">Atualizar Informações</button>
+    </div>
+    <div class="mt-4">
+      <h2 class="text-xl font-semibold">Último Número Sorteado</h2>
+      <p id="lastNumber" class="text-4xl font-bold text-center text-blue-600 animate-pulse">--</p>
+    </div>
+    <div class="mt-4">
+      <h2 class="text-xl font-semibold">Números Sorteados por Letra</h2>
+      <div id="drawnNumbers" class="mt-2">
+        <div class="mb-4">
+          <h3 class="text-lg font-semibold">B (1-15)</h3>
+          <div id="bNumbers" class="grid grid-cols-5 gap-2"></div>
+        </div>
+        <div class="mb-4">
+          <h3 class="text-lg font-semibold">I (16-30)</h3>
+          <div id="iNumbers" class="grid grid-cols-5 gap-2"></div>
+        </div>
+        <div class="mb-4">
+          <h3 class="text-lg font-semibold">N (31-45)</h3>
+          <div id="nNumbers" class="grid grid-cols-5 gap-2"></div>
+        </div>
+        <div class="mb-4">
+          <h3 class="text-lg font-semibold">G (46-60)</h3>
+          <div id="gNumbers" class="grid grid-cols-5 gap-2"></div>
+        </div>
+        <div class="mb-4">
+          <h3 class="text-lg font-semibold">O (61-75)</h3>
+          <div id="oNumbers" class="grid grid-cols-5 gap-2"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    function getBingoLetter(number) {
+      if (number >= 1 && number <= 15) return 'B';
+      if (number >= 16 && number <= 30) return 'I';
+      if (number >= 31 && number <= 45) return 'N';
+      if (number >= 46 && number <= 60) return 'G';
+      if (number >= 61 && number <= 75) return 'O';
+      return '';
+    }
 
-  <h2>Gerar Cartela Online</h2>
-  <form action="/generate-cartela" method="POST">
-    <label>Nome do Jogador <input type="text" name="playerName"></label>
-    <label>Número de Telefone (opcional) <input type="text" name="phoneNumber"></label>
-    <label>Quantidade de Cartelas <input type="number" name="quantity" min="1" value="1"></label>
-    <button type="submit">Gerar Cartela(s)</button>
-  </form>
+    const ws = new WebSocket('wss://' + window.location.host);
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'update') {
+        updateUI(data.game);
+      }
+    };
 
-  <h2>Gerar Cartelas para Impressão</h2>
-  <form action="/generate-print-cartelas" method="POST">
-    <label>Quantidade de Cartelas <input type="number" name="quantity" min="1" value="500"></label>
-    <button type="submit">Gerar Cartelas com QR Code (Imagens)</button>
-  </form>
+    function updateUI(game) {
+      document.getElementById('lastNumber').textContent = game.lastNumber ? `${getBingoLetter(game.lastNumber)}-${game.lastNumber}` : '--';
+      const bNumbersDiv = document.getElementById('bNumbers');
+      const iNumbersDiv = document.getElementById('iNumbers');
+      const nNumbersDiv = document.getElementById('nNumbers');
+      const gNumbersDiv = document.getElementById('gNumbers');
+      const oNumbersDiv = document.getElementById('oNumbers');
+      bNumbersDiv.innerHTML = '';
+      iNumbersDiv.innerHTML = '';
+      nNumbersDiv.innerHTML = '';
+      gNumbersDiv.innerHTML = '';
+      oNumbersDiv.innerHTML = '';
+      const bNumbers = game.drawnNumbers.filter(n => n >= 1 && n <= 15).sort((a, b) => a - b);
+      const iNumbers = game.drawnNumbers.filter(n => n >= 16 && n <= 30).sort((a, b) => a - b);
+      const nNumbers = game.drawnNumbers.filter(n => n >= 31 && n <= 45).sort((a, b) => a - b);
+      const gNumbers = game.drawnNumbers.filter(n => n >= 46 && n <= 60).sort((a, b) => a - b);
+      const oNumbers = game.drawnNumbers.filter(n => n >= 61 && n <= 75).sort((a, b) => a - b);
+      bNumbers.forEach(num => {
+        const numDiv = document.createElement('div');
+        numDiv.className = 'bg-gray-200 p-2 rounded text-center';
+        numDiv.textContent = `B-${num}`;
+        bNumbersDiv.appendChild(numDiv);
+      });
+      iNumbers.forEach(num => {
+        const numDiv = document.createElement('div');
+        numDiv.className = 'bg-gray-200 p-2 rounded text-center';
+        numDiv.textContent = `I-${num}`;
+        iNumbersDiv.appendChild(numDiv);
+      });
+      nNumbers.forEach(num => {
+        const numDiv = document.createElement('div');
+        numDiv.className = 'bg-gray-200 p-2 rounded text-center';
+        numDiv.textContent = `N-${num}`;
+        nNumbersDiv.appendChild(numDiv);
+      });
+      gNumbers.forEach(num => {
+        const numDiv = document.createElement('div');
+        numDiv.className = 'bg-gray-200 p-2 rounded text-center';
+        numDiv.textContent = `G-${num}`;
+        gNumbersDiv.appendChild(numDiv);
+      });
+      oNumbers.forEach(num => {
+        const numDiv = document.createElement('div');
+        numDiv.className = 'bg-gray-200 p-2 rounded text-center';
+        numDiv.textContent = `O-${num}`;
+        oNumbersDiv.appendChild(numDiv);
+      });
+      document.getElementById('startMessage').value = game.startMessage || 'Em Breve o Bingo Irá Começar';
+      document.getElementById('currentPrize').value = game.currentPrize || '';
+      document.getElementById('additionalInfo').value = game.additionalInfo || '';
+    }
 
-  <h2>Atualizar Prêmio Atual</h2>
-  <form action="/update-prize" method="POST">
-    <label>Prêmio Atual <input type="text" name="currentPrize" value="<%= game.currentPrize || '' %>"></label>
-    <button type="submit">Atualizar Prêmio</button>
-  </form>
+    document.getElementById('drawButton').addEventListener('click', async () => {
+      const response = await fetch('/draw', { method: 'POST' });
+      const data = await response.json();
+      if (data.error) {
+        alert(data.error);
+      }
+    });
 
-  <h2>Atualizar Informações Adicionais</h2>
-  <form action="/update-info" method="POST">
-    <label>Informações Adicionais <input type="text" name="additionalInfo" value="<%= game.additionalInfo || '' %>"></label>
-    <button type="submit">Atualizar Informações</button>
-  </form>
+    document.getElementById('updateStartMessageButton').addEventListener('click', async () => {
+      const startMessage = document.getElementById('startMessage').value;
+      await fetch('/update-start-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ startMessage })
+      });
+    });
 
-  <h2>Atualizar Mensagem Inicial</h2>
-  <form action="/update-message" method="POST">
-    <label>Mensagem Inicial <input type="text" name="startMessage" value="<%= game.startMessage || '' %>"></label>
-    <button type="submit">Atualizar Mensagem</button>
-  </form>
+    document.getElementById('updatePrizeButton').addEventListener('click', async () => {
+      const currentPrize = document.getElementById('currentPrize').value;
+      await fetch('/update-prize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPrize })
+      });
+    });
 
-  <h2>Números Sorteados</h2>
-  <p>B (1-15): <%= game.drawnNumbers.filter(n => n >= 1 && n <= 15).join(', ') || '--' %></p>
-  <p>I (16-30): <%= game.drawnNumbers.filter(n => n >= 16 && n <= 30).join(', ') || '--' %></p>
-  <p>N (31-45): <%= game.drawnNumbers.filter(n => n >= 31 && n <= 45).join(', ') || '--' %></p>
-  <p>G (46-60): <%= game.drawnNumbers.filter(n => n >= 46 && n <= 60).join(', ') || '--' %></p>
-  <p>O (61-75): <%= game.drawnNumbers.filter(n => n >= 61 && n <= 75).join(', ') || '--' %></p>
+    document.getElementById('updateInfoButton').addEventListener('click', async () => {
+      const additionalInfo = document.getElementById('additionalInfo').value;
+      await fetch('/update-info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ additionalInfo })
+      });
+    });
 
-  <form action="/draw-number" method="POST">
-    <button type="submit">Sortear Número (Automático)</button>
-  </form>
-  <form action="/mark-number" method="POST">
-    <label>Marcar Número Manual (1-75) <input type="number" name="number" min="1" max="75"></label>
-    <label>Senha <input type="password" name="password"></label>
-    <button type="submit">Marcar Número (Manual)</button>
-  </form>
-
-  <h2>Ações</h2>
-  <form action="/reset" method="POST">
-    <label>Senha <input type="password" name="password"></label>
-    <button type="submit">Reiniciar o Bingo</button>
-  </form>
-  <!-- Adicione formulários para exclusão de cartelas se necessário -->
-
-  <h2>Jogadores e Links</h2>
-  <table>
-    <tr>
-      <th>Nome</th>
-      <th>Telefone</th>
-      <th>Cartelas</th>
-      <th>Link</th>
-    </tr>
-    <% players.forEach(player => { %>
-      <tr>
-        <td><%= player.playerName %></td>
-        <td><%= player.phoneNumber %></td>
-        <td><%= player.cartelaCount || 0 %></td>
-        <td><a href="<%= player.link %>"><%= player.link %></a></td>
-      </tr>
-    <% }) %>
-  </table>
-
-  <h2>Vencedores</h2>
-  <table>
-    <tr>
-      <th>Nome</th>
-      <th>Cartela ID</th>
-      <th>Data</th>
-    </tr>
-    <% winners.forEach(winner => { %>
-      <tr>
-        <td><%= winner.playerName %></td>
-        <td><%= winner.cartelaId %></td>
-        <td><%= winner.createdAt.toLocaleString() %></td>
-      </tr>
-    <% }) %>
-  </table>
+    // Carregar estado inicial
+    fetch('/game').then(res => res.json()).then(updateUI);
+  </script>
 </body>
 </html>
