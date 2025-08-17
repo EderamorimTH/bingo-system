@@ -61,13 +61,11 @@
 
     <div class="highlight-box">
       <h2 class="text-2xl font-semibold text-center text-green-600">Prêmio Atual</h2>
-      <p id="currentPrize" class="text-3xl font-bold text-center text-green-700 pulse">--</p>
       <p id="currentPrize" class="text-3xl font-bold text-center text-green-700 pulse"><%= game.currentPrize || '--' %></p>
     </div>
 
     <div class="highlight-box">
       <h2 class="text-2xl font-semibold text-center text-blue-600">Informações Adicionais</h2>
-      <p id="additionalInfo" class="text-xl text-center text-blue-700">--</p>
       <p id="additionalInfo" class="text-xl text-center text-blue-700"><%= game.additionalInfo || '--' %></p>
     </div>
 
@@ -75,7 +73,6 @@
       <div class="cartela-container">
         <h2 class="text-xl font-semibold mb-2 text-gray-700">Cartela <%= index + 1 %> (ID: <%= cartela.cartelaId %>)</h2>
         <div id="winnerMessage-<%= cartela.cartelaId %>" class="text-2xl font-bold text-center text-green-600 hidden mb-4">Parabéns! Esta cartela venceu!</div>
-        <table class="cartela-table">
         <table class="cartela-table" id="table-<%= cartela.cartelaId %>">
           <thead>
             <tr>
@@ -90,7 +87,6 @@
             <% for (let row = 0; row < 5; row++) { %>
               <tr>
                 <% for (let col = 0; col < 5; col++) { %>
-                  <td class="<%= cartela.markedNumbers.includes(cartela.numbers[col][row]) ? 'marked' : cartela.numbers[col][row] === 0 ? 'free' : '' %> text-center">
                   <td class="<%= cartela.numbers[col][row] === 0 ? 'free' : '' %> text-center">
                     <%= cartela.numbers[col][row] === 0 ? 'X' : cartela.numbers[col][row] %>
                   </td>
@@ -109,37 +105,24 @@
     const ws = new WebSocket('wss://' + window.location.host);
     ws.onopen = () => console.log('WebSocket conectado em /cartelas');
     ws.onmessage = (event) => {
-      console.log('Mensagem WebSocket recebida em /cartelas:', event.data);
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'update') {
           updateUI(data.game, data.winners || []);
         }
       } catch (err) {
-        console.error('Erro ao processar mensagem WebSocket em /cartelas:', err);
         console.error('Erro ao processar WebSocket:', err);
       }
     };
     ws.onerror = (err) => console.error('Erro no WebSocket em /cartelas:', err);
     ws.onclose = () => {
-      console.log('WebSocket desconectado em /cartelas, tentando reconectar...');
-      setTimeout(() => {
-        window.location.reload();
-      }, 5000);
       console.log('Desconectado do WebSocket, tentando reconectar...');
       setTimeout(() => window.location.reload(), 3000);
     };
 
     function updateUI(game, winners) {
-      console.log('Atualizando UI com dados:', game, winners);
       document.getElementById('currentPrize').textContent = game.currentPrize || '--';
       document.getElementById('additionalInfo').textContent = game.additionalInfo || '--';
-      <% cartelas.forEach(cartela => { %>
-        const winnerMessage = document.getElementById('winnerMessage-<%= cartela.cartelaId %>');
-        if (winners.includes('<%= cartela.cartelaId %>')) {
-          winnerMessage.classList.remove('hidden');
-        } else {
-          winnerMessage.classList.add('hidden');
 
       cartelasData.forEach(cartela => {
         const winnerMessage = document.getElementById(`winnerMessage-${cartela.cartelaId}`);
@@ -150,20 +133,14 @@
             winnerMessage.classList.add('hidden');
           }
         }
-        const table = winnerMessage.nextElementSibling;
 
         const table = document.getElementById(`table-${cartela.cartelaId}`);
         if (!table) return;
 
         for (let row = 0; row < 5; row++) {
           for (let col = 0; col < 5; col++) {
-            const num = <%= JSON.stringify(cartela.numbers) %>[col][row];
             const num = cartela.numbers[col][row];
             const cell = table.rows[row + 1].cells[col];
-            if (num !== 0 && game.drawnNumbers.includes(num)) {
-              cell.classList.add('marked');
-            } else if (num !== 0) {
-              cell.classList.remove('marked');
 
             if (num === 0) {
               cell.className = 'free text-center';
@@ -177,15 +154,10 @@
             }
           }
         }
-      <% }) %>
       });
     }
 
     // Carregar estado inicial
-    fetch('/game').then(res => res.json()).then(game => {
-      console.log('Estado inicial do jogo em /cartelas:', game);
-      updateUI(game, []);
-    }).catch(err => console.error('Erro ao carregar estado inicial em /cartelas:', err));
     fetch('/game')
       .then(res => res.json())
       .then(game => updateUI(game, []))
