@@ -161,8 +161,9 @@ app.get('/cartelas', async (req, res) => {
       return res.status(404).send('Nenhuma cartela encontrada para este jogador');
     }
     const game = await Game.findOne() || { drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' };
+    const winnerIds = (await Winner.find()).map(w => w.cartelaId);
     console.log('Renderizando cartelas.ejs');
-    res.render('cartelas', { cartelas, playerName, game });
+    res.render('cartelas', { cartelas, playerName, game, winners: winnerIds });
   } catch (err) {
     console.error('Erro na rota /cartelas:', err);
     res.status(500).send(`Internal Server Error: ${err.message}`);
@@ -180,7 +181,7 @@ app.get('/players', isAuthenticated, async (req, res) => {
     res.json(playersWithCartelaCount);
   } catch (err) {
     console.error('Erro na rota /players:', err);
-    res.status(500).json({ error: 'Erro ao obter jogadores' });
+    res.status(500).json({ error: binge-system' });
   }
 });
 
@@ -210,7 +211,7 @@ app.post('/generate-cartela', isAuthenticated, async (req, res) => {
         createdAt: new Date()
       });
       await cartela.save();
-      cartelaIds.push(cartelaId);
+      crtelaIds.push(cartelaId);
     }
     const link = `${req.protocol}://${req.get('host')}/cartelas?playerName=${encodeURIComponent(playerName)}`;
     await Player.findOneAndUpdate(
@@ -235,78 +236,20 @@ app.post('/generate-cartela', isAuthenticated, async (req, res) => {
 // Rota para reiniciar o bingo
 app.post('/reset', isAuthenticated, async (req, res) => {
   const { password } = req.body;
-  if (password !== process.env.ADMIN_PASSWORD) {
-    return res.status(401).json({ error: 'Senha incorreta' });
-  }
-  try {
-    await Game.updateOne({}, { drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' });
-    await Cartela.updateMany({}, { markedNumbers: [] });
-    const game = await Game.findOne();
-    wss.clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({ type: 'update', game, winners: [] }));
-        console.log('Enviado update WebSocket para reset:', JSON.stringify({ type: 'update', game, winners: [] }));
-      }
-    });
-    res.redirect('/admin');
-  } catch (err) {
-    console.error('Erro ao reiniciar o bingo:', err);
-    res.status(500).json({ error: 'Erro ao reiniciar o bingo' });
-  }
-});
-
-// Rota para excluir todas as cartelas
-app.post('/delete-all-cartelas', isAuthenticated, async (req, res) => {
-  const { password } = req.body;
-  if (password !== process.env.ADMIN_PASSWORD) {
-    return res.status(401).json({ error: 'Senha incorreta' });
-  }
-  try {
+  if (password === process.env.ADMIN_PASSWORD) {
+    await Game.deleteMany({});
     await Cartela.deleteMany({});
     await Player.deleteMany({});
     await Winner.deleteMany({});
-    const game = await Game.findOne();
+    await new Game({ drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' }).save();
     wss.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({ type: 'update', game, winners: [] }));
-        console.log('Enviado update WebSocket para exclusão de cartelas');
+        client.send(JSON.stringify({ type: 'update', game: { drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' }, winners: [] }));
       }
     });
     res.json({ success: true });
-  } catch (err) {
-    console.error('Erro ao excluir todas as cartelas:', err);
-    res.status(500).json({ error: 'Erro ao excluir cartelas' });
-  }
-});
-
-// Rota para excluir cartelas por número de telefone
-app.post('/delete-cartelas-by-phone', isAuthenticated, async (req, res) => {
-  const { phoneNumber, password } = req.body;
-  if (password !== process.env.ADMIN_PASSWORD) {
-    return res.status(401).json({ error: 'Senha incorreta' });
-  }
-  if (!phoneNumber) {
-    return res.status(400).json({ error: 'Número de telefone é obrigatório' });
-  }
-  try {
-    const player = await Player.findOne({ phoneNumber });
-    if (!player) {
-      return res.status(404).json({ error: 'Jogador não encontrado' });
-    }
-    await Cartela.deleteMany({ playerName: player.playerName });
-    await Player.deleteOne({ phoneNumber });
-    await Winner.deleteMany({ playerName: player.playerName });
-    const game = await Game.findOne();
-    wss.clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({ type: 'update', game, winners: [] }));
-        console.log('Enviado update WebSocket para exclusão por telefone');
-      }
-    });
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Erro ao excluir cartelas por telefone:', err);
-    res.status(500).json({ error: 'Erro ao excluir cartelas' });
+  } else {
+    res.status(401).json({ error: 'Senha incorreta' });
   }
 });
 
@@ -374,22 +317,18 @@ async function markNumber(number) {
   return { newNumber: number, winners };
 }
 
-// Função para verificar vitória (linha horizontal)
+// Função para verificar vitória (todos os números)
 function checkWin(cartela) {
   const marked = cartela.markedNumbers;
-  for (let row = 0; row < 5; row++) {
-    let markedInRow = 0;
-    for (let col = 0; col < 5; col++) {
+  for (let col = 0; col < 5; col++) {
+    for (let row = 0; row < 5; row++) {
       const num = cartela.numbers[col][row];
-      if (num === 0 || marked.includes(num)) {
-        markedInRow++;
+      if (num !== 0 && !marked.includes(num)) {
+        return false;
       }
     }
-    if (markedInRow === 5) {
-      return true;
-    }
   }
-  return false;
+  return true;
 }
 
 // Endpoint para sortear número (automático)
