@@ -1,5 +1,74 @@
-/* Estilos adicionais podem ser incluídos aqui, se necessário */
+/* Estilos adicionais para as cartelas */
 body {
   margin: 0;
   padding: 0;
+  font-family: Arial, sans-serif;
+  background-color: #f0f0f0;
+}
+
+.cartela-container {
+  margin: 20px;
+  padding: 10px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.cartela-container h2 {
+  text-align: center;
+  color: #333;
+}
+
+.congrats {
+  text-align: center;
+  color: #28a745;
+  font-weight: bold;
+  margin: 10px 0;
+}
+
+#prize, #info {
+  margin: 20px;
+  padding: 10px;
+  background-color: #e9ecef;
+  border-radius: 5px;
+  text-align: center;
+}
+
+#prize h2, #info h2 {
+  color: #333;
+  margin: 0 0 5px 0;
+}
+
+#prize p, #info p {
+  margin: 0;
+  font-size: 1.2em;
+  color: #555;
+}
+
+table {
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto;
+  border-collapse: collapse;
+}
+
+th, td {
+  border: 1px solid #ccc;
+  padding: 10px;
+  text-align: center;
+  font-size: 1.1em;
+}
+
+th {
+  background-color: #007bff;
+  color: white;
+}
+
+td {
+  background-color: #fff;
+}
+
+td.marked {
+  background-color: #ffc107; /* Amarelo para números marcados */
+  font-weight: bold;
 }
