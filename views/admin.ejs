@@ -1,185 +1,178 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Painel de Administração - Bingo</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Painel do Bingo - Admin</title>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css">
-  <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+
   <style>
-    body {
-      background: linear-gradient(135deg, #34d399, #3b82f6);
-      font-family: 'Arial', sans-serif;
+    .highlight-box { @apply bg-white p-4 rounded-lg shadow mb-6; }
+    .last-number-wrap { @apply flex items-center justify-center; }
+    .last-number-bubble {
+      @apply flex items-center justify-center rounded-full font-extrabold;
+      width: 160px; height: 160px; font-size: 54px;
+      box-shadow: 0 8px 20px rgba(0,0,0,.12);
+      background: #f9fafb; color: #111827;
+      border: 6px solid #e5e7eb;
     }
-    .highlight-box {
-      background: rgba(255, 255, 255, 0.9);
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
+    .last-number-letter { @apply mr-1; }
+    .section-title { @apply text-xl font-semibold mb-2 text-gray-700; }
+    .label { @apply block text-sm font-medium text-gray-700; }
+    .input {
+      @apply mt-1 block w-full border-gray-300 rounded-md shadow-sm
+             focus:ring-blue-500 focus:border-blue-500;
     }
+    .btn {
+      @apply font-bold py-2 px-4 rounded-lg transition duration-300 text-white;
+    }
+    .btn-primary { @apply bg-blue-600 hover:bg-blue-700; }
+    .btn-secondary { @apply bg-blue-500 hover:bg-blue-600; }
+    .btn-danger { @apply bg-red-600 hover:bg-red-700; }
+    .btn-warning { @apply bg-red-500 hover:bg-red-600; }
+    .table th, .table td { @apply border p-2; }
+    .muted { @apply text-gray-500; }
   </style>
 </head>
-<body class="flex items-center justify-center min-h-screen">
-  <div class="w-full max-w-4xl p-6">
-    <h1 class="text-4xl font-bold text-center mb-6 text-white drop-shadow-lg">Painel de Administração</h1>
-    
-    <!-- Gerar Cartela -->
+<body class="bg-gray-100">
+  <div class="max-w-6xl mx-auto p-4 md:p-8">
+    <h1 class="text-2xl md:text-3xl font-bold mb-6">Painel de Administração do Bingo</h1>
+
+    <!-- Informações do Jogo -->
     <div class="highlight-box">
-      <h2 class="text-xl font-semibold mb-2 text-gray-700">Gerar Cartela</h2>
-      <form id="generateCartelaForm" class="space-y-4">
+      <h2 class="section-title">Informações do Jogo</h2>
+      <form id="updatePrizeForm" class="grid md:grid-cols-2 gap-4 items-end">
         <div>
-          <label for="playerName" class="block text-sm font-medium text-gray-700">Nome do Jogador</label>
-          <input type="text" id="playerName" name="playerName" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
+          <label class="label" for="currentPrize">Prêmio Atual</label>
+          <input class="input" id="currentPrize" name="currentPrize" value="<%= game.currentPrize || '' %>" />
         </div>
+        <button class="btn btn-primary h-10 md:h-auto" type="submit">Atualizar Prêmio</button>
+      </form>
+
+      <form id="updateInfoForm" class="grid md:grid-cols-2 gap-4 items-end mt-4">
         <div>
-          <label for="phoneNumber" class="block text-sm font-medium text-gray-700">Número de Telefone (opcional)</label>
-          <input type="text" id="phoneNumber" name="phoneNumber" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
+          <label class="label" for="additionalInfo">Informações Adicionais</label>
+          <input class="input" id="additionalInfo" name="additionalInfo" value="<%= game.additionalInfo || '' %>" />
         </div>
-        <div>
-          <label for="quantity" class="block text-sm font-medium text-gray-700">Quantidade de Cartelas</label>
-          <input type="number" id="quantity" name="quantity" min="1" value="1" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
-        </div>
-        <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Gerar Cartela(s)</button>
+        <button class="btn btn-primary h-10 md:h-auto" type="submit">Atualizar Informações</button>
       </form>
     </div>
 
-    <!-- Atualizar Prêmio -->
+    <!-- Mensagem Inicial -->
     <div class="highlight-box">
-      <h2 class="text-xl font-semibold mb-2 text-gray-700">Atualizar Prêmio Atual</h2>
-      <form id="updatePrizeForm" class="space-y-4">
+      <h2 class="section-title">Mensagem Inicial (Tela Pública)</h2>
+      <form id="updateStartMessageForm" class="grid md:grid-cols-2 gap-4 items-end">
         <div>
-          <label for="currentPrize" class="block text-sm font-medium text-gray-700">Prêmio Atual</label>
-          <input type="text" id="currentPrize" name="currentPrize" value="<%= game.currentPrize || '' %>" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
+          <label class="label" for="startMessage">Mensagem</label>
+          <input class="input" id="startMessage" name="startMessage" value="<%= game.startMessage || '' %>" />
         </div>
-        <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Atualizar Prêmio</button>
+        <button class="btn btn-primary h-10 md:h-auto" type="submit">Atualizar Mensagem</button>
       </form>
     </div>
 
-    <!-- Atualizar Informações Adicionais -->
+    <!-- Números Sorteados + Último número grande -->
     <div class="highlight-box">
-      <h2 class="text-xl font-semibold mb-2 text-gray-700">Atualizar Informações Adicionais</h2>
-      <form id="updateInfoForm" class="space-y-4">
-        <div>
-          <label for="additionalInfo" class="block text-sm font-medium text-gray-700">Informações Adicionais</label>
-          <input type="text" id="additionalInfo" name="additionalInfo" value="<%= game.additionalInfo || '' %>" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
-        </div>
-        <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Atualizar Informações</button>
-      </form>
-    </div>
+      <h2 class="section-title">Números Sorteados</h2>
 
-    <!-- Atualizar Mensagem Inicial -->
-    <div class="highlight-box">
-      <h2 class="text-xl font-semibold mb-2 text-gray-700">Atualizar Mensagem Inicial</h2>
-      <form id="updateStartMessageForm" class="space-y-4">
-        <div>
-          <label for="startMessage" class="block text-sm font-medium text-gray-700">Mensagem Inicial</label>
-          <input type="text" id="startMessage" name="startMessage" value="<%= game.startMessage || 'Em Breve o Bingo Irá Começar' %>" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
+      <div class="grid md:grid-cols-3 gap-6">
+        <!-- Colunas B I N G O -->
+        <div class="md:col-span-2 space-y-2" id="drawnNumbers">
+          <div><strong>B (1-15):</strong> <span id="drawnB" class="muted">--</span></div>
+          <div><strong>I (16-30):</strong> <span id="drawnI" class="muted">--</span></div>
+          <div><strong>N (31-45):</strong> <span id="drawnN" class="muted">--</span></div>
+          <div><strong>G (46-60):</strong> <span id="drawnG" class="muted">--</span></div>
+          <div><strong>O (61-75):</strong> <span id="drawnO" class="muted">--</span></div>
         </div>
-        <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Atualizar Mensagem</button>
-      </form>
-    </div>
 
-    <!-- Números Sorteados -->
-    <div class="highlight-box flex items-start justify-between">
-      <div>
-        <h2 class="text-xl font-semibold mb-2 text-gray-700">Números Sorteados</h2>
-        <div id="drawnNumbers" class="space-y-2">
-          <div><strong>B (1-15):</strong> <span id="drawnB">--</span></div>
-          <div><strong>I (16-30):</strong> <span id="drawnI">--</span></div>
-          <div><strong>N (31-45):</strong> <span id="drawnN">--</span></div>
-          <div><strong>G (46-60):</strong> <span id="drawnG">--</span></div>
-          <div><strong>O (61-75):</strong> <span id="drawnO">--</span></div>
+        <!-- Último Número em destaque -->
+        <div class="md:col-span-1 last-number-wrap">
+          <div class="last-number-bubble" id="lastNumberBubble" aria-label="Último número">
+            <span class="last-number-letter" id="lastLetter">-</span>
+            <span id="lastNumber">--</span>
+          </div>
         </div>
       </div>
 
-      <!-- Último número grande -->
-      <div class="ml-8 text-center">
-        <h3 class="text-lg font-semibold text-gray-700">Último Número</h3>
-        <div id="lastNumberDisplay" class="text-7xl font-extrabold text-blue-600 mt-2">--</div>
-      </div>
-    </div>
-
-    <div class="mt-4 space-y-4">
-      <!-- Sorteio Automático -->
-      <div>
-        <button id="drawNumber" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Sortear Número (Automático)</button>
-      </div>
-      <!-- Marcação Manual -->
-      <form id="markNumberForm" class="space-y-4">
+      <div class="mt-6 grid md:grid-cols-2 gap-4">
         <div>
-          <label for="manualNumber" class="block text-sm font-medium text-gray-700">Marcar Número Manual (1-75)</label>
-          <input type="number" id="manualNumber" name="number" min="1" max="75" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+          <button id="drawNumber" class="btn btn-secondary w-full">Sortear Número (Automático)</button>
         </div>
-        <div>
-          <label for="manualPassword" class="block text-sm font-medium text-gray-700">Senha</label>
-          <input type="password" id="manualPassword" name="password" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-        </div>
-        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Marcar Número (Manual)</button>
-      </form>
+        <form id="markNumberForm" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="label" for="manualNumber">Marcar Número Manual (1-75)</label>
+            <input class="input" type="number" id="manualNumber" min="1" max="75" />
+          </div>
+          <div>
+            <label class="label" for="manualPassword">Senha</label>
+            <input class="input" type="password" id="manualPassword" />
+          </div>
+          <div class="flex items-end">
+            <button type="submit" class="btn btn-primary w-full">Marcar Número (Manual)</button>
+          </div>
+        </form>
+      </div>
     </div>
 
     <!-- Ações -->
     <div class="highlight-box">
-      <h2 class="text-xl font-semibold mb-2 text-gray-700">Ações</h2>
-      <div class="flex space-x-4">
-        <button id="resetBingo" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Reiniciar o Bingo</button>
-        <button id="deleteAllCartelas" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Excluir Todas as Cartelas</button>
-        <button id="deleteByPhone" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Excluir por Número de Telefone</button>
+      <h2 class="section-title">Ações</h2>
+      <div class="flex flex-wrap gap-3">
+        <button id="resetBingo" class="btn btn-warning">Reiniciar o Bingo</button>
+        <button id="deleteAllCartelas" class="btn btn-danger">Excluir Todas as Cartelas</button>
+        <button id="deleteByPhone" class="btn btn-danger">Excluir por Número de Telefone</button>
       </div>
     </div>
 
-    <!-- Modal para Reiniciar o Bingo -->
+    <!-- Modal: Reset -->
     <div id="resetModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden">
-      <div class="bg-white p-6 rounded-lg shadow-lg">
+      <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
         <h2 class="text-xl font-semibold mb-4">Confirmar Reinicialização do Bingo</h2>
         <form id="resetForm">
           <div class="mb-4">
-            <label for="resetPassword" class="block text-sm font-medium text-gray-700">Senha</label>
-            <input type="password" id="resetPassword" name="password" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500">
+            <label class="label" for="resetPassword">Senha</label>
+            <input class="input" type="password" id="resetPassword" />
           </div>
-          <div class="flex justify-end space-x-4">
+          <div class="flex justify-end gap-3">
             <button type="button" id="cancelReset" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">Cancelar</button>
-            <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Reiniciar</button>
+            <button type="submit" class="btn btn-warning">Reiniciar</button>
           </div>
         </form>
       </div>
     </div>
 
-    <!-- Modal para Excluir Todas as Cartelas -->
+    <!-- Modal: Excluir todas -->
     <div id="deleteAllModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden">
-      <div class="bg-white p-6 rounded-lg shadow-lg">
-        <h2 class="text-xl font-semibold mb-4">Confirmar Exclusão de Todas as Cartelas</h2>
+      <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+        <h2 class="text-xl font-semibold mb-4">Excluir Todas as Cartelas</h2>
         <form id="deleteAllForm">
           <div class="mb-4">
-            <label for="deleteAllPassword" class="block text-sm font-medium text-gray-700">Senha</label>
-            <input type="password" id="deleteAllPassword" name="password" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500">
+            <label class="label" for="deleteAllPassword">Senha</label>
+            <input class="input" type="password" id="deleteAllPassword" />
           </div>
-          <div class="flex justify-end space-x-4">
+          <div class="flex justify-end gap-3">
             <button type="button" id="cancelDeleteAll" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">Cancelar</button>
-            <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Excluir</button>
+            <button type="submit" class="btn btn-danger">Excluir</button>
           </div>
         </form>
       </div>
     </div>
 
-    <!-- Modal para Excluir por Número de Telefone -->
+    <!-- Modal: Excluir por telefone -->
     <div id="deletePhoneModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden">
-      <div class="bg-white p-6 rounded-lg shadow-lg">
-        <h2 class="text-xl font-semibold mb-4">Excluir Cartelas por Número de Telefone</h2>
+      <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+        <h2 class="text-xl font-semibold mb-4">Excluir por Telefone</h2>
         <form id="deletePhoneForm">
           <div class="mb-4">
-            <label for="deletePhoneNumber" class="block text-sm font-medium text-gray-700">Número de Telefone</label>
-            <input type="text" id="deletePhoneNumber" name="phoneNumber" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500">
+            <label class="label" for="deletePhoneNumber">Número de Telefone</label>
+            <input class="input" id="deletePhoneNumber" />
           </div>
           <div class="mb-4">
-            <label for="deletePhonePassword" class="block text-sm font-medium text-gray-700">Senha</label>
-            <input type="password" id="deletePhonePassword" name="password" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500">
+            <label class="label" for="deletePhonePassword">Senha</label>
+            <input class="input" type="password" id="deletePhonePassword" />
           </div>
-          <div class="flex justify-end space-x-4">
+          <div class="flex justify-end gap-3">
             <button type="button" id="cancelDeletePhone" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">Cancelar</button>
-            <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Excluir</button>
+            <button type="submit" class="btn btn-danger">Excluir</button>
           </div>
         </form>
       </div>
@@ -187,8 +180,8 @@
 
     <!-- Jogadores e Links -->
     <div class="highlight-box">
-      <h2 class="text-xl font-semibold mb-2 text-gray-700">Jogadores e Links</h2>
-      <table class="w-full border-collapse">
+      <h2 class="section-title">Jogadores e Links</h2>
+      <table class="table w-full border-collapse">
         <thead>
           <tr class="bg-gray-200">
             <th class="border p-2">Nome</th>
@@ -203,8 +196,8 @@
 
     <!-- Vencedores -->
     <div class="highlight-box">
-      <h2 class="text-xl font-semibold mb-2 text-gray-700">Vencedores</h2>
-      <table class="w-full border-collapse">
+      <h2 class="section-title">Vencedores</h2>
+      <table class="table w-full border-collapse">
         <thead>
           <tr class="bg-gray-200">
             <th class="border p-2">Nome</th>
@@ -218,61 +211,251 @@
   </div>
 
   <script>
-    // Função para formatar números sorteados por letras
-    function formatDrawnNumbers(numbers, lastNumber) {
-      const ranges = {
-        B: { min: 1, max: 15, numbers: [] },
-        I: { min: 16, max: 30, numbers: [] },
-        N: { min: 31, max: 45, numbers: [] },
-        G: { min: 46, max: 60, numbers: [] },
-        O: { min: 61, max: 75, numbers: [] }
-      };
-      numbers.forEach(num => {
-        if (num >= 1 && num <= 15) ranges.B.numbers.push(`B-${num}`);
-        else if (num >= 16 && num <= 30) ranges.I.numbers.push(`I-${num}`);
-        else if (num >= 31 && num <= 45) ranges.N.numbers.push(`N-${num}`);
-        else if (num >= 46 && num <= 60) ranges.G.numbers.push(`G-${num}`);
-        else if (num >= 61 && num <= 75) ranges.O.numbers.push(`O-${num}`);
-      });
-      document.getElementById('drawnB').textContent = ranges.B.numbers.length > 0 ? ranges.B.numbers.join(', ') : '--';
-      document.getElementById('drawnI').textContent = ranges.I.numbers.length > 0 ? ranges.I.numbers.join(', ') : '--';
-      document.getElementById('drawnN').textContent = ranges.N.numbers.length > 0 ? ranges.N.numbers.join(', ') : '--';
-      document.getElementById('drawnG').textContent = ranges.G.numbers.length > 0 ? ranges.G.numbers.join(', ') : '--';
-      document.getElementById('drawnO').textContent = ranges.O.numbers.length > 0 ? ranges.O.numbers.join(', ') : '--';
-
-      // Atualizar último número grande
-      document.getElementById('lastNumberDisplay').textContent = lastNumber ? lastNumber : '--';
+    // --- Helpers ---
+    function numberToLetter(n) {
+      if (n >= 1 && n <= 15) return 'B';
+      if (n >= 16 && n <= 30) return 'I';
+      if (n >= 31 && n <= 45) return 'N';
+      if (n >= 46 && n <= 60) return 'G';
+      if (n >= 61 && n <= 75) return 'O';
+      return '-';
     }
 
-    // Carregar números sorteados iniciais
-    formatDrawnNumbers(<%- JSON.stringify(game.drawnNumbers) %>, <%- JSON.stringify(game.lastNumber) %>);
+    function formatDrawnNumbers(numbers, lastNumber) {
+      const ranges = { B: [], I: [], N: [], G: [], O: [] };
+      (numbers || []).forEach(num => {
+        if (num >= 1 && num <= 15) ranges.B.push(`B-${num}`);
+        else if (num >= 16 && num <= 30) ranges.I.push(`I-${num}`);
+        else if (num >= 31 && num <= 45) ranges.N.push(`N-${num}`);
+        else if (num >= 46 && num <= 60) ranges.G.push(`G-${num}`);
+        else if (num >= 61 && num <= 75) ranges.O.push(`O-${num}`);
+      });
 
-    // WebSocket para atualizar números sorteados
-    const ws = new WebSocket('wss://' + window.location.host);
-    ws.onopen = () => console.log('WebSocket conectado em /admin');
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'update') {
-          formatDrawnNumbers(data.game.drawnNumbers || [], data.game.lastNumber);
-          fetchPlayers();
-          fetchWinners();
-        }
-      } catch (err) {
-        console.error('Erro ao processar mensagem WebSocket em /admin:', err);
+      document.getElementById('drawnB').textContent = ranges.B.length ? ranges.B.join(', ') : '--';
+      document.getElementById('drawnI').textContent = ranges.I.length ? ranges.I.join(', ') : '--';
+      document.getElementById('drawnN').textContent = ranges.N.length ? ranges.N.join(', ') : '--';
+      document.getElementById('drawnG').textContent = ranges.G.length ? ranges.G.join(', ') : '--';
+      document.getElementById('drawnO').textContent = ranges.O.length ? ranges.O.join(', ') : '--';
+
+      const last = Number.isInteger(lastNumber) ? lastNumber : null;
+      document.getElementById('lastLetter').textContent = last ? numberToLetter(last) : '-';
+      document.getElementById('lastNumber').textContent = last ? String(last) : '--';
+    }
+
+    // Estado inicial vindo do servidor
+    formatDrawnNumbers(<%- JSON.stringify(game.drawnNumbers || []) %>, <%- JSON.stringify(game.lastNumber) %>);
+
+    // --- WebSocket dinâmico (corrigido) ---
+    // Antes estava: new WebSocket('wss://' + window.location.host)  [quebrava em HTTP]. :contentReference[oaicite:2]{index=2}
+    (function initWS(){
+      const wsProtocol = (location.protocol === 'https:') ? 'wss' : 'ws';
+      const ws = new WebSocket(wsProtocol + '://' + location.host);
+
+      ws.onopen = () => console.log('WebSocket conectado em /admin');
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'update') {
+            formatDrawnNumbers(data.game?.drawnNumbers || [], data.game?.lastNumber);
+            fetchPlayers();
+            fetchWinners();
+          }
+        } catch (err) { console.error('Erro ao processar WS:', err); }
+      };
+      ws.onerror = (err) => console.error('Erro no WebSocket em /admin:', err);
+      ws.onclose = () => {
+        console.warn('WS desconectado, recarregando em 5s...');
+        setTimeout(() => location.reload(), 5000);
+      };
+    })();
+
+    // --- Ações ---
+    function ensureJSONResponse(res){
+      const ct = res.headers.get('content-type') || '';
+      if (!ct.includes('application/json')) {
+        alert('Sua sessão expirou. Faça login novamente.');
+        window.location.href = '/login';
+        throw new Error('Sessão expirada / resposta não-JSON');
       }
-    };
-    ws.onerror = (err) => console.error('Erro no WebSocket em /admin:', err);
-    ws.onclose = () => {
-      console.log('WebSocket desconectado em /admin, tentando reconectar...');
-      setTimeout(() => {
-        window.location.reload();
-      }, 5000);
-    };
+      return res;
+    }
 
-    // (restante do JS permanece igual: gerar cartela, atualizar prêmio, info, etc...)
-    // ...
-    // Código original de eventos e fetchPlayers/fetchWinners continua
+    document.getElementById('drawNumber').addEventListener('click', async () => {
+      try {
+        const res = ensureJSONResponse(await fetch('/draw', { method:'POST', headers:{'Content-Type':'application/json'} }));
+        const data = await res.json();
+        if (data.error) alert(data.error);
+      } catch (err) {
+        console.error('Erro ao sortear número:', err);
+        alert('Erro ao sortear número');
+      }
+    });
+
+    document.getElementById('markNumberForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const number = document.getElementById('manualNumber').value;
+      const password = document.getElementById('manualPassword').value;
+      try {
+        const res = ensureJSONResponse(await fetch('/mark-number', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ number, password })
+        }));
+        const data = await res.json();
+        if (data.error) alert(data.error);
+      } catch (err) {
+        console.error('Erro ao marcar manualmente:', err);
+        alert('Erro ao marcar número');
+      }
+    });
+
+    // Atualizações de texto
+    document.getElementById('updatePrizeForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const currentPrize = document.getElementById('currentPrize').value;
+      try {
+        const res = ensureJSONResponse(await fetch('/update-prize', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ currentPrize })
+        }));
+        const data = await res.json();
+        alert(data.success ? 'Prêmio atualizado!' : 'Erro ao atualizar prêmio');
+      } catch (err) { console.error(err); alert('Erro ao atualizar prêmio'); }
+    });
+
+    document.getElementById('updateInfoForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const additionalInfo = document.getElementById('additionalInfo').value;
+      try {
+        const res = ensureJSONResponse(await fetch('/update-info', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ additionalInfo })
+        }));
+        const data = await res.json();
+        alert(data.success ? 'Informações atualizadas!' : 'Erro ao atualizar informações');
+      } catch (err) { console.error(err); alert('Erro ao atualizar informações'); }
+    });
+
+    document.getElementById('updateStartMessageForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const startMessage = document.getElementById('startMessage').value;
+      try {
+        const res = ensureJSONResponse(await fetch('/update-start-message', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ startMessage })
+        }));
+        const data = await res.json();
+        alert(data.success ? 'Mensagem atualizada!' : 'Erro ao atualizar mensagem');
+      } catch (err) { console.error(err); alert('Erro ao atualizar mensagem'); }
+    });
+
+    // Reset Bingo
+    document.getElementById('resetBingo').addEventListener('click', () => {
+      document.getElementById('resetModal').classList.remove('hidden');
+    });
+    document.getElementById('cancelReset').addEventListener('click', () => {
+      document.getElementById('resetModal').classList.add('hidden');
+    });
+    document.getElementById('resetForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const password = document.getElementById('resetPassword').value;
+      try {
+        const res = ensureJSONResponse(await fetch('/reset', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ password })
+        }));
+        const data = await res.json();
+        if (data.error) alert(data.error); else location.href = '/admin';
+      } catch (err) { console.error(err); alert('Erro ao reiniciar'); }
+      document.getElementById('resetModal').classList.add('hidden');
+    });
+
+    // Delete All
+    document.getElementById('deleteAllCartelas').addEventListener('click', () => {
+      document.getElementById('deleteAllModal').classList.remove('hidden');
+    });
+    document.getElementById('cancelDeleteAll').addEventListener('click', () => {
+      document.getElementById('deleteAllModal').classList.add('hidden');
+    });
+    document.getElementById('deleteAllForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const password = document.getElementById('deleteAllPassword').value;
+      try {
+        const res = ensureJSONResponse(await fetch('/delete-all-cartelas', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ password })
+        }));
+        const data = await res.json();
+        alert(data.success ? 'Todas as cartelas excluídas!' : (data.error || 'Erro ao excluir'));
+        fetchPlayers(); fetchWinners();
+      } catch (err) { console.error(err); alert('Erro ao excluir cartelas'); }
+      document.getElementById('deleteAllModal').classList.add('hidden');
+    });
+
+    // Delete by Phone
+    document.getElementById('deleteByPhone').addEventListener('click', () => {
+      document.getElementById('deletePhoneModal').classList.remove('hidden');
+    });
+    document.getElementById('cancelDeletePhone').addEventListener('click', () => {
+      document.getElementById('deletePhoneModal').classList.add('hidden');
+    });
+    document.getElementById('deletePhoneForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const phoneNumber = document.getElementById('deletePhoneNumber').value;
+      const password = document.getElementById('deletePhonePassword').value;
+      try {
+        const res = ensureJSONResponse(await fetch('/delete-cartelas-by-phone', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ phoneNumber, password })
+        }));
+        const data = await res.json();
+        alert(data.success ? 'Cartelas excluídas!' : (data.error || 'Erro ao excluir'));
+        fetchPlayers(); fetchWinners();
+      } catch (err) { console.error(err); alert('Erro ao excluir cartelas'); }
+      document.getElementById('deletePhoneModal').classList.add('hidden');
+    });
+
+    // Carregar Jogadores / Vencedores
+    async function fetchPlayers() {
+      try {
+        const res = await fetch('/players');
+        const players = await res.json();
+        const table = document.getElementById('playersTable');
+        table.innerHTML = '';
+        players.forEach(p => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td class="border p-2">${p.playerName}</td>
+            <td class="border p-2">${p.phoneNumber || '--'}</td>
+            <td class="border p-2">${p.cartelaCount}</td>
+            <td class="border p-2"><a class="text-blue-600 hover:underline" href="${p.link}" target="_blank">${p.link}</a></td>
+          `;
+          table.appendChild(tr);
+        });
+      } catch (err) { console.error('Erro ao carregar jogadores:', err); }
+    }
+
+    async function fetchWinners() {
+      try {
+        const res = await fetch('/winners');
+        const winners = await res.json();
+        const table = document.getElementById('winnersTable');
+        table.innerHTML = '';
+        winners.forEach(w => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td class="border p-2">${w.playerName}</td>
+            <td class="border p-2">${w.cartelaId}</td>
+            <td class="border p-2">${new Date(w.createdAt).toLocaleString()}</td>
+          `;
+          table.appendChild(tr);
+        });
+      } catch (err) { console.error('Erro ao carregar vencedores:', err); }
+    }
+
+    // Inicial
+    fetchPlayers();
+    fetchWinners();
   </script>
 </body>
 </html>
