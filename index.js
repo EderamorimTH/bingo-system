@@ -123,8 +123,10 @@ async function drawNumber() {
   const winners = [];
   for (let cartela of cartelas) {
     if (cartela.numbers.flat().includes(newNumber)) {
-      cartela.markedNumbers.push(newNumber);
-      await cartela.save();
+      if (!cartela.markedNumbers.includes(newNumber)) {
+        cartela.markedNumbers.push(newNumber);
+        await cartela.save();
+      }
     }
     if (hasBingo(cartela)) {
       const winner = new Winner({
@@ -157,8 +159,10 @@ async function markNumber(number) {
   const winners = [];
   for (let cartela of cartelas) {
     if (cartela.numbers.flat().includes(number)) {
-      cartela.markedNumbers.push(number);
-      await cartela.save();
+      if (!cartela.markedNumbers.includes(number)) {
+        cartela.markedNumbers.push(number);
+        await cartela.save();
+      }
     }
     if (hasBingo(cartela)) {
       const winner = new Winner({
@@ -207,6 +211,8 @@ app.get('/login', (req, res) => {
 
 app.post('/login', (req, res) => {
   const { password } = req.body;
+  console.log('Senha enviada:', password);
+  console.log('ADMIN_PASSWORD:', process.env.ADMIN_PASSWORD);
   if (password === process.env.ADMIN_PASSWORD) {
     res.cookie('auth', 'true', { httpOnly: true });
     res.redirect('/admin');
@@ -230,17 +236,24 @@ app.get('/display', async (req, res) => {
 app.get('/cartelas', async (req, res) => {
   try {
     const viewPath = path.join(__dirname, 'views', 'cartelas.ejs');
+    console.log(`Verificando existência de ${viewPath}`);
     await fs.access(viewPath);
+    console.log('Arquivo cartelas.ejs encontrado');
     const { playerName } = req.query;
+    console.log(`Buscando cartelas para playerName: ${playerName}`);
     if (!playerName) {
+      console.log('Erro: Nome do jogador é obrigatório');
       return res.status(400).send('Nome do jogador é obrigatório');
     }
     const cartelas = await Cartela.find({ playerName });
+    console.log(`Cartelas encontradas: ${cartelas.length}`);
     if (cartelas.length === 0) {
+      console.log(`Nenhuma cartela encontrada para playerName: ${playerName}`);
       return res.status(404).send('Nenhuma cartela encontrada para este jogador');
     }
     const game = await Game.findOne() || { drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' };
     const winners = await Winner.find();
+    console.log('Renderizando cartelas.ejs');
     res.render('cartelas', { cartelas, game, winners });
   } catch (err) {
     console.error('Erro na rota /cartelas:', err);
@@ -297,9 +310,11 @@ app.post('/draw', isAuthenticated, async (req, res) => {
     }
     const game = await Game.findOne();
     const { newNumber, winners } = result;
+    console.log(`Número sorteado automaticamente: ${newNumber}, Vencedores: ${winners}`);
     wss.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(JSON.stringify({ type: 'update', game, winners }));
+        console.log('Enviado update WebSocket para sorteio automático:', JSON.stringify({ type: 'update', game, winners }));
       }
     });
     res.json({ number: newNumber, winners });
@@ -322,9 +337,11 @@ app.post('/mark-number', isAuthenticated, async (req, res) => {
     }
     const game = await Game.findOne();
     const { newNumber, winners } = result;
+    console.log(`Número marcado manualmente: ${newNumber}, Vencedores: ${winners}`);
     wss.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(JSON.stringify({ type: 'update', game, winners }));
+        console.log('Enviado update WebSocket para marcação manual:', JSON.stringify({ type: 'update', game, winners }));
       }
     });
     res.json({ number: newNumber, winners });
@@ -343,6 +360,7 @@ app.post('/update-prize', isAuthenticated, async (req, res) => {
   wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify({ type: 'update', game, winners: [] }));
+      console.log('Enviado update WebSocket para prêmio:', JSON.stringify({ type: 'update', game, winners: [] }));
     }
   });
   res.json({ success: true });
@@ -357,6 +375,7 @@ app.post('/update-info', isAuthenticated, async (req, res) => {
   wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify({ type: 'update', game, winners: [] }));
+      console.log('Enviado update WebSocket para informações:', JSON.stringify({ type: 'update', game, winners: [] }));
     }
   });
   res.json({ success: true });
@@ -371,6 +390,7 @@ app.post('/update-start-message', isAuthenticated, async (req, res) => {
   wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify({ type: 'update', game, winners: [] }));
+      console.log('Enviado update WebSocket para mensagem inicial:', JSON.stringify({ type: 'update', game, winners: [] }));
     }
   });
   res.json({ success: true });
@@ -379,6 +399,7 @@ app.post('/update-start-message', isAuthenticated, async (req, res) => {
 // Endpoint para obter estado do jogo
 app.get('/game', async (req, res) => {
   const game = await Game.findOne() || { drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' };
+  console.log('Estado do jogo enviado para /game:', game);
   res.json(game);
 });
 
@@ -450,6 +471,7 @@ wss.on('connection', ws => {
         game: game || { drawnNumbers: [], lastNumber: null, currentPrize: '', additionalInfo: '', startMessage: 'Em Breve o Bingo Irá Começar' },
         winners
       }));
+      console.log('Enviado estado inicial WebSocket:', JSON.stringify({ type: 'update', game, winners }));
     });
   }).catch(err => {
     console.error('Erro ao inicializar WebSocket:', err);
