@@ -3,543 +3,202 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Painel de Administração - Bingo</title>
+  <title>Painel de Sorteio - Bingo</title>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
   <link rel="icon" href="data:;base64,iVBORw0KGgo=">
-  <style>
-    body {
-      background: linear-gradient(135deg, #34d399, #3b82f6);
-      font-family: 'Arial', sans-serif;
-    }
-    .highlight-box {
-      background: rgba(255, 255, 255, 0.9);
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
-    }
-  </style>
 </head>
-<body class="flex items-center justify-center min-h-screen">
-  <div class="w-full max-w-4xl p-6">
-    <h1 class="text-4xl font-bold text-center mb-6 text-white drop-shadow-lg">Painel de Administração</h1>
-    
-    <!-- Gerar Cartela -->
-    <div class="highlight-box">
-      <h2 class="text-xl font-semibold mb-2 text-gray-700">Gerar Cartela</h2>
-      <form id="generateCartelaForm" class="space-y-4">
-        <div>
-          <label for="playerName" class="block text-sm font-medium text-gray-700">Nome do Jogador</label>
-          <input type="text" id="playerName" name="playerName" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
-        </div>
-        <div>
-          <label for="phoneNumber" class="block text-sm font-medium text-gray-700">Número de Telefone (opcional)</label>
-          <input type="text" id="phoneNumber" name="phoneNumber" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
-        </div>
-        <div>
-          <label for="quantity" class="block text-sm font-medium text-gray-700">Quantidade de Cartelas</label>
-          <input type="number" id="quantity" name="quantity" min="1" value="1" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
-        </div>
-        <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Gerar Cartela(s)</button>
-      </form>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+  <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-2xl">
+    <h1 class="text-3xl font-bold text-center mb-6">Painel de Sorteio</h1>
+    <div class="mb-4">
+      <button id="drawButton" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full">Sortear Número</button>
     </div>
-
-    <!-- Atualizar Prêmio -->
-    <div class="highlight-box">
-      <h2 class="text-xl font-semibold mb-2 text-gray-700">Atualizar Prêmio Atual</h2>
-      <form id="updatePrizeForm" class="space-y-4">
-        <div>
-          <label for="currentPrize" class="block text-sm font-medium text-gray-700">Prêmio Atual</label>
-          <input type="text" id="currentPrize" name="currentPrize" value="<%= game.currentPrize || '' %>" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
-        </div>
-        <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Atualizar Prêmio</button>
-      </form>
+    <div class="mb-4">
+      <label for="playerName" class="block text-sm font-medium text-gray-700">Nome do Jogador:</label>
+      <input type="text" id="playerName" class="mt-1 p-2 border rounded w-full" placeholder="Ex.: João">
+      <label for="quantity" class="block text-sm font-medium text-gray-700 mt-2">Quantidade de Cartelas:</label>
+      <input type="number" id="quantity" class="mt-1 p-2 border rounded w-full" placeholder="Ex.: 1" min="1" value="1">
+      <button id="generateCartelaButton" class="mt-2 bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 w-full">Gerar Cartela(s)</button>
     </div>
-
-    <!-- Atualizar Informações Adicionais -->
-    <div class="highlight-box">
-      <h2 class="text-xl font-semibold mb-2 text-gray-700">Atualizar Informações Adicionais</h2>
-      <form id="updateInfoForm" class="space-y-4">
-        <div>
-          <label for="additionalInfo" class="block text-sm font-medium text-gray-700">Informações Adicionais</label>
-          <input type="text" id="additionalInfo" name="additionalInfo" value="<%= game.additionalInfo || '' %>" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
-        </div>
-        <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Atualizar Informações</button>
-      </form>
+    <div class="mb-4">
+      <h2 class="text-xl font-semibold">Cartelas Vencedoras</h2>
+      <div id="winners" class="mt-2 text-center"></div>
     </div>
-
-    <!-- Atualizar Mensagem Inicial -->
-    <div class="highlight-box">
-      <h2 class="text-xl font-semibold mb-2 text-gray-700">Atualizar Mensagem Inicial</h2>
-      <form id="updateStartMessageForm" class="space-y-4">
-        <div>
-          <label for="startMessage" class="block text-sm font-medium text-gray-700">Mensagem Inicial</label>
-          <input type="text" id="startMessage" name="startMessage" value="<%= game.startMessage || 'Em Breve o Bingo Irá Começar' %>" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500">
-        </div>
-        <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Atualizar Mensagem</button>
-      </form>
+    <div class="mb-4">
+      <label for="startMessage" class="block text-sm font-medium text-gray-700">Mensagem Inicial:</label>
+      <input type="text" id="startMessage" class="mt-1 p-2 border rounded w-full" placeholder="Ex.: Em Breve o Bingo Irá Começar">
+      <button id="updateStartMessageButton" class="mt-2 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 w-full">Atualizar Mensagem Inicial</button>
     </div>
-
-    <!-- Números Sorteados -->
-    <div class="highlight-box">
-      <h2 class="text-xl font-semibold mb-2 text-gray-700">Números Sorteados</h2>
-      <div id="drawnNumbers" class="space-y-2">
-        <div>
-          <strong>B (1-15):</strong> <span id="drawnB">--</span>
+    <div class="mb-4">
+      <label for="currentPrize" class="block text-sm font-medium text-gray-700">Prêmio Atual:</label>
+      <input type="text" id="currentPrize" class="mt-1 p-2 border rounded w-full" placeholder="Ex.: 1ª Linha, Cartela Cheia">
+      <button id="updatePrizeButton" class="mt-2 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 w-full">Atualizar Prêmio</button>
+    </div>
+    <div class="mb-4">
+      <label for="additionalInfo" class="block text-sm font-medium text-gray-700">Informações Adicionais:</label>
+      <input type="text" id="additionalInfo" class="mt-1 p-2 border rounded w-full" placeholder="Ex.: Próximo sorteio às 20h">
+      <button id="updateInfoButton" class="mt-2 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 w-full">Atualizar Informações</button>
+    </div>
+    <div class="mt-4">
+      <h2 class="text-xl font-semibold">Último Número Sorteado</h2>
+      <p id="lastNumber" class="text-4xl font-bold text-center text-blue-600 animate-pulse">--</p>
+    </div>
+    <div class="mt-4">
+      <h2 class="text-xl font-semibold">Números Sorteados por Letra</h2>
+      <div id="drawnNumbers" class="mt-2">
+        <div class="mb-4">
+          <h3 class="text-lg font-semibold">B (1-15)</h3>
+          <div id="bNumbers" class="grid grid-cols-5 gap-2"></div>
         </div>
-        <div>
-          <strong>I (16-30):</strong> <span id="drawnI">--</span>
+        <div class="mb-4">
+          <h3 class="text-lg font-semibold">I (16-30)</h3>
+          <div id="iNumbers" class="grid grid-cols-5 gap-2"></div>
         </div>
-        <div>
-          <strong>N (31-45):</strong> <span id="drawnN">--</span>
+        <div class="mb-4">
+          <h3 class="text-lg font-semibold">N (31-45)</h3>
+          <div id="nNumbers" class="grid grid-cols-5 gap-2"></div>
         </div>
-        <div>
-          <strong>G (46-60):</strong> <span id="drawnG">--</span>
+        <div class="mb-4">
+          <h3 class="text-lg font-semibold">G (46-60)</h3>
+          <div id="gNumbers" class="grid grid-cols-5 gap-2"></div>
         </div>
-        <div>
-          <strong>O (61-75):</strong> <span id="drawnO">--</span>
+        <div class="mb-4">
+          <h3 class="text-lg font-semibold">O (61-75)</h3>
+          <div id="oNumbers" class="grid grid-cols-5 gap-2"></div>
         </div>
       </div>
-      <div class="mt-4 space-y-4">
-        <!-- Sorteio Automático -->
-        <div>
-          <button id="drawNumber" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Sortear Número (Automático)</button>
-        </div>
-        <!-- Marcação Manual -->
-        <form id="markNumberForm" class="space-y-4">
-          <div>
-            <label for="manualNumber" class="block text-sm font-medium text-gray-700">Marcar Número Manual (1-75)</label>
-            <input type="number" id="manualNumber" name="number" min="1" max="75" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-          </div>
-          <div>
-            <label for="manualPassword" class="block text-sm font-medium text-gray-700">Senha</label>
-            <input type="password" id="manualPassword" name="password" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-          </div>
-          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Marcar Número (Manual)</button>
-        </form>
-      </div>
-    </div>
-
-    <!-- Ações -->
-    <div class="highlight-box">
-      <h2 class="text-xl font-semibold mb-2 text-gray-700">Ações</h2>
-      <div class="flex space-x-4">
-        <button id="resetBingo" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Reiniciar o Bingo</button>
-        <button id="deleteAllCartelas" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Excluir Todas as Cartelas</button>
-        <button id="deleteByPhone" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Excluir por Número de Telefone</button>
-      </div>
-    </div>
-
-    <!-- Modal para Reiniciar o Bingo -->
-    <div id="resetModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden">
-      <div class="bg-white p-6 rounded-lg shadow-lg">
-        <h2 class="text-xl font-semibold mb-4">Confirmar Reinicialização do Bingo</h2>
-        <form id="resetForm">
-          <div class="mb-4">
-            <label for="resetPassword" class="block text-sm font-medium text-gray-700">Senha</label>
-            <input type="password" id="resetPassword" name="password" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500">
-          </div>
-          <div class="flex justify-end space-x-4">
-            <button type="button" id="cancelReset" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">Cancelar</button>
-            <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Reiniciar</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Modal para Excluir Todas as Cartelas -->
-    <div id="deleteAllModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden">
-      <div class="bg-white p-6 rounded-lg shadow-lg">
-        <h2 class="text-xl font-semibold mb-4">Confirmar Exclusão de Todas as Cartelas</h2>
-        <form id="deleteAllForm">
-          <div class="mb-4">
-            <label for="deleteAllPassword" class="block text-sm font-medium text-gray-700">Senha</label>
-            <input type="password" id="deleteAllPassword" name="password" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500">
-          </div>
-          <div class="flex justify-end space-x-4">
-            <button type="button" id="cancelDeleteAll" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">Cancelar</button>
-            <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Excluir</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Modal para Excluir por Número de Telefone -->
-    <div id="deletePhoneModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden">
-      <div class="bg-white p-6 rounded-lg shadow-lg">
-        <h2 class="text-xl font-semibold mb-4">Excluir Cartelas por Número de Telefone</h2>
-        <form id="deletePhoneForm">
-          <div class="mb-4">
-            <label for="deletePhoneNumber" class="block text-sm font-medium text-gray-700">Número de Telefone</label>
-            <input type="text" id="deletePhoneNumber" name="phoneNumber" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500">
-          </div>
-          <div class="mb-4">
-            <label for="deletePhonePassword" class="block text-sm font-medium text-gray-700">Senha</label>
-            <input type="password" id="deletePhonePassword" name="password" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500">
-          </div>
-          <div class="flex justify-end space-x-4">
-            <button type="button" id="cancelDeletePhone" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">Cancelar</button>
-            <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Excluir</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Jogadores e Links -->
-    <div class="highlight-box">
-      <h2 class="text-xl font-semibold mb-2 text-gray-700">Jogadores e Links</h2>
-      <table class="w-full border-collapse">
-        <thead>
-          <tr class="bg-gray-200">
-            <th class="border p-2">Nome</th>
-            <th class="border p-2">Telefone</th>
-            <th class="border p-2">Cartelas</th>
-            <th class="border p-2">Link</th>
-          </tr>
-        </thead>
-        <tbody id="playersTable"></tbody>
-      </table>
-    </div>
-
-    <!-- Vencedores -->
-    <div class="highlight-box">
-      <h2 class="text-xl font-semibold mb-2 text-gray-700">Vencedores</h2>
-      <table class="w-full border-collapse">
-        <thead>
-          <tr class="bg-gray-200">
-            <th class="border p-2">Nome</th>
-            <th class="border p-2">Cartela ID</th>
-            <th class="border p-2">Data</th>
-          </tr>
-        </thead>
-        <tbody id="winnersTable"></tbody>
-      </table>
     </div>
   </div>
-
   <script>
-    // Função para formatar números sorteados por letras
-    function formatDrawnNumbers(numbers) {
-      const ranges = {
-        B: { min: 1, max: 15, numbers: [] },
-        I: { min: 16, max: 30, numbers: [] },
-        N: { min: 31, max: 45, numbers: [] },
-        G: { min: 46, max: 60, numbers: [] },
-        O: { min: 61, max: 75, numbers: [] }
-      };
-      numbers.forEach(num => {
-        if (num >= 1 && num <= 15) ranges.B.numbers.push(`B-${num}`);
-        else if (num >= 16 && num <= 30) ranges.I.numbers.push(`I-${num}`);
-        else if (num >= 31 && num <= 45) ranges.N.numbers.push(`N-${num}`);
-        else if (num >= 46 && num <= 60) ranges.G.numbers.push(`G-${num}`);
-        else if (num >= 61 && num <= 75) ranges.O.numbers.push(`O-${num}`);
-      });
-      document.getElementById('drawnB').textContent = ranges.B.numbers.length > 0 ? ranges.B.numbers.join(', ') : '--';
-      document.getElementById('drawnI').textContent = ranges.I.numbers.length > 0 ? ranges.I.numbers.join(', ') : '--';
-      document.getElementById('drawnN').textContent = ranges.N.numbers.length > 0 ? ranges.N.numbers.join(', ') : '--';
-      document.getElementById('drawnG').textContent = ranges.G.numbers.length > 0 ? ranges.G.numbers.join(', ') : '--';
-      document.getElementById('drawnO').textContent = ranges.O.numbers.length > 0 ? ranges.O.numbers.join(', ') : '--';
+    function getBingoLetter(number) {
+      if (number >= 1 && number <= 15) return 'B';
+      if (number >= 16 && number <= 30) return 'I';
+      if (number >= 31 && number <= 45) return 'N';
+      if (number >= 46 && number <= 60) return 'G';
+      if (number >= 61 && number <= 75) return 'O';
+      return '';
     }
 
-    // Carregar números sorteados iniciais
-    formatDrawnNumbers(<%- JSON.stringify(game.drawnNumbers) %>);
-
-    // WebSocket para atualizar números sorteados
     const ws = new WebSocket('wss://' + window.location.host);
-    ws.onopen = () => console.log('WebSocket conectado em /admin');
     ws.onmessage = (event) => {
-      console.log('Mensagem WebSocket recebida em /admin:', event.data);
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'update') {
-          formatDrawnNumbers(data.game.drawnNumbers || []);
-          fetchPlayers();
-          fetchWinners();
-        }
-      } catch (err) {
-        console.error('Erro ao processar mensagem WebSocket em /admin:', err);
+      const data = JSON.parse(event.data);
+      if (data.type === 'update') {
+        updateUI(data.game, data.winners || []);
       }
     };
-    ws.onerror = (err) => console.error('Erro no WebSocket em /admin:', err);
-    ws.onclose = () => {
-      console.log('WebSocket desconectado em /admin, tentando reconectar...');
-      setTimeout(() => {
-        window.location.reload();
-      }, 5000);
-    };
 
-    // Gerar cartela
-    document.getElementById('generateCartelaForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
+    function updateUI(game, winners) {
+      document.getElementById('lastNumber').textContent = game.lastNumber ? `${getBingoLetter(game.lastNumber)}-${game.lastNumber}` : '--';
+      const bNumbersDiv = document.getElementById('bNumbers');
+      const iNumbersDiv = document.getElementById('iNumbers');
+      const nNumbersDiv = document.getElementById('nNumbers');
+      const gNumbersDiv = document.getElementById('gNumbers');
+      const oNumbersDiv = document.getElementById('oNumbers');
+      bNumbersDiv.innerHTML = '';
+      iNumbersDiv.innerHTML = '';
+      nNumbersDiv.innerHTML = '';
+      gNumbersDiv.innerHTML = '';
+      oNumbersDiv.innerHTML = '';
+      const bNumbers = game.drawnNumbers.filter(n => n >= 1 && n <= 15).sort((a, b) => a - b);
+      const iNumbers = game.drawnNumbers.filter(n => n >= 16 && n <= 30).sort((a, b) => a - b);
+      const nNumbers = game.drawnNumbers.filter(n => n >= 31 && n <= 45).sort((a, b) => a - b);
+      const gNumbers = game.drawnNumbers.filter(n => n >= 46 && n <= 60).sort((a, b) => a - b);
+      const oNumbers = game.drawnNumbers.filter(n => n >= 61 && n <= 75).sort((a, b) => a - b);
+      bNumbers.forEach(num => {
+        const numDiv = document.createElement('div');
+        numDiv.className = 'bg-gray-200 p-2 rounded text-center';
+        numDiv.textContent = `B-${num}`;
+        bNumbersDiv.appendChild(numDiv);
+      });
+      iNumbers.forEach(num => {
+        const numDiv = document.createElement('div');
+        numDiv.className = 'bg-gray-200 p-2 rounded text-center';
+        numDiv.textContent = `I-${num}`;
+        iNumbersDiv.appendChild(numDiv);
+      });
+      nNumbers.forEach(num => {
+        const numDiv = document.createElement('div');
+        numDiv.className = 'bg-gray-200 p-2 rounded text-center';
+        numDiv.textContent = `N-${num}`;
+        nNumbersDiv.appendChild(numDiv);
+      });
+      gNumbers.forEach(num => {
+        const numDiv = document.createElement('div');
+        numDiv.className = 'bg-gray-200 p-2 rounded text-center';
+        numDiv.textContent = `G-${num}`;
+        gNumbersDiv.appendChild(numDiv);
+      });
+      oNumbers.forEach(num => {
+        const numDiv = document.createElement('div');
+        numDiv.className = 'bg-gray-200 p-2 rounded text-center';
+        numDiv.textContent = `O-${num}`;
+        oNumbersDiv.appendChild(numDiv);
+      });
+      document.getElementById('startMessage').value = game.startMessage || 'Em Breve o Bingo Irá Começar';
+      document.getElementById('currentPrize').value = game.currentPrize || '';
+      document.getElementById('additionalInfo').value = game.additionalInfo || '';
+      const winnersDiv = document.getElementById('winners');
+      winnersDiv.innerHTML = winners.length > 0 ? `Cartelas Vencedoras: ${winners.join(', ')}` : 'Nenhuma cartela venceu ainda';
+    }
+
+    document.getElementById('drawButton').addEventListener('click', async () => {
+      const response = await fetch('/draw', { method: 'POST' });
+      const data = await response.json();
+      if (data.error) {
+        alert(data.error);
+      }
+    });
+
+    document.getElementById('generateCartelaButton').addEventListener('click', async () => {
       const playerName = document.getElementById('playerName').value;
-      const phoneNumber = document.getElementById('phoneNumber').value;
       const quantity = document.getElementById('quantity').value;
-      try {
-        const res = await fetch('/generate-cartela', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ playerName, phoneNumber, quantity })
-        });
-        const data = await res.json();
-        if (data.error) {
-          alert(data.error);
-        } else {
-          alert(`Cartela(s) gerada(s) com sucesso! Link: ${data.link}`);
-        }
-        fetchPlayers();
-      } catch (err) {
-        console.error('Erro ao gerar cartela:', err);
-        alert('Erro ao gerar cartela');
+      if (!playerName) {
+        alert('Por favor, insira o nome do jogador');
+        return;
       }
+      const response = await fetch('/generate-cartela', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerName, quantity })
+      });
+      const data = await response.json();
+      if (data.error) {
+        alert(data.error);
+        return;
+      }
+      alert(`Cartela(s) gerada(s)!\nLink: ${window.location.origin}/cartelas?playerName=${encodeURIComponent(data.playerName)}`);
     });
 
-    // Atualizar prêmio
-    document.getElementById('updatePrizeForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const currentPrize = document.getElementById('currentPrize').value;
-      try {
-        const res = await fetch('/update-prize', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ currentPrize })
-        });
-        const data = await res.json();
-        if (data.success) {
-          alert('Prêmio atualizado com sucesso!');
-        } else {
-          alert('Erro ao atualizar prêmio');
-        }
-      } catch (err) {
-        console.error('Erro ao atualizar prêmio:', err);
-        alert('Erro ao atualizar prêmio');
-      }
-    });
-
-    // Atualizar informações adicionais
-    document.getElementById('updateInfoForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const additionalInfo = document.getElementById('additionalInfo').value;
-      try {
-        const res = await fetch('/update-info', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ additionalInfo })
-        });
-        const data = await res.json();
-        if (data.success) {
-          alert('Informações atualizadas com sucesso!');
-        } else {
-          alert('Erro ao atualizar informações');
-        }
-      } catch (err) {
-        console.error('Erro ao atualizar informações:', err);
-        alert('Erro ao atualizar informações');
-      }
-    });
-
-    // Atualizar mensagem inicial
-    document.getElementById('updateStartMessageForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
+    document.getElementById('updateStartMessageButton').addEventListener('click', async () => {
       const startMessage = document.getElementById('startMessage').value;
-      try {
-        const res = await fetch('/update-start-message', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ startMessage })
-        });
-        const data = await res.json();
-        if (data.success) {
-          alert('Mensagem inicial atualizada com sucesso!');
-        } else {
-          alert('Erro ao atualizar mensagem');
-        }
-      } catch (err) {
-        console.error('Erro ao atualizar mensagem:', err);
-        alert('Erro ao atualizar mensagem');
-      }
+      await fetch('/update-start-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ startMessage })
+      });
     });
 
-    // Sortear número (automático)
-    document.getElementById('drawNumber').addEventListener('click', async () => {
-      try {
-        const res = await fetch('/draw', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        const data = await res.json();
-        if (data.error) {
-          alert(data.error);
-        } else {
-          fetchWinners();
-        }
-      } catch (err) {
-        console.error('Erro ao sortear número:', err);
-        alert('Erro ao sortear número');
-      }
+    document.getElementById('updatePrizeButton').addEventListener('click', async () => {
+      const currentPrize = document.getElementById('currentPrize').value;
+      await fetch('/update-prize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPrize })
+      });
     });
 
-    // Marcar número (manual)
-    document.getElementById('markNumberForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const number = document.getElementById('manualNumber').value;
-      const password = document.getElementById('manualPassword').value;
-      try {
-        const res = await fetch('/mark-number', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ number, password })
-        });
-        const data = await res.json();
-        if (data.error) {
-          alert(data.error);
-        } else {
-          fetchWinners();
-        }
-      } catch (err) {
-        console.error('Erro ao marcar número manualmente:', err);
-        alert('Erro ao marcar número');
-      }
+    document.getElementById('updateInfoButton').addEventListener('click', async () => {
+      const additionalInfo = document.getElementById('additionalInfo').value;
+      await fetch('/update-info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ additionalInfo })
+      });
     });
 
-    // Reiniciar o bingo
-    document.getElementById('resetBingo').addEventListener('click', () => {
-      document.getElementById('resetModal').classList.remove('hidden');
-    });
-    document.getElementById('cancelReset').addEventListener('click', () => {
-      document.getElementById('resetModal').classList.add('hidden');
-    });
-    document.getElementById('resetForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const password = document.getElementById('resetPassword').value;
-      try {
-        const res = await fetch('/reset', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password })
-        });
-        const data = await res.json();
-        if (data.error) {
-          alert(data.error);
-        } else {
-          window.location.href = '/admin';
-        }
-      } catch (err) {
-        console.error('Erro ao reiniciar o bingo:', err);
-        alert('Erro ao reiniciar o bingo');
-      }
-      document.getElementById('resetModal').classList.add('hidden');
-    });
-
-    // Excluir todas as cartelas
-    document.getElementById('deleteAllCartelas').addEventListener('click', () => {
-      document.getElementById('deleteAllModal').classList.remove('hidden');
-    });
-    document.getElementById('cancelDeleteAll').addEventListener('click', () => {
-      document.getElementById('deleteAllModal').classList.add('hidden');
-    });
-    document.getElementById('deleteAllForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const password = document.getElementById('deleteAllPassword').value;
-      try {
-        const res = await fetch('/delete-all-cartelas', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password })
-        });
-        const data = await res.json();
-        if (data.success) {
-          alert('Todas as cartelas excluídas com sucesso!');
-          fetchPlayers();
-          fetchWinners();
-        } else {
-          alert(data.error || 'Erro ao excluir cartelas');
-        }
-      } catch (err) {
-        console.error('Erro ao excluir cartelas:', err);
-        alert('Erro ao excluir cartelas');
-      }
-      document.getElementById('deleteAllModal').classList.add('hidden');
-    });
-
-    // Excluir por número de telefone
-    document.getElementById('deleteByPhone').addEventListener('click', () => {
-      document.getElementById('deletePhoneModal').classList.remove('hidden');
-    });
-    document.getElementById('cancelDeletePhone').addEventListener('click', () => {
-      document.getElementById('deletePhoneModal').classList.add('hidden');
-    });
-    document.getElementById('deletePhoneForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const phoneNumber = document.getElementById('deletePhoneNumber').value;
-      const password = document.getElementById('deletePhonePassword').value;
-      try {
-        const res = await fetch('/delete-cartelas-by-phone', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phoneNumber, password })
-        });
-        const data = await res.json();
-        if (data.success) {
-          alert('Cartelas excluídas com sucesso!');
-          fetchPlayers();
-          fetchWinners();
-        } else {
-          alert(data.error || 'Erro ao excluir cartelas');
-        }
-      } catch (err) {
-        console.error('Erro ao excluir cartelas por telefone:', err);
-        alert('Erro ao excluir cartelas');
-      }
-      document.getElementById('deletePhoneModal').classList.add('hidden');
-    });
-
-    // Carregar jogadores
-    async function fetchPlayers() {
-      try {
-        const res = await fetch('/players');
-        const players = await res.json();
-        const table = document.getElementById('playersTable');
-        table.innerHTML = '';
-        players.forEach(player => {
-          const row = document.createElement('tr');
-          row.innerHTML = `
-            <td class="border p-2">${player.playerName}</td>
-            <td class="border p-2">${player.phoneNumber || '--'}</td>
-            <td class="border p-2">${player.cartelaCount}</td>
-            <td class="border p-2"><a href="${player.link}" target="_blank" class="text-blue-500 hover:underline">${player.link}</a></td>
-          `;
-          table.appendChild(row);
-        });
-      } catch (err) {
-        console.error('Erro ao carregar jogadores:', err);
-      }
-    }
-
-    // Carregar vencedores
-    async function fetchWinners() {
-      try {
-        const res = await fetch('/winners');
-        const winners = await res.json();
-        const table = document.getElementById('winnersTable');
-        table.innerHTML = '';
-        winners.forEach(winner => {
-          const row = document.createElement('tr');
-          row.innerHTML = `
-            <td class="border p-2">${winner.playerName}</td>
-            <td class="border p-2">${winner.cartelaId}</td>
-            <td class="border p-2">${new Date(winner.createdAt).toLocaleString()}</td>
-          `;
-          table.appendChild(row);
-        });
-      } catch (err) {
-        console.error('Erro ao carregar vencedores:', err);
-      }
-    }
-
-    // Carregar dados iniciais
-    fetchPlayers();
-    fetchWinners();
+    // Carregar estado inicial
+    fetch('/game').then(res => res.json()).then(game => updateUI(game, []));
   </script>
 </body>
 </html>
