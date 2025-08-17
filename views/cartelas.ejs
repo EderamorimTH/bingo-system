@@ -3,151 +3,100 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cartelas do Bingo</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <title>Cartelas</title>
   <link rel="stylesheet" href="/styles.css">
-  <link rel="icon" href="data:;base64,iVBORw0KGgo=">
-  <style>
-    body {
-      background: linear-gradient(135deg, #34d399, #3b82f6);
-      font-family: 'Arial', sans-serif;
-    }
-    .cartela-container {
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-      padding: 1.5rem;
-      margin-bottom: 2rem;
-    }
-    .cartela-table {
-      border-collapse: separate;
-      border-spacing: 0;
-      width: 100%;
-    }
-    .cartela-table th {
-      background: #10b981;
-      color: white;
-      padding: 0.75rem;
-      font-size: 1.25rem;
-    }
-    .cartela-table td {
-      background: #f3f4f6;
-      border: 2px solid #e5e7eb;
-      padding: 0.75rem;
-      font-size: 1.1rem;
-      font-weight: bold;
-      transition: background 0.3s;
-    }
-    .cartela-table td.marked {
-      background: #facc15;
-      color: #1f2937;
-    }
-    .cartela-table td.free {
-      background: #60a5fa;
-      color: white;
-    }
-    .highlight-box {
-      background: rgba(255, 255, 255, 0.9);
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
-    }
-  </style>
 </head>
-<body class="flex items-center justify-center min-h-screen">
-  <div class="w-full max-w-4xl p-6">
-    <h1 class="text-4xl font-bold text-center mb-6 text-white drop-shadow-lg"><%= playerName %></h1>
-    <div class="highlight-box">
-      <h2 class="text-2xl font-semibold text-center text-green-600">Prêmio Atual</h2>
-      <p id="currentPrize" class="text-3xl font-bold text-center text-green-700 pulse">--</p>
-    </div>
-    <div class="highlight-box">
-      <h2 class="text-2xl font-semibold text-center text-blue-600">Informações Adicionais</h2>
-      <p id="additionalInfo" class="text-xl text-center text-blue-700">--</p>
-    </div>
-    <% cartelas.forEach((cartela, index) => { %>
-      <div class="cartela-container">
-        <h2 class="text-xl font-semibold mb-2 text-gray-700">Cartela <%= index + 1 %> (ID: <%= cartela.cartelaId %>)</h2>
-        <div id="winnerMessage-<%= cartela.cartelaId %>" class="text-2xl font-bold text-center text-green-600 hidden mb-4">Parabéns! Esta cartela venceu!</div>
-        <table class="cartela-table">
-          <thead>
-            <tr>
-              <th>B</th>
-              <th>I</th>
-              <th>N</th>
-              <th>G</th>
-              <th>O</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% for (let row = 0; row < 5; row++) { %>
-              <tr>
-                <% for (let col = 0; col < 5; col++) { %>
-                  <td class="<%= cartela.markedNumbers.includes(cartela.numbers[col][row]) ? 'marked' : cartela.numbers[col][row] === 0 ? 'free' : '' %> text-center">
-                    <%= cartela.numbers[col][row] === 0 ? 'X' : cartela.numbers[col][row] %>
-                  </td>
-                <% } %>
-              </tr>
-            <% } %>
-          </tbody>
-        </table>
-      </div>
-    <% }) %>
+<body>
+  <div id="prize">
+    <h2>Prêmio Atual</h2>
+    <p id="currentPrize"><%= game.currentPrize || '--' %></p>
   </div>
+
+  <div id="info">
+    <h2>Informações Adicionais</h2>
+    <p id="additionalInfo"><%= game.additionalInfo || '--' %></p>
+  </div>
+
+  <% cartelas.forEach((cartela, index) => { %>
+    <div class="cartela-container" data-cartela-id="<%= cartela.cartelaId %>">
+      <h2>Cartela <%= index + 1 %> (ID: <%= cartela.cartelaId %>)</h2>
+      <% if (winners.some(w => w.cartelaId === cartela.cartelaId)) { %>
+        <p class="congrats">Parabéns! Esta cartela venceu!</p>
+      <% } else { %>
+        <p class="congrats" style="display: none;">Parabéns! Esta cartela venceu!</p>
+      <% } %>
+      <table>
+        <thead>
+          <tr>
+            <th>B</th>
+            <th>I</th>
+            <th>N</th>
+            <th>G</th>
+            <th>O</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% for(let row = 0; row < 5; row++) { %>
+            <tr>
+              <% for(let col = 0; col < 5; col++) { %>
+                <% let number = cartela.numbers[col][row]; %>
+                <td data-number="<%= number %>" class="<%= (number === 0 || game.drawnNumbers.includes(number)) ? 'marked' : '' %>">
+                  <%= number === 0 ? 'LIVRE' : number %>
+                </td>
+              <% } %>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  <% }) %>
+
   <script>
-    const ws = new WebSocket('wss://' + window.location.host);
-    ws.onopen = () => console.log('WebSocket conectado em /cartelas');
+    const ws = new WebSocket('ws://' + window.location.host);
+
+    ws.onopen = () => {
+      console.log('Conectado ao WebSocket');
+    };
+
     ws.onmessage = (event) => {
-      console.log('Mensagem WebSocket recebida em /cartelas:', event.data);
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'update') {
-          updateUI(data.game, data.winners || []);
-        }
-      } catch (err) {
-        console.error('Erro ao processar mensagem WebSocket em /cartelas:', err);
+      const data = JSON.parse(event.data);
+      if (data.type === 'update') {
+        const game = data.game;
+        const winners = data.winners || [];
+
+        // Atualizar prêmio e informações adicionais
+        document.getElementById('currentPrize').innerText = game.currentPrize || '--';
+        document.getElementById('additionalInfo').innerText = game.additionalInfo || '--';
+
+        // Atualizar marcações nas cartelas
+        const drawnSet = new Set(game.drawnNumbers);
+        document.querySelectorAll('.cartela-container').forEach(container => {
+          const cartelaId = container.dataset.cartelaId;
+          container.querySelectorAll('td').forEach(td => {
+            const number = parseInt(td.dataset.number);
+            if (!isNaN(number) && (number === 0 || drawnSet.has(number))) {
+              td.classList.add('marked');
+            } else if (number !== 0) {
+              td.classList.remove('marked');
+            }
+          });
+
+          // Atualizar mensagem de vencedor
+          const congrats = container.querySelector('.congrats');
+          if (winners.some(w => w.cartelaId === cartelaId)) {
+            congrats.style.display = 'block';
+          }
+        });
       }
     };
-    ws.onerror = (err) => console.error('Erro no WebSocket em /cartelas:', err);
-    ws.onclose = () => {
-      console.log('WebSocket desconectado em /cartelas, tentando reconectar...');
-      setTimeout(() => {
-        window.location.reload();
-      }, 5000);
+
+    ws.onerror = (error) => {
+      console.error('Erro no WebSocket:', error);
     };
 
-    function updateUI(game, winners) {
-      console.log('Atualizando UI com dados:', game, winners);
-      document.getElementById('currentPrize').textContent = game.currentPrize || '--';
-      document.getElementById('additionalInfo').textContent = game.additionalInfo || '--';
-      <% cartelas.forEach(cartela => { %>
-        const winnerMessage = document.getElementById('winnerMessage-<%= cartela.cartelaId %>');
-        if (winners.includes('<%= cartela.cartelaId %>')) {
-          winnerMessage.classList.remove('hidden');
-        } else {
-          winnerMessage.classList.add('hidden');
-        }
-        const table = winnerMessage.nextElementSibling;
-        for (let row = 0; row < 5; row++) {
-          for (let col = 0; col < 5; col++) {
-            const num = <%= JSON.stringify(cartela.numbers) %>[col][row];
-            const cell = table.rows[row + 1].cells[col];
-            if (num !== 0 && game.drawnNumbers.includes(num)) {
-              cell.classList.add('marked');
-            } else if (num !== 0) {
-              cell.classList.remove('marked');
-            }
-          }
-        }
-      <% }) %>
-    }
-
-    // Carregar estado inicial
-    fetch('/game').then(res => res.json()).then(game => {
-      console.log('Estado inicial do jogo em /cartelas:', game);
-      updateUI(game, []);
-    }).catch(err => console.error('Erro ao carregar estado inicial em /cartelas:', err));
+    ws.onclose = () => {
+      console.log('WebSocket desconectado');
+    };
   </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'970b0a7a8fd2caaa',t:'MTc1NTQ1MzMxMS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
