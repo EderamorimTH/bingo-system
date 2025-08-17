@@ -15,8 +15,13 @@
       <button id="drawButton" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full">Sortear Número</button>
     </div>
     <div class="mb-4">
+      <button id="resetButton" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 w-full">Reiniciar Bingo</button>
+    </div>
+    <div class="mb-4">
       <label for="playerName" class="block text-sm font-medium text-gray-700">Nome do Jogador:</label>
       <input type="text" id="playerName" class="mt-1 p-2 border rounded w-full" placeholder="Ex.: João">
+      <label for="phoneNumber" class="block text-sm font-medium text-gray-700 mt-2">Número de Telefone:</label>
+      <input type="text" id="phoneNumber" class="mt-1 p-2 border rounded w-full" placeholder="Ex.: (11) 99999-9999">
       <label for="quantity" class="block text-sm font-medium text-gray-700 mt-2">Quantidade de Cartelas:</label>
       <input type="number" id="quantity" class="mt-1 p-2 border rounded w-full" placeholder="Ex.: 1" min="1" value="1">
       <button id="generateCartelaButton" class="mt-2 bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 w-full">Gerar Cartela(s)</button>
@@ -27,6 +32,7 @@
         <thead>
           <tr class="bg-gray-200">
             <th class="border p-2">Nome</th>
+            <th class="border p-2">Telefone</th>
             <th class="border p-2">Link</th>
             <th class="border p-2">Ação</th>
           </tr>
@@ -35,6 +41,7 @@
           <% players.forEach(player => { %>
             <tr>
               <td class="border p-2"><%= player.playerName %></td>
+              <td class="border p-2"><%= player.phoneNumber || '--' %></td>
               <td class="border p-2"><a href="<%= player.link %>" target="_blank" class="text-blue-600 hover:underline"><%= player.link %></a></td>
               <td class="border p-2">
                 <button class="copyLinkButton bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600" data-link="<%= player.link %>">Copiar</button>
@@ -46,7 +53,24 @@
     </div>
     <div class="mb-4">
       <h2 class="text-xl font-semibold">Cartelas Vencedoras</h2>
-      <div id="winners" class="mt-2 text-center"></div>
+      <table class="w-full mt-2 border-collapse">
+        <thead>
+          <tr class="bg-gray-200">
+            <th class="border p-2">Nome do Jogador</th>
+            <th class="border p-2">ID da Cartela</th>
+            <th class="border p-2">Data</th>
+          </tr>
+        </thead>
+        <tbody id="winnersTable">
+          <% winners.forEach(winner => { %>
+            <tr>
+              <td class="border p-2"><%= winner.playerName %></td>
+              <td class="border p-2"><%= winner.cartelaId %></td>
+              <td class="border p-2"><%= new Date(winner.createdAt).toLocaleString('pt-BR') %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
     </div>
     <div class="mb-4">
       <label for="startMessage" class="block text-sm font-medium text-gray-700">Mensagem Inicial:</label>
@@ -161,8 +185,17 @@
       document.getElementById('startMessage').value = game.startMessage || 'Em Breve o Bingo Irá Começar';
       document.getElementById('currentPrize').value = game.currentPrize || '';
       document.getElementById('additionalInfo').value = game.additionalInfo || '';
-      const winnersDiv = document.getElementById('winners');
-      winnersDiv.innerHTML = winners.length > 0 ? `Cartelas Vencedoras: ${winners.join(', ')}` : 'Nenhuma cartela venceu ainda';
+      // Atualizar tabela de vencedores dinamicamente
+      fetch('/winners').then(res => res.json()).then(winners => {
+        const winnersTable = document.getElementById('winnersTable');
+        winnersTable.innerHTML = winners.map(winner => `
+          <tr>
+            <td class="border p-2">${winner.playerName}</td>
+            <td class="border p-2">${winner.cartelaId}</td>
+            <td class="border p-2">${new Date(winner.createdAt).toLocaleString('pt-BR')}</td>
+          </tr>
+        `).join('');
+      });
     }
 
     document.getElementById('drawButton').addEventListener('click', async () => {
@@ -173,8 +206,19 @@
       }
     });
 
+    document.getElementById('resetButton').addEventListener('click', async () => {
+      if (confirm('Tem certeza que deseja reiniciar o bingo? Isso limpará os números sorteados e marcados.')) {
+        const response = await fetch('/reset', { method: 'POST' });
+        const data = await response.json();
+        if (data.success) {
+          alert('Bingo reiniciado com sucesso!');
+        }
+      }
+    });
+
     document.getElementById('generateCartelaButton').addEventListener('click', async () => {
       const playerName = document.getElementById('playerName').value;
+      const phoneNumber = document.getElementById('phoneNumber').value;
       const quantity = document.getElementById('quantity').value;
       if (!playerName) {
         alert('Por favor, insira o nome do jogador');
@@ -183,7 +227,7 @@
       const response = await fetch('/generate-cartela', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerName, quantity })
+        body: JSON.stringify({ playerName, phoneNumber, quantity })
       });
       const data = await response.json();
       if (data.error) {
@@ -198,6 +242,7 @@
       playersTable.innerHTML = players.map(player => `
         <tr>
           <td class="border p-2">${player.playerName}</td>
+          <td class="border p-2">${player.phoneNumber || '--'}</td>
           <td class="border p-2"><a href="${player.link}" target="_blank" class="text-blue-600 hover:underline">${player.link}</a></td>
           <td class="border p-2">
             <button class="copyLinkButton bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600" data-link="${player.link}">Copiar</button>
