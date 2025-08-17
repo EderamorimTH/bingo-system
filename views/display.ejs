@@ -6,48 +6,46 @@
   <title>Bingo - Tela Pública</title>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
-  <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+  <style>
+    body { background: linear-gradient(135deg, #34d399, #3b82f6); font-family: Arial, sans-serif; }
+    .highlight-box { background: rgba(255, 255, 255, 0.9); border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); padding: 1.5rem; margin-bottom: 1.5rem; }
+  </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
-  <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-2xl">
-    <h1 class="text-3xl font-bold text-center mb-6">Bingo</h1>
-    <div id="startMessage" class="text-xl font-semibold text-center mb-4 animate-pulse <%= game.drawnNumbers.length === 0 ? '' : 'hidden' %>">
-      <%= game.startMessage || 'Em Breve o Bingo Irá Começar' %>
+<body class="flex items-center justify-center min-h-screen">
+  <div class="w-full max-w-4xl p-6">
+    <h1 class="text-4xl font-bold text-center mb-6 text-white drop-shadow-lg">Bingo da Evelyn</h1>
+    <div class="highlight-box">
+      <h2 class="text-xl font-semibold mb-2 text-gray-700">Mensagem</h2>
+      <p id="startMessage" class="text-lg text-center <%= game.drawnNumbers.length === 0 ? '' : 'hidden' %>">
+        <%= game.startMessage || 'Em Breve o Bingo Irá Começar' %>
+      </p>
     </div>
-    <div class="mb-4">
-      <h2 class="text-lg font-semibold text-center">Prêmio Atual</h2>
+    <div class="highlight-box">
+      <h2 class="text-xl font-semibold mb-2 text-gray-700">Prêmio Atual</h2>
       <p id="currentPrize" class="text-lg text-center"><%= game.currentPrize || '--' %></p>
     </div>
-    <div class="mt-4">
-      <h2 class="text-xl font-semibold">Último Número Sorteado</h2>
-      <p id="lastNumber" class="text-4xl font-bold text-center text-blue-600 animate-pulse">--</p>
+    <div class="highlight-box">
+      <h2 class="text-xl font-semibold mb-2 text-gray-700">Informações Adicionais</h2>
+      <p id="additionalInfo" class="text-lg text-center"><%= game.additionalInfo || '--' %></p>
     </div>
-    <div class="mt-4">
-      <h2 class="text-xl font-semibold">Números Sorteados por Letra</h2>
-      <div id="drawnNumbers" class="mt-2">
-        <div class="mb-4">
-          <h3 class="text-lg font-semibold">B (1-15)</h3>
-          <div id="bNumbers" class="grid grid-cols-5 gap-2"></div>
-        </div>
-        <div class="mb-4">
-          <h3 class="text-lg font-semibold">I (16-30)</h3>
-          <div id="iNumbers" class="grid grid-cols-5 gap-2"></div>
-        </div>
-        <div class="mb-4">
-          <h3 class="text-lg font-semibold">N (31-45)</h3>
-          <div id="nNumbers" class="grid grid-cols-5 gap-2"></div>
-        </div>
-        <div class="mb-4">
-          <h3 class="text-lg font-semibold">G (46-60)</h3>
-          <div id="gNumbers" class="grid grid-cols-5 gap-2"></div>
-        </div>
-        <div class="mb-4">
-          <h3 class="text-lg font-semibold">O (61-75)</h3>
-          <div id="oNumbers" class="grid grid-cols-5 gap-2"></div>
-        </div>
+    <div class="highlight-box">
+      <h2 class="text-xl font-semibold mb-2 text-gray-700">Último Número Sorteado</h2>
+      <p id="lastNumber" class="text-4xl font-bold text-center text-blue-600 animate-pulse">
+        <%= game.lastNumber ? `${getBingoLetter(game.lastNumber)}-${game.lastNumber}` : '--' %>
+      </p>
+    </div>
+    <div class="highlight-box">
+      <h2 class="text-xl font-semibold mb-2 text-gray-700">Números Sorteados</h2>
+      <div id="drawnNumbers" class="space-y-2">
+        <div><strong>B (1-15):</strong> <span id="drawnB">--</span></div>
+        <div><strong>I (16-30):</strong> <span id="drawnI">--</span></div>
+        <div><strong>N (31-45):</strong> <span id="drawnN">--</span></div>
+        <div><strong>G (46-60):</strong> <span id="drawnG">--</span></div>
+        <div><strong>O (61-75):</strong> <span id="drawnO">--</span></div>
       </div>
     </div>
   </div>
+
   <script>
     function getBingoLetter(number) {
       if (number >= 1 && number <= 15) return 'B';
@@ -58,68 +56,50 @@
       return '';
     }
 
-    const ws = new WebSocket('wss://' + window.location.host);
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === 'update') {
-        updateUI(data.game, data.winners || []);
-      }
-    };
-
-    function updateUI(game, winners) {
-      document.getElementById('lastNumber').textContent = game.lastNumber ? `${getBingoLetter(game.lastNumber)}-${game.lastNumber}` : '--';
-      const bNumbersDiv = document.getElementById('bNumbers');
-      const iNumbersDiv = document.getElementById('iNumbers');
-      const nNumbersDiv = document.getElementById('nNumbers');
-      const gNumbersDiv = document.getElementById('gNumbers');
-      const oNumbersDiv = document.getElementById('oNumbers');
-      bNumbersDiv.innerHTML = '';
-      iNumbersDiv.innerHTML = '';
-      nNumbersDiv.innerHTML = '';
-      gNumbersDiv.innerHTML = '';
-      oNumbersDiv.innerHTML = '';
-      const bNumbers = game.drawnNumbers.filter(n => n >= 1 && n <= 15).sort((a, b) => a - b);
-      const iNumbers = game.drawnNumbers.filter(n => n >= 16 && n <= 30).sort((a, b) => a - b);
-      const nNumbers = game.drawnNumbers.filter(n => n >= 31 && n <= 45).sort((a, b) => a - b);
-      const gNumbers = game.drawnNumbers.filter(n => n >= 46 && n <= 60).sort((a, b) => a - b);
-      const oNumbers = game.drawnNumbers.filter(n => n >= 61 && n <= 75).sort((a, b) => a - b);
-      bNumbers.forEach(num => {
-        const numDiv = document.createElement('div');
-        numDiv.className = 'bg-gray-200 p-2 rounded text-center';
-        numDiv.textContent = `B-${num}`;
-        bNumbersDiv.appendChild(numDiv);
+    function formatDrawnNumbers(numbers) {
+      const ranges = {
+        B: { min: 1, max: 15, numbers: [] },
+        I: { min: 16, max: 30, numbers: [] },
+        N: { min: 31, max: 45, numbers: [] },
+        G: { min: 46, max: 60, numbers: [] },
+        O: { min: 61, max: 75, numbers: [] }
+      };
+      numbers.forEach(num => {
+        if (num >= 1 && num <= 15) ranges.B.numbers.push(`B-${num}`);
+        else if (num >= 16 && num <= 30) ranges.I.numbers.push(`I-${num}`);
+        else if (num >= 31 && num <= 45) ranges.N.numbers.push(`N-${num}`);
+        else if (num >= 46 && num <= 60) ranges.G.numbers.push(`G-${num}`);
+        else if (num >= 61 && num <= 75) ranges.O.numbers.push(`O-${num}`);
       });
-      iNumbers.forEach(num => {
-        const numDiv = document.createElement('div');
-        numDiv.className = 'bg-gray-200 p-2 rounded text-center';
-        numDiv.textContent = `I-${num}`;
-        iNumbersDiv.appendChild(numDiv);
-      });
-      nNumbers.forEach(num => {
-        const numDiv = document.createElement('div');
-        numDiv.className = 'bg-gray-200 p-2 rounded text-center';
-        numDiv.textContent = `N-${num}`;
-        nNumbersDiv.appendChild(numDiv);
-      });
-      gNumbers.forEach(num => {
-        const numDiv = document.createElement('div');
-        numDiv.className = 'bg-gray-200 p-2 rounded text-center';
-        numDiv.textContent = `G-${num}`;
-        gNumbersDiv.appendChild(numDiv);
-      });
-      oNumbers.forEach(num => {
-        const numDiv = document.createElement('div');
-        numDiv.className = 'bg-gray-200 p-2 rounded text-center';
-        numDiv.textContent = `O-${num}`;
-        oNumbersDiv.appendChild(numDiv);
-      });
-      document.getElementById('startMessage').classList.toggle('hidden', game.drawnNumbers.length > 0);
-      document.getElementById('startMessage').textContent = game.startMessage || 'Em Breve o Bingo Irá Começar';
-      document.getElementById('currentPrize').textContent = game.currentPrize || '--';
+      document.getElementById('drawnB').textContent = ranges.B.numbers.length > 0 ? ranges.B.numbers.join(', ') : '--';
+      document.getElementById('drawnI').textContent = ranges.I.numbers.length > 0 ? ranges.I.numbers.join(', ') : '--';
+      document.getElementById('drawnN').textContent = ranges.N.numbers.length > 0 ? ranges.N.numbers.join(', ') : '--';
+      document.getElementById('drawnG').textContent = ranges.G.numbers.length > 0 ? ranges.G.numbers.join(', ') : '--';
+      document.getElementById('drawnO').textContent = ranges.O.numbers.length > 0 ? ranges.O.numbers.join(', ') : '--';
     }
 
-    // Carregar estado inicial
-    fetch('/game').then(res => res.json()).then(game => updateUI(game, []));
+    formatDrawnNumbers(<%- JSON.stringify(game.drawnNumbers) %>);
+
+    const ws = new WebSocket('wss://' + window.location.host);
+    ws.onopen = () => console.log('WebSocket conectado em /display');
+    ws.onmessage = (event) => {
+      console.log('Mensagem WebSocket recebida em /display:', event.data);
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'update') {
+          document.getElementById('lastNumber').textContent = data.game.lastNumber ? `${getBingoLetter(data.game.lastNumber)}-${data.game.lastNumber}` : '--';
+          document.getElementById('currentPrize').textContent = data.game.currentPrize || '--';
+          document.getElementById('additionalInfo').textContent = data.game.additionalInfo || '--';
+          document.getElementById('startMessage').textContent = data.game.startMessage || 'Em Breve o Bingo Irá Começar';
+          document.getElementById('startMessage').classList.toggle('hidden', data.game.drawnNumbers.length > 0);
+          formatDrawnNumbers(data.game.drawnNumbers || []);
+        }
+      } catch (err) {
+        console.error('Erro ao processar mensagem WebSocket em /display:', err);
+      }
+    };
+    ws.onerror = (err) => console.error('Erro no WebSocket em /display:', err);
+    ws.onclose = () => console.log('WebSocket desconectado em /display');
   </script>
 </body>
 </html>
