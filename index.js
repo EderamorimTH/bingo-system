@@ -181,7 +181,7 @@ app.get('/players', isAuthenticated, async (req, res) => {
     res.json(playersWithCartelaCount);
   } catch (err) {
     console.error('Erro na rota /players:', err);
-    res.status(500).json({ error: binge-system' });
+    res.status(500).json({ error: 'Erro ao obter jogadores' });
   }
 });
 
@@ -211,7 +211,7 @@ app.post('/generate-cartela', isAuthenticated, async (req, res) => {
         createdAt: new Date()
       });
       await cartela.save();
-      crtelaIds.push(cartelaId);
+      cartelaIds.push(cartelaId);
     }
     const link = `${req.protocol}://${req.get('host')}/cartelas?playerName=${encodeURIComponent(playerName)}`;
     await Player.findOneAndUpdate(
