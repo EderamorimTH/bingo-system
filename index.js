@@ -266,18 +266,22 @@ async function drawNumber() {
   
   const cartelas = await Cartela.find();
   const winners = [];
-  for (const cartela of cartelas) {
-    if (cartela.numbers.flat().includes(newNumber)) {
-      cartela.markedNumbers.push(newNumber);
-      if (checkWin(cartela)) {
-        winners.push(cartela.cartelaId);
-        await new Winner({
-          cartelaId: cartela.cartelaId,
-          playerName: cartela.playerName,
-          createdAt: new Date()
-        }).save();
+  const existingWinner = await Winner.findOne();
+  if (!existingWinner) {
+    for (const cartela of cartelas) {
+      if (cartela.numbers.flat().includes(newNumber)) {
+        cartela.markedNumbers.push(newNumber);
+        if (checkWin(cartela)) {
+          winners.push(cartela.cartelaId);
+          await new Winner({
+            cartelaId: cartela.cartelaId,
+            playerName: cartela.playerName,
+            createdAt: new Date()
+          }).save();
+          break; // Para após encontrar o primeiro vencedor
+        }
+        await cartela.save();
       }
-      await cartela.save();
     }
   }
   
@@ -299,18 +303,22 @@ async function markNumber(number) {
   
   const cartelas = await Cartela.find();
   const winners = [];
-  for (const cartela of cartelas) {
-    if (cartela.numbers.flat().includes(number)) {
-      cartela.markedNumbers.push(number);
-      if (checkWin(cartela)) {
-        winners.push(cartela.cartelaId);
-        await new Winner({
-          cartelaId: cartela.cartelaId,
-          playerName: cartela.playerName,
-          createdAt: new Date()
-        }).save();
+  const existingWinner = await Winner.findOne();
+  if (!existingWinner) {
+    for (const cartela of cartelas) {
+      if (cartela.numbers.flat().includes(number)) {
+        cartela.markedNumbers.push(number);
+        if (checkWin(cartela)) {
+          winners.push(cartela.cartelaId);
+          await new Winner({
+            cartelaId: cartela.cartelaId,
+            playerName: cartela.playerName,
+            createdAt: new Date()
+          }).save();
+          break; // Para após encontrar o primeiro vencedor
+        }
+        await cartela.save();
       }
-      await cartela.save();
     }
   }
   
