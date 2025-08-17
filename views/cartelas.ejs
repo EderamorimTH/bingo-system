@@ -9,22 +9,18 @@
 <body>
   <div id="prize">
     <h2>Prêmio Atual</h2>
-    <p id="currentPrize"><%= game.currentPrize || '--' %></p>
+    <p><%= game.currentPrize || '--' %></p>
   </div>
 
   <div id="info">
     <h2>Informações Adicionais</h2>
-    <p id="additionalInfo"><%= game.additionalInfo || '--' %></p>
+    <p><%= game.additionalInfo || '--' %></p>
   </div>
 
   <% cartelas.forEach((cartela, index) => { %>
     <div class="cartela-container" data-cartela-id="<%= cartela.cartelaId %>">
       <h2>Cartela <%= index + 1 %> (ID: <%= cartela.cartelaId %>)</h2>
-      <% if (winners.some(w => w.cartelaId === cartela.cartelaId)) { %>
-        <p class="congrats">Parabéns! Esta cartela venceu!</p>
-      <% } else { %>
-        <p class="congrats" style="display: none;">Parabéns! Esta cartela venceu!</p>
-      <% } %>
+      <p class="congrats" style="<%= winners.some(w => w.cartelaId === cartela.cartelaId) ? 'display: block;' : 'display: none;' %>">Parabéns! Esta cartela venceu!</p>
       <table>
         <thead>
           <tr>
@@ -40,7 +36,7 @@
             <tr>
               <% for(let col = 0; col < 5; col++) { %>
                 <% let number = cartela.numbers[col][row]; %>
-                <td data-number="<%= number %>" class="<%= (number === 0 || game.drawnNumbers.includes(number)) ? 'marked' : '' %>">
+                <td data-number="<%= number %>" class="<%= (number === 0 || cartela.markedNumbers.includes(number)) ? 'marked' : '' %>">
                   <%= number === 0 ? 'LIVRE' : number %>
                 </td>
               <% } %>
@@ -65,24 +61,22 @@
         const winners = data.winners || [];
 
         // Atualizar prêmio e informações adicionais
-        document.getElementById('currentPrize').innerText = game.currentPrize || '--';
-        document.getElementById('additionalInfo').innerText = game.additionalInfo || '--';
+        document.querySelector('#prize p').innerText = game.currentPrize || '--';
+        document.querySelector('#info p').innerText = game.additionalInfo || '--';
 
         // Atualizar marcações nas cartelas
-        const drawnSet = new Set(game.drawnNumbers);
         document.querySelectorAll('.cartela-container').forEach(container => {
           const cartelaId = container.dataset.cartelaId;
+          const congrats = container.querySelector('.congrats');
           container.querySelectorAll('td').forEach(td => {
             const number = parseInt(td.dataset.number);
-            if (!isNaN(number) && (number === 0 || drawnSet.has(number))) {
+            if (!isNaN(number) && (number === 0 || game.drawnNumbers.includes(number))) {
               td.classList.add('marked');
             } else if (number !== 0) {
               td.classList.remove('marked');
             }
           });
-
           // Atualizar mensagem de vencedor
-          const congrats = container.querySelector('.congrats');
           if (winners.some(w => w.cartelaId === cartelaId)) {
             congrats.style.display = 'block';
           }
