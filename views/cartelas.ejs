@@ -72,7 +72,7 @@
     <% cartelas.forEach((cartela, index) => { %>
       <div class="cartela-container">
         <h2 class="text-xl font-semibold mb-2 text-gray-700">Cartela <%= index + 1 %> (ID: <%= cartela.cartelaId %>)</h2>
-        <div id="winnerMessage-<%= cartela.cartelaId %>" class="text-2xl font-bold text-center text-green-600 hidden mb-4">Parabéns! Esta cartela venceu!</div>
+        <div id="winnerMessage-<%= cartela.cartelaId %>" class="text-2xl font-bold text-center text-green-600 hidden mb-4">Parabéns! Esta cartela venceu! Todos os números foram marcados!</div>
         <table class="cartela-table" id="table-<%= cartela.cartelaId %>">
           <thead>
             <tr>
@@ -87,7 +87,7 @@
             <% for (let row = 0; row < 5; row++) { %>
               <tr>
                 <% for (let col = 0; col < 5; col++) { %>
-                  <td class="<%= cartela.numbers[col][row] === 0 ? 'free' : '' %> text-center">
+                  <td class="<%= cartela.numbers[col][row] === 0 ? 'free' : (cartela.markedNumbers.includes(cartela.numbers[col][row]) ? 'marked' : '') %> text-center">
                     <%= cartela.numbers[col][row] === 0 ? 'X' : cartela.numbers[col][row] %>
                   </td>
                 <% } %>
@@ -116,7 +116,7 @@
     };
     ws.onerror = (err) => console.error('Erro no WebSocket em /cartelas:', err);
     ws.onclose = () => {
-      console.log('Desconectado do WebSocket, tentando reconectar...');
+      console.log('Desconect Nimado do WebSocket, tentando reconectar...');
       setTimeout(() => window.location.reload(), 3000);
     };
 
