@@ -15,6 +15,40 @@
       <button id="drawButton" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full">Sortear Número</button>
     </div>
     <div class="mb-4">
+      <label for="playerName" class="block text-sm font-medium text-gray-700">Nome do Jogador:</label>
+      <input type="text" id="playerName" class="mt-1 p-2 border rounded w-full" placeholder="Ex.: João">
+      <label for="quantity" class="block text-sm font-medium text-gray-700 mt-2">Quantidade de Cartelas:</label>
+      <input type="number" id="quantity" class="mt-1 p-2 border rounded w-full" placeholder="Ex.: 1" min="1" value="1">
+      <button id="generateCartelaButton" class="mt-2 bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 w-full">Gerar Cartela(s)</button>
+    </div>
+    <div class="mb-4">
+      <h2 class="text-xl font-semibold">Jogadores e Links</h2>
+      <table class="w-full mt-2 border-collapse">
+        <thead>
+          <tr class="bg-gray-200">
+            <th class="border p-2">Nome</th>
+            <th class="border p-2">Link</th>
+            <th class="border p-2">Ação</th>
+          </tr>
+        </thead>
+        <tbody id="playersTable">
+          <% players.forEach(player => { %>
+            <tr>
+              <td class="border p-2"><%= player.playerName %></td>
+              <td class="border p-2"><a href="<%= player.link %>" target="_blank" class="text-blue-600 hover:underline"><%= player.link %></a></td>
+              <td class="border p-2">
+                <button class="copyLinkButton bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600" data-link="<%= player.link %>">Copiar</button>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <div class="mb-4">
+      <h2 class="text-xl font-semibold">Cartelas Vencedoras</h2>
+      <div id="winners" class="mt-2 text-center"></div>
+    </div>
+    <div class="mb-4">
       <label for="startMessage" class="block text-sm font-medium text-gray-700">Mensagem Inicial:</label>
       <input type="text" id="startMessage" class="mt-1 p-2 border rounded w-full" placeholder="Ex.: Em Breve o Bingo Irá Começar">
       <button id="updateStartMessageButton" class="mt-2 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 w-full">Atualizar Mensagem Inicial</button>
@@ -73,11 +107,11 @@
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.type === 'update') {
-        updateUI(data.game);
+        updateUI(data.game, data.winners || []);
       }
     };
 
-    function updateUI(game) {
+    function updateUI(game, winners) {
       document.getElementById('lastNumber').textContent = game.lastNumber ? `${getBingoLetter(game.lastNumber)}-${game.lastNumber}` : '--';
       const bNumbersDiv = document.getElementById('bNumbers');
       const iNumbersDiv = document.getElementById('iNumbers');
@@ -127,6 +161,8 @@
       document.getElementById('startMessage').value = game.startMessage || 'Em Breve o Bingo Irá Começar';
       document.getElementById('currentPrize').value = game.currentPrize || '';
       document.getElementById('additionalInfo').value = game.additionalInfo || '';
+      const winnersDiv = document.getElementById('winners');
+      winnersDiv.innerHTML = winners.length > 0 ? `Cartelas Vencedoras: ${winners.join(', ')}` : 'Nenhuma cartela venceu ainda';
     }
 
     document.getElementById('drawButton').addEventListener('click', async () => {
@@ -135,6 +171,39 @@
       if (data.error) {
         alert(data.error);
       }
+    });
+
+    document.getElementById('generateCartelaButton').addEventListener('click', async () => {
+      const playerName = document.getElementById('playerName').value;
+      const quantity = document.getElementById('quantity').value;
+      if (!playerName) {
+        alert('Por favor, insira o nome do jogador');
+        return;
+      }
+      const response = await fetch('/generate-cartela', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerName, quantity })
+      });
+      const data = await response.json();
+      if (data.error) {
+        alert(data.error);
+        return;
+      }
+      alert(`Cartela(s) gerada(s)!\nLink: ${data.link}`);
+      // Atualizar a tabela de jogadores
+      const playersResponse = await fetch('/players');
+      const players = await playersResponse.json();
+      const playersTable = document.getElementById('playersTable');
+      playersTable.innerHTML = players.map(player => `
+        <tr>
+          <td class="border p-2">${player.playerName}</td>
+          <td class="border p-2"><a href="${player.link}" target="_blank" class="text-blue-600 hover:underline">${player.link}</a></td>
+          <td class="border p-2">
+            <button class="copyLinkButton bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600" data-link="${player.link}">Copiar</button>
+          </td>
+        </tr>
+      `).join('');
     });
 
     document.getElementById('updateStartMessageButton').addEventListener('click', async () => {
@@ -164,8 +233,18 @@
       });
     });
 
+    // Função para copiar links
+    document.addEventListener('click', (event) => {
+      if (event.target.classList.contains('copyLinkButton')) {
+        const link = event.target.dataset.link;
+        navigator.clipboard.writeText(link).then(() => {
+          alert('Link copiado para a área de transferência!');
+        });
+      }
+    });
+
     // Carregar estado inicial
-    fetch('/game').then(res => res.json()).then(updateUI);
+    fetch('/game').then(res => res.json()).then(game => updateUI(game, []));
   </script>
 </body>
 </html>
