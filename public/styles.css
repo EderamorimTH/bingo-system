@@ -1,17 +1,5 @@
-/* Estilos personalizados */
+/* Estilos adicionais podem ser incluídos aqui, se necessário */
 body {
-  font-family: Arial, sans-serif;
-}
-
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
+  margin: 0;
+  padding: 0;
 }
