@@ -3,20 +3,68 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bingo Display</title>
+  <title>Bingo</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
+  <link rel="icon" href="data:;base64,iVBORw0KGgo=">
 </head>
-<body>
-  <h1>Prêmio Atual</h1>
-  <p><%= game.currentPrize || '--' %></p>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+  <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-4xl">
+    <h1 class="text-4xl font-bold text-center mb-6">Bingo</h1>
+    <div id="startMessage" class="text-2xl font-semibold text-center mb-6 animate-pulse"></div>
+    <div class="mb-6">
+      <h2 class="text-xl font-semibold">Último Número Sorteado</h2>
+      <p id="lastNumber" class="text-5xl font-bold text-center text-blue-600 animate-pulse">--</p>
+    </div>
+    <div class="mb-6">
+      <h2 class="text-xl font-semibold">Últimos Números Sorteados</h2>
+      <div id="recentNumbers" class="flex flex-wrap gap-2 mt-2"></div>
+    </div>
+    <div class="mb-6">
+      <h2 class="text-xl font-semibold">Prêmio Atual</h2>
+      <p id="currentPrize" class="text-lg text-center">--</p>
+    </div>
+    <div class="mb-6">
+      <h2 class="text-xl font-semibold">Informações Adicionais</h2>
+      <p id="additionalInfo" class="text-lg text-center">--</p>
+    </div>
+  </div>
+  <script>
+    function getBingoLetter(number) {
+      if (number >= 1 && number <= 15) return 'B';
+      if (number >= 16 && number <= 30) return 'I';
+      if (number >= 31 && number <= 45) return 'N';
+      if (number >= 46 && number <= 60) return 'G';
+      if (number >= 61 && number <= 75) return 'O';
+      return '';
+    }
 
-  <h1>Informações Adicionais</h1>
-  <p><%= game.additionalInfo || '--' %></p>
+    const ws = new WebSocket('wss://' + window.location.host);
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'update') {
+        updateUI(data.game);
+      }
+    };
 
-  <h1>Último Número Sorteado</h1>
-  <p><%= game.lastNumber || '--' %></p>
+    function updateUI(game) {
+      document.getElementById('startMessage').textContent = game.drawnNumbers.length === 0 ? game.startMessage || 'Em Breve o Bingo Irá Começar' : '';
+      document.getElementById('lastNumber').textContent = game.lastNumber ? `${getBingoLetter(game.lastNumber)}-${game.lastNumber}` : '--';
+      document.getElementById('currentPrize').textContent = game.currentPrize || '--';
+      document.getElementById('additionalInfo').textContent = game.additionalInfo || '--';
+      const recentNumbersDiv = document.getElementById('recentNumbers');
+      recentNumbersDiv.innerHTML = '';
+      const recentNumbers = game.drawnNumbers.slice(-10).reverse();
+      recentNumbers.forEach(num => {
+        const numDiv = document.createElement('div');
+        numDiv.className = 'bg-gray-200 p-2 rounded text-center';
+        numDiv.textContent = `${getBingoLetter(num)}-${num}`;
+        recentNumbersDiv.appendChild(numDiv);
+      });
+    }
 
-  <h1>Últimos 5 Números Sorteados</h1>
-  <p><%= game.drawnNumbers.slice(-5).join(', ') || '--' %></p>
+    // Carregar estado inicial
+    fetch('/game').then(res => res.json()).then(updateUI);
+  </script>
 </body>
 </html>
