@@ -6,88 +6,26 @@
   <title>Cartelas do Bingo</title>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
-  <link rel="icon" href="data:;base64,iVBORw0KGgo=">
-  <style>
-    body {
-      background: linear-gradient(135deg, #34d399, #3b82f6);
-      font-family: 'Arial', sans-serif;
-    }
-    .cartela-container {
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-      padding: 1.5rem;
-      margin-bottom: 2rem;
-    }
-    .cartela-table {
-      border-collapse: separate;
-      border-spacing: 0;
-      width: 100%;
-    }
-    .cartela-table th {
-      background: #10b981;
-      color: white;
-      padding: 0.75rem;
-      font-size: 1.25rem;
-    }
-    .cartela-table td {
-      background: #f3f4f6;
-      border: 2px solid #e5e7eb;
-      padding: 0.75rem;
-      font-size: 1.1rem;
-      font-weight: bold;
-      transition: background 0.3s;
-    }
-    .cartela-table td.marked {
-      background: #facc15;
-      color: #1f2937;
-    }
-    .cartela-table td.free {
-      background: #60a5fa;
-      color: white;
-    }
-    .highlight-box {
-      background: rgba(255, 255, 255, 0.9);
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
-    }
-  </style>
 </head>
-<body class="flex items-center justify-center min-h-screen">
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
   <div class="w-full max-w-4xl p-6">
-    <h1 class="text-4xl font-bold text-center mb-6 text-white drop-shadow-lg"><%= playerName %></h1>
-    <div class="highlight-box">
-      <h2 class="text-2xl font-semibold text-center text-green-600">Prêmio Atual</h2>
-      <p id="currentPrize" class="text-3xl font-bold text-center text-green-700 pulse">--</p>
-    </div>
-    <div class="highlight-box">
-      <h2 class="text-2xl font-semibold text-center text-blue-600">Informações Adicionais</h2>
-      <p id="additionalInfo" class="text-xl text-center text-blue-700">--</p>
-    </div>
-    <% cartelas.forEach((cartela, index) => { %>
-      <div class="cartela-container">
-        <h2 class="text-xl font-semibold mb-2 text-gray-700">Cartela <%= index + 1 %> (ID: <%= cartela.cartelaId %>)</h2>
-        <div id="winnerMessage-<%= cartela.cartelaId %>" class="text-2xl font-bold text-center text-green-600 hidden mb-4">Parabéns! Esta cartela venceu!</div>
-        <table class="cartela-table" id="cartela-<%= cartela.cartelaId %>">
+    <h1 class="text-2xl font-bold text-center mb-6"><%= playerName %></h1>
+    <% cartelas.forEach((cartela,index)=>{ %>
+      <div class="mb-6 border rounded p-4 bg-white shadow">
+        <h2 class="text-lg font-semibold mb-2">Cartela <%= index+1 %> (ID: <%= cartela.cartelaId %>)</h2>
+        <table class="w-full text-center border">
           <thead>
             <tr>
-              <th>B</th>
-              <th>I</th>
-              <th>N</th>
-              <th>G</th>
-              <th>O</th>
+              <th>B</th><th>I</th><th>N</th><th>G</th><th>O</th>
             </tr>
           </thead>
           <tbody>
-            <% for (let row = 0; row < 5; row++) { %>
+            <% for(let r=0;r<5;r++){ %>
               <tr>
-                <% for (let col = 0; col < 5; col++) { %>
-                  <td 
-                    data-number="<%= cartela.numbers[col][row] %>"
-                    class="<%= cartela.markedNumbers.includes(cartela.numbers[col][row]) ? 'marked' : cartela.numbers[col][row] === 0 ? 'free' : '' %> text-center">
-                    <%= cartela.numbers[col][row] === 0 ? 'X' : cartela.numbers[col][row] %>
+                <% for(let c=0;c<5;c++){ %>
+                  <td data-number="<%= cartela.numbers[c][r] %>" 
+                      class="border p-2 <%= cartela.markedNumbers.includes(cartela.numbers[c][r])?'bg-yellow-300':'' %>">
+                    <%= cartela.numbers[c][r]===0 ? 'X' : cartela.numbers[c][r] %>
                   </td>
                 <% } %>
               </tr>
@@ -97,54 +35,29 @@
       </div>
     <% }) %>
   </div>
+
   <script>
-    const ws = new WebSocket('wss://' + window.location.host);
-    ws.onopen = () => console.log('WebSocket conectado em /cartelas');
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'update') {
-          updateUI(data.game, data.winners || []);
-        }
-      } catch (err) {
-        console.error('Erro ao processar mensagem WebSocket em /cartelas:', err);
+    const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host);
+    ws.onmessage = e=>{
+      const data = JSON.parse(e.data);
+      if(data.type==='update'){
+        marcarNumeros(data.game.drawnNumbers);
       }
     };
-    ws.onerror = (err) => console.error('Erro no WebSocket em /cartelas:', err);
-    ws.onclose = () => {
-      console.log('WebSocket desconectado em /cartelas, tentando reconectar...');
-      setTimeout(() => {
-        window.location.reload();
-      }, 5000);
-    };
 
-    function updateUI(game, winners) {
-      document.getElementById('currentPrize').textContent = game.currentPrize || '--';
-      document.getElementById('additionalInfo').textContent = game.additionalInfo || '--';
-      <% cartelas.forEach(cartela => { %>
-        const winnerMessage = document.getElementById('winnerMessage-<%= cartela.cartelaId %>');
-        if (winners.includes('<%= cartela.cartelaId %>')) {
-          winnerMessage.classList.remove('hidden');
-        } else {
-          winnerMessage.classList.add('hidden');
+    function marcarNumeros(drawn){
+      document.querySelectorAll('td[data-number]').forEach(td=>{
+        const num = parseInt(td.getAttribute('data-number'));
+        if(num && drawn.includes(num)){
+          td.classList.add('bg-yellow-300');
         }
-        const table = document.getElementById('cartela-<%= cartela.cartelaId %>');
-        const cells = table.querySelectorAll('td[data-number]');
-        cells.forEach(cell => {
-          const num = parseInt(cell.getAttribute('data-number'));
-          if (num !== 0 && game.drawnNumbers.includes(num)) {
-            cell.classList.add('marked');
-          } else if (num !== 0) {
-            cell.classList.remove('marked');
-          }
-        });
-      <% }) %>
+      });
     }
 
-    // Carregar estado inicial
-    fetch('/game').then(res => res.json()).then(game => {
-      updateUI(game, []);
-    }).catch(err => console.error('Erro ao carregar estado inicial em /cartelas:', err));
+    // Estado inicial
+    fetch('/game').then(r=>r.json()).then(game=>{
+      marcarNumeros(game.drawnNumbers||[]);
+    });
   </script>
 </body>
 </html>
