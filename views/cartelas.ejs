@@ -121,7 +121,6 @@
       console.log('Atualizando UI com dados:', game, winners);
       document.getElementById('currentPrize').textContent = game.currentPrize || '--';
       document.getElementById('additionalInfo').textContent = game.additionalInfo || '--';
-
       <% cartelas.forEach(cartela => { %>
         const winnerMessage = document.getElementById('winnerMessage-<%= cartela.cartelaId %>');
         if (winners.includes('<%= cartela.cartelaId %>')) {
@@ -130,17 +129,13 @@
           winnerMessage.classList.add('hidden');
         }
         const table = winnerMessage.nextElementSibling;
-
-        // Atualiza as marcações conforme os números sorteados
         for (let row = 0; row < 5; row++) {
           for (let col = 0; col < 5; col++) {
             const num = <%= JSON.stringify(cartela.numbers) %>[col][row];
             const cell = table.rows[row + 1].cells[col];
-            if (num === 0) {
-              cell.classList.add('free');
-            } else if (game.drawnNumbers.includes(num)) {
+            if (num !== 0 && game.drawnNumbers.includes(num)) {
               cell.classList.add('marked');
-            } else {
+            } else if (num !== 0) {
               cell.classList.remove('marked');
             }
           }
@@ -154,5 +149,5 @@
       updateUI(game, []);
     }).catch(err => console.error('Erro ao carregar estado inicial em /cartelas:', err));
   </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'970b0a7a8fd2caaa',t:'MTc1NTQ1MzMxMS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
