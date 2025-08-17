@@ -3,117 +3,151 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cartelas de Bingo</title>
+  <title>Cartelas do Bingo</title>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
   <link rel="icon" href="data:;base64,iVBORw0KGgo=">
   <style>
-    .cartela-grid {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 5px;
-      max-width: 400px;
-      margin: 0 auto;
-    }
-    .cartela-cell {
-      background-color: #e5e7eb;
-      padding: 10px;
-      text-align: center;
-      border-radius: 5px;
-      font-weight: bold;
-    }
-    .cartela-cell.free {
-      background-color: #10b981;
-      color: white;
-    }
-    .cartela-cell.marked {
-      background-color: #3b82f6;
-      color: white;
-    }
-    .cartela-header {
-      background-color: #1f2937;
-      color: white;
-      padding: 10px;
-      text-align: center;
-      font-weight: bold;
+    body {
+      background: linear-gradient(135deg, #34d399, #3b82f6);
+      font-family: 'Arial', sans-serif;
     }
     .cartela-container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      padding: 1.5rem;
       margin-bottom: 2rem;
-      padding: 1rem;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
+    }
+    .cartela-table {
+      border-collapse: separate;
+      border-spacing: 0;
+      width: 100%;
+    }
+    .cartela-table th {
+      background: #10b981;
+      color: white;
+      padding: 0.75rem;
+      font-size: 1.25rem;
+    }
+    .cartela-table td {
+      background: #f3f4f6;
+      border: 2px solid #e5e7eb;
+      padding: 0.75rem;
+      font-size: 1.1rem;
+      font-weight: bold;
+      transition: background 0.3s;
+    }
+    .cartela-table td.marked {
+      background: #facc15;
+      color: #1f2937;
+    }
+    .cartela-table td.free {
+      background: #60a5fa;
+      color: white;
+    }
+    .highlight-box {
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
     }
   </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
-  <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-    <h1 class="text-3xl font-bold text-center mb-6 text-blue-600">Cartelas de Bingo</h1>
-    <p class="text-center mb-4 text-2xl font-bold text-green-600" id="playerName"><%= playerName %></p>
-    <div id="startMessage" class="text-xl font-semibold text-center mb-4 animate-pulse <%= game.drawnNumbers.length === 0 ? '' : 'hidden' %>">
-      <%= game.startMessage || 'Em Breve o Bingo Irá Começar' %>
+<body class="flex items-center justify-center min-h-screen">
+  <div class="w-full max-w-4xl p-6">
+    <h1 class="text-4xl font-bold text-center mb-6 text-white drop-shadow-lg"><%= playerName %></h1>
+    <div class="highlight-box">
+      <h2 class="text-2xl font-semibold text-center text-green-600">Prêmio Atual</h2>
+      <p id="currentPrize" class="text-3xl font-bold text-center text-green-700 pulse">--</p>
     </div>
-    <div class="mb-4">
-      <h2 class="text-lg font-semibold text-center">Prêmio Atual</h2>
-      <p id="currentPrize" class="text-lg text-center"><%= game.currentPrize || '--' %></p>
+    <div class="highlight-box">
+      <h2 class="text-2xl font-semibold text-center text-blue-600">Informações Adicionais</h2>
+      <p id="additionalInfo" class="text-xl text-center text-blue-700">--</p>
     </div>
     <% cartelas.forEach((cartela, index) => { %>
       <div class="cartela-container">
-        <h3 class="text-lg font-semibold text-center mb-2">Cartela <%= index + 1 %> (ID: <%= cartela.cartelaId %>)</h3>
-        <div id="winnerMessage-<%= cartela.cartelaId %>" class="hidden text-center text-green-600 font-bold mb-4"></div>
-        <div class="cartela-grid">
-          <div class="cartela-header">B</div>
-          <div class="cartela-header">I</div>
-          <div class="cartela-header">N</div>
-          <div class="cartela-header">G</div>
-          <div class="cartela-header">O</div>
-          <% for (let row = 0; row < 5; row++) { %>
-            <% for (let col = 0; col < 5; col++) { %>
-              <div class="cartela-cell <%= cartela.numbers[col][row] === 0 ? 'free' : '' %> <%= cartela.markedNumbers.includes(cartela.numbers[col][row]) ? 'marked' : '' %>" data-row="<%= row %>" data-col="<%= col %>" data-cartela-id="<%= cartela.cartelaId %>">
-                <%= cartela.numbers[col][row] === 0 ? 'Free' : cartela.numbers[col][row] %>
-              </div>
+        <h2 class="text-xl font-semibold mb-2 text-gray-700">Cartela <%= index + 1 %> (ID: <%= cartela.cartelaId %>)</h2>
+        <div id="winnerMessage-<%= cartela.cartelaId %>" class="text-2xl font-bold text-center text-green-600 hidden mb-4">Parabéns! Esta cartela venceu!</div>
+        <table class="cartela-table">
+          <thead>
+            <tr>
+              <th>B</th>
+              <th>I</th>
+              <th>N</th>
+              <th>G</th>
+              <th>O</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% for (let row = 0; row < 5; row++) { %>
+              <tr>
+                <% for (let col = 0; col < 5; col++) { %>
+                  <td class="<%= cartela.markedNumbers.includes(cartela.numbers[col][row]) ? 'marked' : cartela.numbers[col][row] === 0 ? 'free' : '' %> text-center">
+                    <%= cartela.numbers[col][row] === 0 ? 'X' : cartela.numbers[col][row] %>
+                  </td>
+                <% } %>
+              </tr>
             <% } %>
-          <% } %>
-        </div>
+          </tbody>
+        </table>
       </div>
     <% }) %>
   </div>
   <script>
-    const playerName = '<%= playerName %>';
-    const cartelaIds = [<% cartelas.forEach((cartela, index) => { %>'<%= cartela.cartelaId %>'<%= index < cartelas.length - 1 ? ',' : '' %><% }) %>];
     const ws = new WebSocket('wss://' + window.location.host);
+    ws.onopen = () => console.log('WebSocket conectado em /cartelas');
     ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === 'update') {
-        updateCartelas(data.game, data.winners);
+      console.log('Mensagem WebSocket recebida em /cartelas:', event.data);
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'update') {
+          updateUI(data.game, data.winners || []);
+        }
+      } catch (err) {
+        console.error('Erro ao processar mensagem WebSocket em /cartelas:', err);
       }
     };
+    ws.onerror = (err) => console.error('Erro no WebSocket em /cartelas:', err);
+    ws.onclose = () => {
+      console.log('WebSocket desconectado em /cartelas, tentando reconectar...');
+      setTimeout(() => {
+        window.location.reload();
+      }, 5000);
+    };
 
-    function updateCartelas(game, winners) {
-      cartelaIds.forEach(cartelaId => {
-        const cells = document.querySelectorAll(`.cartela-cell[data-cartela-id="${cartelaId}"]`);
-        cells.forEach(cell => {
-          const row = parseInt(cell.dataset.row);
-          const col = parseInt(cell.dataset.col);
-          const num = parseInt(cell.textContent) || 0;
-          if (num !== 0 && game.drawnNumbers.includes(num)) {
-            cell.classList.add('marked');
-          }
-        });
-        if (winners && winners.includes(cartelaId)) {
-          const winnerMessage = document.getElementById(`winnerMessage-${cartelaId}`);
-          winnerMessage.classList.remove('hidden');
-          winnerMessage.textContent = 'Parabéns! Esta cartela venceu!';
-        }
-      });
-      document.getElementById('startMessage').classList.toggle('hidden', game.drawnNumbers.length > 0);
-      document.getElementById('startMessage').textContent = game.startMessage || 'Em Breve o Bingo Irá Começar';
+    function updateUI(game, winners) {
+      console.log('Atualizando UI com dados:', game, winners);
       document.getElementById('currentPrize').textContent = game.currentPrize || '--';
+      document.getElementById('additionalInfo').textContent = game.additionalInfo || '--';
+      <% cartelas.forEach(cartela => { %>
+        const winnerMessage = document.getElementById('winnerMessage-<%= cartela.cartelaId %>');
+        if (winners.includes('<%= cartela.cartelaId %>')) {
+          winnerMessage.classList.remove('hidden');
+        } else {
+          winnerMessage.classList.add('hidden');
+        }
+        const table = winnerMessage.nextElementSibling;
+        for (let row = 0; row < 5; row++) {
+          for (let col = 0; col < 5; col++) {
+            const num = <%= JSON.stringify(cartela.numbers) %>[col][row];
+            const cell = table.rows[row + 1].cells[col];
+            if (num !== 0 && game.drawnNumbers.includes(num)) {
+              cell.classList.add('marked');
+            } else if (num !== 0) {
+              cell.classList.remove('marked');
+            }
+          }
+        }
+      <% }) %>
     }
 
     // Carregar estado inicial
     fetch('/game').then(res => res.json()).then(game => {
-      updateCartelas(game, []);
-    });
+      console.log('Estado inicial do jogo em /cartelas:', game);
+      updateUI(game, []);
+    }).catch(err => console.error('Erro ao carregar estado inicial em /cartelas:', err));
   </script>
 </body>
 </html>
