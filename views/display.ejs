@@ -6,100 +6,87 @@
   <title>Bingo - Tela Pública</title>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
+  <link rel="icon" href="data:;base64,iVBORw0KGgo=">
   <style>
-    body { background: linear-gradient(135deg, #34d399, #3b82f6); font-family: Arial, sans-serif; }
-    .highlight-box { background: rgba(255, 255, 255, 0.9); border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); padding: 1.5rem; margin-bottom: 1.5rem; }
+    body {
+      background: linear-gradient(135deg, #34d399, #3b82f6);
+      font-family: 'Arial', sans-serif;
+    }
+    .highlight-box {
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .pulse {
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
   </style>
 </head>
-<body class="flex items-center justify-center min-h-screen">
-  <div class="w-full max-w-4xl p-6">
-    <h1 class="text-4xl font-bold text-center mb-6 text-white drop-shadow-lg">Bingo da Evelyn</h1>
+<body class="flex items-center justify-center min-h-screen text-gray-800">
+  <div class="w-full max-w-3xl p-6">
+    <h1 class="text-4xl font-bold text-center mb-6 text-white drop-shadow-lg">Bingo</h1>
+    <div id="startMessage" class="text-2xl font-semibold text-center mb-6 text-white animate-pulse hidden"></div>
     <div class="highlight-box">
-      <h2 class="text-xl font-semibold mb-2 text-gray-700">Mensagem</h2>
-      <p id="startMessage" class="text-lg text-center <%= game.drawnNumbers.length === 0 ? '' : 'hidden' %>">
-        <%= game.startMessage || 'Em Breve o Bingo Irá Começar' %>
-      </p>
+      <h2 class="text-2xl font-semibold text-center text-green-600">Prêmio Atual</h2>
+      <p id="currentPrize" class="text-3xl font-bold text-center text-green-700 pulse">--</p>
     </div>
     <div class="highlight-box">
-      <h2 class="text-xl font-semibold mb-2 text-gray-700">Prêmio Atual</h2>
-      <p id="currentPrize" class="text-lg text-center"><%= game.currentPrize || '--' %></p>
+      <h2 class="text-2xl font-semibold text-center text-blue-600">Informações Adicionais</h2>
+      <p id="additionalInfo" class="text-xl text-center text-blue-700">--</p>
     </div>
     <div class="highlight-box">
-      <h2 class="text-xl font-semibold mb-2 text-gray-700">Informações Adicionais</h2>
-      <p id="additionalInfo" class="text-lg text-center"><%= game.additionalInfo || '--' %></p>
+      <h2 class="text-2xl font-semibold text-center text-gray-700">Último Número Sorteado</h2>
+      <p id="lastNumber" class="text-4xl font-bold text-center text-gray-800">--</p>
     </div>
     <div class="highlight-box">
-      <h2 class="text-xl font-semibold mb-2 text-gray-700">Último Número Sorteado</h2>
-      <p id="lastNumber" class="text-4xl font-bold text-center text-blue-600 animate-pulse">
-        <%= game.lastNumber ? `${getBingoLetter(game.lastNumber)}-${game.lastNumber}` : '--' %>
-      </p>
-    </div>
-    <div class="highlight-box">
-      <h2 class="text-xl font-semibold mb-2 text-gray-700">Números Sorteados</h2>
-      <div id="drawnNumbers" class="space-y-2">
-        <div><strong>B (1-15):</strong> <span id="drawnB">--</span></div>
-        <div><strong>I (16-30):</strong> <span id="drawnI">--</span></div>
-        <div><strong>N (31-45):</strong> <span id="drawnN">--</span></div>
-        <div><strong>G (46-60):</strong> <span id="drawnG">--</span></div>
-        <div><strong>O (61-75):</strong> <span id="drawnO">--</span></div>
-      </div>
+      <h2 class="text-2xl font-semibold text-center text-gray-700">Últimos 5 Números Sorteados</h2>
+      <p id="drawnNumbers" class="text-xl text-center text-gray-800">--</p>
     </div>
   </div>
-
   <script>
-    function getBingoLetter(number) {
-      if (number >= 1 && number <= 15) return 'B';
-      if (number >= 16 && number <= 30) return 'I';
-      if (number >= 31 && number <= 45) return 'N';
-      if (number >= 46 && number <= 60) return 'G';
-      if (number >= 61 && number <= 75) return 'O';
-      return '';
-    }
-
-    function formatDrawnNumbers(numbers) {
-      const ranges = {
-        B: { min: 1, max: 15, numbers: [] },
-        I: { min: 16, max: 30, numbers: [] },
-        N: { min: 31, max: 45, numbers: [] },
-        G: { min: 46, max: 60, numbers: [] },
-        O: { min: 61, max: 75, numbers: [] }
-      };
-      numbers.forEach(num => {
-        if (num >= 1 && num <= 15) ranges.B.numbers.push(`B-${num}`);
-        else if (num >= 16 && num <= 30) ranges.I.numbers.push(`I-${num}`);
-        else if (num >= 31 && num <= 45) ranges.N.numbers.push(`N-${num}`);
-        else if (num >= 46 && num <= 60) ranges.G.numbers.push(`G-${num}`);
-        else if (num >= 61 && num <= 75) ranges.O.numbers.push(`O-${num}`);
-      });
-      document.getElementById('drawnB').textContent = ranges.B.numbers.length > 0 ? ranges.B.numbers.join(', ') : '--';
-      document.getElementById('drawnI').textContent = ranges.I.numbers.length > 0 ? ranges.I.numbers.join(', ') : '--';
-      document.getElementById('drawnN').textContent = ranges.N.numbers.length > 0 ? ranges.N.numbers.join(', ') : '--';
-      document.getElementById('drawnG').textContent = ranges.G.numbers.length > 0 ? ranges.G.numbers.join(', ') : '--';
-      document.getElementById('drawnO').textContent = ranges.O.numbers.length > 0 ? ranges.O.numbers.join(', ') : '--';
-    }
-
-    formatDrawnNumbers(<%- JSON.stringify(game.drawnNumbers) %>);
-
     const ws = new WebSocket('wss://' + window.location.host);
     ws.onopen = () => console.log('WebSocket conectado em /display');
     ws.onmessage = (event) => {
       console.log('Mensagem WebSocket recebida em /display:', event.data);
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'update') {
-          document.getElementById('lastNumber').textContent = data.game.lastNumber ? `${getBingoLetter(data.game.lastNumber)}-${data.game.lastNumber}` : '--';
-          document.getElementById('currentPrize').textContent = data.game.currentPrize || '--';
-          document.getElementById('additionalInfo').textContent = data.game.additionalInfo || '--';
-          document.getElementById('startMessage').textContent = data.game.startMessage || 'Em Breve o Bingo Irá Começar';
-          document.getElementById('startMessage').classList.toggle('hidden', data.game.drawnNumbers.length > 0);
-          formatDrawnNumbers(data.game.drawnNumbers || []);
-        }
-      } catch (err) {
-        console.error('Erro ao processar mensagem WebSocket em /display:', err);
+      const data = JSON.parse(event.data);
+      if (data.type === 'update') {
+        updateUI(data.game, data.winners || []);
       }
     };
     ws.onerror = (err) => console.error('Erro no WebSocket em /display:', err);
     ws.onclose = () => console.log('WebSocket desconectado em /display');
+
+    function updateUI(game, winners) {
+      document.getElementById('startMessage').classList.toggle('hidden', game.drawnNumbers.length > 0);
+      document.getElementById('startMessage').textContent = game.startMessage || 'Em Breve o Bingo Irá Começar';
+      document.getElementById('currentPrize').textContent = game.currentPrize || '--';
+      document.getElementById('additionalInfo').textContent = game.additionalInfo || '--';
+      document.getElementById('lastNumber').textContent = game.lastNumber ? getLetterNumber(game.lastNumber) : '--';
+      const lastFive = game.drawnNumbers.slice(-5);
+      document.getElementById('drawnNumbers').textContent = lastFive.length > 0 ? lastFive.map(num => getLetterNumber(num)).join(', ') : '--';
+    }
+
+    function getLetterNumber(number) {
+      if (number >= 1 && number <= 15) return `B-${number}`;
+      if (number >= 16 && number <= 30) return `I-${number}`;
+      if (number >= 31 && number <= 45) return `N-${number}`;
+      if (number >= 46 && number <= 60) return `G-${number}`;
+      if (number >= 61 && number <= 75) return `O-${number}`;
+      return number;
+    }
+
+    // Carregar estado inicial
+    fetch('/game').then(res => res.json()).then(game => {
+      console.log('Estado inicial do jogo em /display:', game);
+      updateUI(game, []);
+    }).catch(err => console.error('Erro ao carregar estado inicial em /display:', err));
   </script>
 </body>
 </html>
