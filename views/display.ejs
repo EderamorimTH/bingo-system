@@ -11,21 +11,19 @@
 <body class="bg-gray-100 flex items-center justify-center min-h-screen">
   <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-2xl">
     <h1 class="text-3xl font-bold text-center mb-6">Bingo</h1>
-    <div id="startMessage" class="text-xl font-semibold text-center mb-4 animate-pulse hidden"></div>
-    <div class="mb-4">
-      <h2 class="text-xl font-semibold text-center">Prêmio Atual</h2>
-      <p id="currentPrize" class="text-lg text-center">--</p>
+    <div id="startMessage" class="text-xl font-semibold text-center mb-4 animate-pulse <%= game.drawnNumbers.length === 0 ? '' : 'hidden' %>">
+      <%= game.startMessage || 'Em Breve o Bingo Irá Começar' %>
     </div>
     <div class="mb-4">
-      <h2 class="text-xl font-semibold text-center">Informações Adicionais</h2>
-      <p id="additionalInfo" class="text-lg text-center">--</p>
+      <h2 class="text-lg font-semibold text-center">Prêmio Atual</h2>
+      <p id="currentPrize" class="text-lg text-center"><%= game.currentPrize || '--' %></p>
     </div>
-    <div class="mb-4">
-      <h2 class="text-xl font-semibold text-center">Último Número Sorteado</h2>
+    <div class="mt-4">
+      <h2 class="text-xl font-semibold">Último Número Sorteado</h2>
       <p id="lastNumber" class="text-4xl font-bold text-center text-blue-600 animate-pulse">--</p>
     </div>
     <div class="mt-4">
-      <h2 class="text-xl font-semibold text-center">Números Sorteados por Letra</h2>
+      <h2 class="text-xl font-semibold">Números Sorteados por Letra</h2>
       <div id="drawnNumbers" class="mt-2">
         <div class="mb-4">
           <h3 class="text-lg font-semibold">B (1-15)</h3>
@@ -69,10 +67,6 @@
     };
 
     function updateUI(game, winners) {
-      document.getElementById('startMessage').classList.toggle('hidden', game.drawnNumbers.length > 0);
-      document.getElementById('startMessage').textContent = game.startMessage || 'Em Breve o Bingo Irá Começar';
-      document.getElementById('currentPrize').textContent = game.currentPrize || '--';
-      document.getElementById('additionalInfo').textContent = game.additionalInfo || '--';
       document.getElementById('lastNumber').textContent = game.lastNumber ? `${getBingoLetter(game.lastNumber)}-${game.lastNumber}` : '--';
       const bNumbersDiv = document.getElementById('bNumbers');
       const iNumbersDiv = document.getElementById('iNumbers');
@@ -119,6 +113,9 @@
         numDiv.textContent = `O-${num}`;
         oNumbersDiv.appendChild(numDiv);
       });
+      document.getElementById('startMessage').classList.toggle('hidden', game.drawnNumbers.length > 0);
+      document.getElementById('startMessage').textContent = game.startMessage || 'Em Breve o Bingo Irá Começar';
+      document.getElementById('currentPrize').textContent = game.currentPrize || '--';
     }
 
     // Carregar estado inicial
