@@ -3,61 +3,99 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cartelas do Bingo</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css">
+  <title>Cartelas do Jogador</title>
 </head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center">
-  <div class="w-full max-w-4xl p-6">
-    <h1 class="text-2xl font-bold text-center mb-6"><%= playerName %></h1>
-    <% cartelas.forEach((cartela,index)=>{ %>
-      <div class="mb-6 border rounded p-4 bg-white shadow">
-        <h2 class="text-lg font-semibold mb-2">Cartela <%= index+1 %> (ID: <%= cartela.cartelaId %>)</h2>
-        <table class="w-full text-center border">
-          <thead>
+<body>
+  <div>
+    <h2>Prêmio Atual</h2>
+    <p id="current-prize"><%= game.currentPrize || '--' %></p>
+  </div>
+  <div>
+    <h2>Informações Adicionais</h2>
+    <p id="additional-info"><%= game.additionalInfo || '--' %></p>
+  </div>
+
+  <% if (cartelas && cartelas.length > 0) { %>
+    <% cartelas.forEach(cartela => { %>
+      <div class="cartela-container">
+        <h3>Cartela <%= cartela.playerName %> (ID: <%= cartela.cartelaId %>)</h3>
+        <% if (winners && winners.includes(cartela.cartelaId)) { %>
+          <p class="winner">Parabéns! Esta cartela venceu!</p>
+        <% } %>
+        <table class="cartela-table" data-cartela-id="<%= cartela.cartelaId %>">
+          <tr>
+            <th>B</th><th>I</th><th>N</th><th>G</th><th>O</th>
+          </tr>
+          <% for (let row = 0; row < 5; row++) { %>
             <tr>
-              <th>B</th><th>I</th><th>N</th><th>G</th><th>O</th>
+              <% for (let col = 0; col < 5; col++) { %>
+                <td class="<%= cartela.markedNumbers.includes(cartela.numbers[col][row]) ? 'marked' : '' %>">
+                  <%= cartela.numbers[col][row] === 0 ? 'Livre' : cartela.numbers[col][row] %>
+                </td>
+              <% } %>
             </tr>
-          </thead>
-          <tbody>
-            <% for(let r=0;r<5;r++){ %>
-              <tr>
-                <% for(let c=0;c<5;c++){ %>
-                  <td data-number="<%= cartela.numbers[c][r] %>" 
-                      class="border p-2 <%= cartela.markedNumbers.includes(cartela.numbers[c][r])?'bg-yellow-300':'' %>">
-                    <%= cartela.numbers[c][r]===0 ? 'X' : cartela.numbers[c][r] %>
-                  </td>
-                <% } %>
-              </tr>
-            <% } %>
-          </tbody>
+          <% } %>
         </table>
       </div>
     <% }) %>
-  </div>
+  <% } %>
 
   <script>
-    const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host);
-    ws.onmessage = e=>{
-      const data = JSON.parse(e.data);
-      if(data.type==='update'){
-        marcarNumeros(data.game.drawnNumbers);
+    const ws = new WebSocket('wss://' + window.location.host);
+    
+    ws.onopen = () => {
+      console.log('Conectado ao WebSocket');
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'update') {
+        // Atualizar prêmio e informações
+        document.getElementById('current-prize').textContent = data.game.currentPrize || '--';
+        document.getElementById('additional-info').textContent = data.game.additionalInfo || '--';
+
+        // Atualizar cartelas
+        if (data.cartelas) {
+          data.cartelas.forEach(cartela => {
+            const table = document.querySelector(`table[data-cartela-id="${cartela.cartelaId}"]`);
+            if (table) {
+              const cells = table.querySelectorAll('td');
+              cells.forEach((cell, index) => {
+                const row = Math.floor(index / 5);
+                const col = index % 5;
+                const number = cartela.numbers[col][row];
+                if (number !== 0 && cartela.markedNumbers.includes(number)) {
+                  cell.classList.add('marked');
+                } else if (number !== 0) {
+                  cell.classList.remove('marked');
+                }
+              });
+            }
+          });
+        }
+
+        // Atualizar status de vencedor
+        if (data.winners && data.winners.length > 0) {
+          data.winners.forEach(winnerId => {
+            const cartelaContainer = document.querySelector(`.cartela-container:has(table[data-cartela-id="${winnerId}"])`);
+            if (cartelaContainer && !cartelaContainer.querySelector('.winner')) {
+              const p = document.createElement('p');
+              p.className = 'winner';
+              p.textContent = 'Parabéns! Esta cartela venceu!';
+              cartelaContainer.insertBefore(p, cartelaContainer.querySelector('table'));
+            }
+          });
+        }
       }
     };
 
-    function marcarNumeros(drawn){
-      document.querySelectorAll('td[data-number]').forEach(td=>{
-        const num = parseInt(td.getAttribute('data-number'));
-        if(num && drawn.includes(num)){
-          td.classList.add('bg-yellow-300');
-        }
-      });
-    }
+    ws.onclose = () => {
+      console.log('Desconectado do WebSocket');
+    };
 
-    // Estado inicial
-    fetch('/game').then(r=>r.json()).then(game=>{
-      marcarNumeros(game.drawnNumbers||[]);
-    });
+    ws.onerror = (error) => {
+      console.error('Erro no WebSocket:', error);
+    };
   </script>
 </body>
 </html>
