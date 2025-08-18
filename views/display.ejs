@@ -28,6 +28,12 @@
       <p id="drawnNumbers" class="text-xl text-center text-gray-800">--</p>
     </div>
 
+    <!-- Prêmio Atual -->
+    <div class="highlight-box">
+      <h2 class="text-2xl font-semibold text-center text-gray-700">Prêmio Atual</h2>
+      <p id="currentPrize" class="text-2xl text-center text-gray-900">--</p>
+    </div>
+
   </div>
 
   <script>
@@ -42,6 +48,7 @@
       document.getElementById('lastNumber').textContent = game.lastNumber ? getLetterNumber(game.lastNumber) : '--';
       const lastFive = game.drawnNumbers.slice(-5).reverse();
       document.getElementById('drawnNumbers').textContent = lastFive.length ? lastFive.map(n => getLetterNumber(n)).join(', ') : '--';
+      document.getElementById('currentPrize').textContent = game.currentPrize && game.currentPrize.trim() ? game.currentPrize : '--';
     }
 
     function getLetterNumber(number) {
