@@ -5,37 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Painel de Administração</title>
   <link rel="stylesheet" href="/css/style.css">
-  <style>
-    /* Fallback básico caso o CSS não carregue */
-    body { font-family: Arial, sans-serif; background-color: #f4f4f4; }
-    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-    .section { margin-bottom: 20px; background: white; padding: 15px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    .form-group { margin-bottom: 10px; }
-    .form-group label { display: block; font-weight: bold; }
-    .form-group input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-    th { background-color: #f2f2f2; }
-    button { padding: 8px 16px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
-    button:hover { background-color: #45a049; }
-    a { color: #0066cc; text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    .error { color: red; margin-bottom: 20px; }
-  </style>
 </head>
 <body>
   <div class="container">
     <h1>Painel de Administração</h1>
-    <% if (error) { %>
-      <div class="error"><%= error %></div>
-    <% } %>
-
-    <div class="section">
-      <h2>Links Fixos</h2>
-      <p><a href="/display">Exibição Pública</a></p>
-      <p><a href="/sorteador">Sorteador Público</a></p>
-      <p><a href="/cartelas-fixas">Todas as 500 Cartelas</a></p>
-    </div>
 
     <div class="section">
       <h2>Atribuir Cartelas</h2>
@@ -68,8 +41,25 @@
     </div>
 
     <div class="section">
-      <h2>Último Número Sorteado</h2>
-      <p id="lastNumber"><%= game.lastNumberDisplay || '--' %></p>
+      <h2>Atualizar Informações Adicionais</h2>
+      <form id="updateInfoForm">
+        <div class="form-group">
+          <label for="additionalInfo">Informações Adicionais</label>
+          <input type="text" id="additionalInfo" name="additionalInfo" value="<%= game.additionalInfo || '' %>">
+        </div>
+        <button type="submit">Atualizar Informações</button>
+      </form>
+    </div>
+
+    <div class="section">
+      <h2>Atualizar Mensagem Inicial</h2>
+      <form id="updateStartMessageForm">
+        <div class="form-group">
+          <label for="startMessage">Mensagem Inicial</label>
+          <input type="text" id="startMessage" name="startMessage" value="<%= game.startMessage || 'Em Breve o Bingo Irá Começar' %>">
+        </div>
+        <button type="submit">Atualizar Mensagem</button>
+      </form>
     </div>
 
     <div class="section">
@@ -93,22 +83,79 @@
           <label for="password">Senha</label>
           <input type="password" id="password" name="password" required>
         </div>
-        <button type="submit">Marcar</button>
+        <button type="submit">Marcar Número (Manual)</button>
       </form>
     </div>
 
     <div class="section">
       <h2>Ações</h2>
-      <form id="resetForm" style="display:inline;">
-        <button type="submit">Reiniciar o Bingo</button>
-      </form>
-      <form id="deleteAllForm" style="display:inline;">
-        <button type="submit">Excluir Todas as Cartelas</button>
-      </form>
-      <form id="deleteByPhoneForm" style="display:inline;">
-        <input type="text" name="phoneNumber" placeholder="Número de Telefone" required>
-        <button type="submit">Excluir por Telefone</button>
-      </form>
+      <button onclick="showResetModal()">Reiniciar o Bingo</button>
+      <button onclick="showDeleteAllModal()">Excluir Todas as Cartelas</button>
+      <button onclick="showDeleteByPhoneModal()">Excluir por Número de Telefone</button>
+    </div>
+
+    <div id="resetModal" class="modal" style="display: none;">
+      <div class="modal-content">
+        <h2>Confirmar Reinicialização do Bingo</h2>
+        <form id="resetForm">
+          <div class="form-group">
+            <label for="resetPassword">Senha</label>
+            <input type="password" id="resetPassword" name="password" required>
+          </div>
+          <button type="button" onclick="closeResetModal()">Cancelar</button>
+          <button type="submit">Reiniciar</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="deleteAllModal" class="modal" style="display: none;">
+      <div class="modal-content">
+        <h2>Confirmar Exclusão de Todas as Cartelas</h2>
+        <form id="deleteAllForm">
+          <div class="form-group">
+            <label for="deleteAllPassword">Senha</label>
+            <input type="password" id="deleteAllPassword" name="password" required>
+          </div>
+          <button type="button" onclick="closeDeleteAllModal()">Cancelar</button>
+          <button type="submit">Excluir</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="deleteByPhoneModal" class="modal" style="display: none;">
+      <div class="modal-content">
+        <h2>Excluir Cartelas por Número de Telefone</h2>
+        <form id="deleteByPhoneForm">
+          <div class="form-group">
+            <label for="phoneNumber">Número de Telefone</label>
+            <input type="text" id="phoneNumber" name="phoneNumber" required>
+          </div>
+          <div class="form-group">
+            <label for="deleteByPhonePassword">Senha</label>
+            <input type="password" id="deleteByPhonePassword" name="password" required>
+          </div>
+          <button type="button" onclick="closeDeleteByPhoneModal()">Cancelar</button>
+          <button type="submit">Excluir</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="addCartelasModal" class="modal" style="display: none;">
+      <div class="modal-content">
+        <h2>Adicionar Mais Cartelas</h2>
+        <form id="addCartelasForm">
+          <div class="form-group">
+            <label for="addCartelaNumbers">Números das Cartelas (separados por vírgula)</label>
+            <input type="text" id="addCartelaNumbers" name="cartelaNumbers" required>
+          </div>
+          <div class="form-group">
+            <label for="addPlayerName">Nome do Jogador</label>
+            <input type="text" id="addPlayerName" name="playerName" readonly>
+          </div>
+          <button type="button" onclick="closeAddCartelasModal()">Cancelar</button>
+          <button type="submit">Adicionar</button>
+        </form>
+      </div>
     </div>
 
     <div class="section">
@@ -120,7 +167,7 @@
             <th>Telefone</th>
             <th>Cartelas</th>
             <th>Link</th>
-            <th>Ação</th>
+            <th>Ações</th>
           </tr>
         </thead>
         <tbody id="playersTable">
@@ -130,7 +177,10 @@
               <td><%= player.phoneNumber || '-' %></td>
               <td><%= player.cartelaIds.join(', ') || '-' %></td>
               <td><a href="<%= player.link %>" target="_blank">Ver Cartelas</a></td>
-              <td><button onclick="copyToClipboard('<%= player.link %>')">Copiar</button></td>
+              <td>
+                <button onclick="copyToClipboard('<%= player.link %>')">Copiar</button>
+                <button onclick="showAddCartelasModal('<%= player.playerName %>')">Adicionar Cartelas</button>
+              </td>
             </tr>
           <% }) %>
           <% if (players.length === 0) { %>
@@ -150,7 +200,8 @@
             <th>Nome</th>
             <th>Telefone</th>
             <th>Cartela</th>
-            <th>Link</th>
+            <th>Prêmio</th>
+            <th>Data</th>
           </tr>
         </thead>
         <tbody id="winnersTable">
@@ -159,12 +210,13 @@
               <td><%= winner.playerName || '-' %></td>
               <td><%= winner.phoneNumber || '-' %></td>
               <td><%= winner.cartelaId %></td>
-              <td><a href="<%= winner.link %>" target="_blank">Ver</a></td>
+              <td><%= winner.prize || '-' %></td>
+              <td><%= new Date(winner.createdAt).toLocaleString('pt-BR') %></td>
             </tr>
           <% }) %>
           <% if (winners.length === 0) { %>
             <tr>
-              <td colspan="4">Nenhum vencedor</td>
+              <td colspan="5">Nenhum vencedor</td>
             </tr>
           <% } %>
         </tbody>
@@ -182,18 +234,46 @@
       });
     }
 
+    function showResetModal() {
+      document.getElementById('resetModal').style.display = 'block';
+    }
+
+    function closeResetModal() {
+      document.getElementById('resetModal').style.display = 'none';
+    }
+
+    function showDeleteAllModal() {
+      document.getElementById('deleteAllModal').style.display = 'block';
+    }
+
+    function closeDeleteAllModal() {
+      document.getElementById('deleteAllModal').style.display = 'none';
+    }
+
+    function showDeleteByPhoneModal() {
+      document.getElementById('deleteByPhoneModal').style.display = 'block';
+    }
+
+    function closeDeleteByPhoneModal() {
+      document.getElementById('deleteByPhoneModal').style.display = 'none';
+    }
+
+    function showAddCartelasModal(playerName) {
+      document.getElementById('addPlayerName').value = playerName;
+      document.getElementById('addCartelasModal').style.display = 'block';
+    }
+
+    function closeAddCartelasModal() {
+      document.getElementById('addCartelasModal').style.display = 'none';
+    }
+
     function submitForm(formId, url, reload = false) {
       const form = document.getElementById(formId);
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData);
         try {
-          const formData = new FormData(form);
-          let data = Object.fromEntries(formData);
-          if (['resetForm', 'deleteAllForm', 'deleteByPhoneForm'].includes(formId)) {
-            const password = prompt('Digite a senha:');
-            if (!password) return;
-            data.password = password;
-          }
           const response = await fetch(url, {
             method: 'POST',
             body: JSON.stringify(data),
@@ -202,11 +282,15 @@
           const result = await response.json();
           if (result.error) {
             alert(result.error);
-          } else if (reload) {
-            location.href = '/admin';
-          } else if (formId === 'assignCartelasForm') {
-            alert(`Cartelas ${result.assigned.join(', ')} atribuídas a ${result.playerName}. Link: ${result.link}`);
-            location.href = '/admin';
+          } else {
+            if (formId === 'assignCartelasForm' || formId === 'addCartelasForm') {
+              alert(`Cartelas ${result.assigned.join(', ')} atribuídas a ${result.playerName}. Link: ${result.link}`);
+            } else {
+              alert('Ação realizada com sucesso!');
+            }
+            if (reload) {
+              location.reload();
+            }
           }
         } catch (err) {
           console.error(`Erro no ${formId}:`, err);
@@ -215,73 +299,104 @@
       });
     }
 
+    submitForm('assignCartelasForm', '/assign-cartelas');
+    submitForm('addCartelasForm', '/assign-cartelas', true);
     submitForm('drawForm', '/draw');
     submitForm('markNumberForm', '/mark-number');
     submitForm('updatePrizeForm', '/update-prize');
+    submitForm('updateInfoForm', '/update-info');
+    submitForm('updateStartMessageForm', '/update-start-message');
     submitForm('resetForm', '/reset', true);
     submitForm('deleteAllForm', '/delete-all', true);
     submitForm('deleteByPhoneForm', '/delete-by-phone', true);
-    submitForm('assignCartelasForm', '/assign-cartelas');
 
     // WebSocket para atualizações em tempo real
-    try {
-      const ws = new WebSocket('wss://' + window.location.host);
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === 'update') {
-            document.getElementById('lastNumber').textContent = data.game.lastNumberDisplay || '--';
-            document.getElementById('numbersB').textContent = Array.isArray(data.game.drawnNumbers) ? data.game.drawnNumbers.filter(n => n >= 1 && n <= 15).join(', ') || '--' : '--';
-            document.getElementById('numbersI').textContent = Array.isArray(data.game.drawnNumbers) ? data.game.drawnNumbers.filter(n => n >= 16 && n <= 30).join(', ') || '--' : '--';
-            document.getElementById('numbersN').textContent = Array.isArray(data.game.drawnNumbers) ? data.game.drawnNumbers.filter(n => n >= 31 && n <= 45).join(', ') || '--' : '--';
-            document.getElementById('numbersG').textContent = Array.isArray(data.game.drawnNumbers) ? data.game.drawnNumbers.filter(n => n >= 46 && n <= 60).join(', ') || '--' : '--';
-            document.getElementById('numbersO').textContent = Array.isArray(data.game.drawnNumbers) ? data.game.drawnNumbers.filter(n => n >= 61 && n <= 75).join(', ') || '--' : '--';
-            document.getElementById('currentPrize').value = data.game.currentPrize || '';
-            // Atualizar tabelas dinamicamente
-            fetch('/admin/data').then(res => res.json()).then(data => {
-              const winnersTable = document.getElementById('winnersTable');
-              winnersTable.innerHTML = data.winners.length > 0
-                ? data.winners.map(winner => `
-                    <tr>
-                      <td>${winner.playerName || '-'}</td>
-                      <td>${winner.phoneNumber || '-'}</td>
-                      <td>${winner.cartelaId}</td>
-                      <td><a href="${winner.link}" target="_blank">Ver</a></td>
-                    </tr>
-                  `).join('')
-                : '<tr><td colspan="4">Nenhum vencedor</td></tr>';
-              const playersTable = document.getElementById('playersTable');
-              playersTable.innerHTML = data.players.length > 0
-                ? data.players.map(player => `
-                    <tr>
-                      <td>${player.playerName || '-'}</td>
-                      <td>${player.phoneNumber || '-'}</td>
-                      <td>${player.cartelaIds.join(', ') || '-'}</td>
-                      <td><a href="${player.link}" target="_blank">Ver Cartelas</a></td>
-                      <td><button onclick="copyToClipboard('${player.link}')">Copiar</button></td>
-                    </tr>
-                  `).join('')
-                : '<tr><td colspan="5">Nenhum jogador registrado</td></tr>';
-            }).catch(err => {
-              console.error('Erro ao atualizar tabelas:', err);
+    const ws = new WebSocket('wss://' + window.location.host);
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'update') {
+        document.getElementById('numbersB').textContent = data.game.drawnNumbers.filter(n => n >= 1 && n <= 15).join(', ') || '--';
+        document.getElementById('numbersI').textContent = data.game.drawnNumbers.filter(n => n >= 16 && n <= 30).join(', ') || '--';
+        document.getElementById('numbersN').textContent = data.game.drawnNumbers.filter(n => n >= 31 && n <= 45).join(', ') || '--';
+        document.getElementById('numbersG').textContent = data.game.drawnNumbers.filter(n => n >= 46 && n <= 60).join(', ') || '--';
+        document.getElementById('numbersO').textContent = data.game.drawnNumbers.filter(n => n >= 61 && n <= 75).join(', ') || '--';
+        document.getElementById('currentPrize').value = data.game.currentPrize || '';
+        document.getElementById('additionalInfo').value = data.game.additionalInfo || '';
+        document.getElementById('startMessage').value = data.game.startMessage || 'Em Breve o Bingo Irá Começar';
+
+        // Atualizar tabela de jogadores
+        fetch('/admin/data').then(res => res.json()).then(data => {
+          const playersTable = document.getElementById('playersTable');
+          playersTable.innerHTML = data.players.length > 0
+            ? data.players.map(player => `
+                <tr>
+                  <td>${player.playerName || '-'}</td>
+                  <td>${player.phoneNumber || '-'}</td>
+                  <td>${player.cartelaIds.join(', ') || '-'}</td>
+                  <td><a href="${player.link}" target="_blank">Ver Cartelas</a></td>
+                  <td>
+                    <button onclick="copyToClipboard('${player.link}')">Copiar</button>
+                    <button onclick="showAddCartelasModal('${player.playerName}')">Adicionar Cartelas</button>
+                  </td>
+                </tr>
+              `).join('')
+            : '<tr><td colspan="5">Nenhum jogador registrado</td></tr>';
+
+          // Atualizar tabela de vencedores
+          const winnersTable = document.getElementById('winnersTable');
+          winnersTable.innerHTML = data.winners.length > 0
+            ? data.winners.map(winner => `
+                <tr>
+                  <td>${winner.playerName || '-'}</td>
+                  <td>${winner.phoneNumber || '-'}</td>
+                  <td>${winner.cartelaId}</td>
+                  <td>${winner.prize || '-'}</td>
+                  <td>${new Date(winner.createdAt).toLocaleString('pt-BR')}</td>
+                </tr>
+              `).join('')
+            : '<tr><td colspan="5">Nenhum vencedor</td></tr>';
+
+          // Exibir mensagem para o jogador se a cartela for vencedora
+          if (data.winners.length > 0) {
+            data.winners.forEach(winner => {
+              if (winner.playerName && winner.playerName !== 'FIXAS') {
+                alert(`Parabéns, ${winner.playerName}! Sua cartela ${winner.cartelaId} completou todos os números e é a vencedora! Prêmio: ${winner.prize || 'Não especificado'}`);
+              }
             });
           }
-        } catch (err) {
-          console.error('Erro ao processar mensagem WebSocket:', err);
-        }
-      };
-      ws.onerror = (err) => {
-        console.error('Erro na conexão WebSocket:', err);
-      };
-      ws.onclose = () => {
-        console.log('Conexão WebSocket fechada, tentando reconectar...');
-        setTimeout(() => {
-          location.reload();
-        }, 5000);
-      };
-    } catch (err) {
-      console.error('Erro ao inicializar WebSocket:', err);
-    }
+        }).catch(err => {
+          console.error('Erro ao atualizar tabelas:', err);
+        });
+      }
+    };
+
+    ws.onclose = () => {
+      console.log('Conexão WebSocket fechada, tentando reconectar...');
+      setTimeout(() => location.reload(), 5000);
+    };
   </script>
+
+  <style>
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background: white;
+      padding: 20px;
+      border-radius: 5px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    .modal-content button {
+      margin: 10px;
+    }
+  </style>
 </body>
 </html>
