@@ -29,6 +29,12 @@
       <p id="lastFive" class="text-xl">--</p>
     </div>
 
+    <!-- Prêmio Atual -->
+    <div class="highlight-box text-center">
+      <h2 class="text-2xl font-semibold text-gray-700">Prêmio Atual</h2>
+      <p id="currentPrize" class="text-2xl">--</p>
+    </div>
+
     <!-- Números Sorteados -->
     <div class="highlight-box">
       <h2 class="text-xl font-semibold mb-2 text-gray-700">Números Sorteados</h2>
@@ -42,8 +48,10 @@
       <div class="mt-4">
         <form id="markNumberForm" class="flex space-x-2">
           <input type="number" id="manualNumber" name="number" min="1" max="75" class="border rounded p-2 w-24" placeholder="Nº">
+          <input type="password" id="adminPassword" name="password" class="border rounded p-2 w-48" placeholder="Senha do ADM">
           <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Marcar Número</button>
         </form>
+        <p id="manualMsg" class="mt-2 text-sm"></p>
       </div>
     </div>
 
@@ -56,6 +64,7 @@
             <th class="border p-2">Nome</th>
             <th class="border p-2">Telefone</th>
             <th class="border p-2">Cartela</th>
+            <th class="border p-2">Prêmio</th>
           </tr>
         </thead>
         <tbody id="winnersTable"></tbody>
@@ -101,6 +110,7 @@
           <td class="border p-2">${w.playerName}</td>
           <td class="border p-2">${tel}</td>
           <td class="border p-2">${w.cartelaId}</td>
+          <td class="border p-2">${w.prize || '--'}</td>
         `;
         table.appendChild(tr);
       });
@@ -108,31 +118,4 @@
 
     document.getElementById('markNumberForm').addEventListener('submit', async e => {
       e.preventDefault();
-      const number = document.getElementById('manualNumber').value;
-      if (!number) return;
-      await fetch('/mark-number', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ number })
-      });
-      document.getElementById('manualNumber').value = '';
-    });
-
-    const ws = new WebSocket('wss://' + window.location.host);
-    ws.onmessage = e => {
-      const data = JSON.parse(e.data);
-      if (data.type === 'update') {
-        if (data.game.lastNumber) {
-          document.getElementById('lastNumber').textContent = getLetterNumber(data.game.lastNumber);
-        }
-        const lastFive = data.game.drawnNumbers.slice(-5).reverse();
-        document.getElementById('lastFive').textContent = lastFive.map(n => getLetterNumber(n)).join(', ') || '--';
-        formatDrawnNumbers(data.game.drawnNumbers || []);
-        fetchWinners();
-      }
-    };
-
-    fetchWinners();
-  </script>
-</body>
-</html>
+      const number = document.getElementById('manu
