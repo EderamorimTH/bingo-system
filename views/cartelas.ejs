@@ -27,10 +27,10 @@
       <p id="lastNumber" class="text-5xl font-bold text-center text-red-600">--</p>
     </div>
 
-    <!-- Últimos 5 Números -->
+    <!-- Prêmio Atual (substitui os "Últimos 5 números") -->
     <div class="highlight-box">
-      <h2 class="text-2xl font-semibold text-center text-gray-700">Últimos 5 Números Sorteados</h2>
-      <p id="drawnNumbers" class="text-xl text-center text-gray-800">--</p>
+      <h2 class="text-2xl font-semibold text-center text-gray-700">Prêmio Atual</h2>
+      <p id="currentPrize" class="text-2xl text-center text-gray-900">--</p>
     </div>
 
     <% cartelas.forEach((cartela, index) => { %>
@@ -66,18 +66,17 @@
     const ws = new WebSocket('wss://' + window.location.host);
     ws.onmessage = e => {
       const data = JSON.parse(e.data);
-      if (data.type === 'update') updateUI(data.game, data.winners || []);
+      if (data.type === 'update') updateUI(data.game, (data.winners || []).map(w => w.cartelaId));
     };
 
-    function updateUI(game, winners) {
+    function updateUI(game, winnerIds) {
       document.getElementById('lastNumber').textContent = game.lastNumber ? getLetterNumber(game.lastNumber) : '--';
-      const lastFive = game.drawnNumbers.slice(-5).reverse();
-      document.getElementById('drawnNumbers').textContent = lastFive.length ? lastFive.map(n => getLetterNumber(n)).join(', ') : '--';
+      document.getElementById('currentPrize').textContent = game.currentPrize && game.currentPrize.trim() ? game.currentPrize : '--';
 
       cartelasData.forEach(cartela => {
         const winnerMsg = document.getElementById(`winnerMessage-${cartela.cartelaId}`);
         if (winnerMsg) {
-          if (winners.includes(cartela.cartelaId)) winnerMsg.classList.remove('hidden');
+          if (winnerIds && winnerIds.includes(cartela.cartelaId)) winnerMsg.classList.remove('hidden');
           else winnerMsg.classList.add('hidden');
         }
 
@@ -112,7 +111,11 @@
       return number;
     }
 
-    fetch('/game').then(res => res.json()).then(game => updateUI(game, winners));
+    // Carrega estado inicial
+    fetch('/game').then(res => res.json()).then(game => {
+      const initialWinnerIds = winners.map(w => w.cartelaId);
+      updateUI(game, initialWinnerIds);
+    });
   </script>
 </body>
 </html>
