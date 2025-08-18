@@ -118,4 +118,59 @@
 
     document.getElementById('markNumberForm').addEventListener('submit', async e => {
       e.preventDefault();
-      const number = document.getElementById('manu
+      const number = document.getElementById('manualNumber').value;
+      const password = document.getElementById('adminPassword').value;
+      const msg = document.getElementById('manualMsg');
+      msg.textContent = '';
+      if (!number) return;
+      try {
+        const res = await fetch('/mark-number', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ number, password })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          msg.textContent = data.error || 'Erro ao marcar número';
+          msg.className = 'mt-2 text-sm text-red-700';
+        } else {
+          msg.textContent = `Número ${number} marcado com sucesso.`;
+          msg.className = 'mt-2 text-sm text-green-700';
+          document.getElementById('manualNumber').value = '';
+        }
+      } catch {
+        msg.textContent = 'Erro de comunicação com o servidor.';
+        msg.className = 'mt-2 text-sm text-red-700';
+      }
+    });
+
+    const ws = new WebSocket('wss://' + window.location.host);
+    ws.onmessage = e => {
+      const data = JSON.parse(e.data);
+      if (data.type === 'update') {
+        if (data.game.lastNumber) {
+          document.getElementById('lastNumber').textContent = getLetterNumber(data.game.lastNumber);
+        } else {
+          document.getElementById('lastNumber').textContent = '--';
+        }
+        const lastFive = (data.game.drawnNumbers || []).slice(-5).reverse();
+        document.getElementById('lastFive').textContent = lastFive.map(n => getLetterNumber(n)).join(', ') || '--';
+        document.getElementById('currentPrize').textContent = (data.game.currentPrize && data.game.currentPrize.trim()) ? data.game.currentPrize : '--';
+        formatDrawnNumbers(data.game.drawnNumbers || []);
+        fetchWinners();
+      }
+    };
+
+    // Estado inicial
+    fetch('/game').then(r => r.json()).then(g => {
+      document.getElementById('lastNumber').textContent = g.lastNumber ? getLetterNumber(g.lastNumber) : '--';
+      const lastFive = (g.drawnNumbers || []).slice(-5).reverse();
+      document.getElementById('lastFive').textContent = lastFive.map(n => getLetterNumber(n)).join(', ') || '--';
+      document.getElementById('currentPrize').textContent = g.currentPrize && g.currentPrize.trim() ? g.currentPrize : '--';
+      formatDrawnNumbers(g.drawnNumbers || []);
+    });
+
+    fetchWinners();
+  </script>
+</body>
+</html>
