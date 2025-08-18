@@ -3,138 +3,148 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Painel de Administração - Bingo</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css">
-  <style>
-    body { background: linear-gradient(135deg, #34d399, #3b82f6); font-family: Arial, sans-serif; }
-    .highlight-box { background: rgba(255,255,255,0.9); border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); padding: 1.5rem; margin-bottom: 1.5rem; }
-  </style>
+  <title>Painel de Administração</title>
+  <link rel="stylesheet" href="/css/style.css">
 </head>
-<body class="flex items-center justify-center min-h-screen">
-  <div class="w-full max-w-5xl p-6">
-    <h1 class="text-4xl font-bold text-center mb-6 text-white drop-shadow-lg">Painel de Administração</h1>
+<body>
+  <div class="container">
+    <h1>Painel de Administração</h1>
 
-    <!-- Links Fixos -->
-    <div class="highlight-box">
-      <h2 class="text-xl font-semibold mb-2 text-gray-700">Links Fixos</h2>
-      <ul class="list-disc pl-6">
-        <li><a href="/display" target="_blank" class="text-blue-600 hover:underline">Exibição Pública</a></li>
-        <li><a href="/sorteador" target="_blank" class="text-blue-600 hover:underline">Sorteador Público</a></li>
-        <li><a href="/cartelas-fixas" target="_blank" class="text-blue-600 hover:underline">Todas as 500 Cartelas</a></li>
-      </ul>
+    <div class="section">
+      <h2>Links Fixos</h2>
+      <a href="/display">Exibição Pública</a>
+      <a href="/sorteador">Sorteador Público</a>
+      <a href="/cartelas-fixas">Todas as 500 Cartelas</a>
     </div>
 
-    <!-- Último Número Sorteado -->
-    <div class="highlight-box text-center">
-      <h2 class="text-xl font-semibold text-gray-700">Último Número Sorteado</h2>
-      <p id="lastNumber" class="text-6xl font-bold text-red-600">--</p>
+    <div class="section">
+      <h2>Atribuir Cartelas</h2>
+      <form action="/assign-cartelas" method="POST">
+        <div class="form-group">
+          <label for="cartelaNumbers">Números das Cartelas (separados por vírgula)</label>
+          <input type="text" id="cartelaNumbers" name="cartelaNumbers" required>
+        </div>
+        <div class="form-group">
+          <label for="playerName">Nome do Jogador</label>
+          <input type="text" id="playerName" name="playerName" required>
+        </div>
+        <div class="form-group">
+          <label for="phoneNumber">Número de Telefone</label>
+          <input type="text" id="phoneNumber" name="phoneNumber">
+        </div>
+        <button type="submit">Atribuir</button>
+      </form>
     </div>
 
-    <!-- Números Sorteados -->
-    <div class="highlight-box">
-      <h2 class="text-xl font-semibold mb-2 text-gray-700">Números Sorteados</h2>
+    <div class="section">
+      <h2>Último Número Sorteado</h2>
+      <p><%= game.lastNumber || '--' %></p>
+    </div>
+
+    <div class="section">
+      <h2>Números Sorteados</h2>
       <div id="drawnNumbers">
-        <p><strong>B (1-15):</strong> <span id="drawnB">--</span></p>
-        <p><strong>I (16-30):</strong> <span id="drawnI">--</span></p>
-        <p><strong>N (31-45):</strong> <span id="drawnN">--</span></p>
-        <p><strong>G (46-60):</strong> <span id="drawnG">--</span></p>
-        <p><strong>O (61-75):</strong> <span id="drawnO">--</span></p>
+        <p>B (1-15): <%= game.drawnNumbers.filter(n => n >= 1 && n <= 15).join(', ') || '--' %></p>
+        <p>I (16-30): <%= game.drawnNumbers.filter(n => n >= 16 && n <= 30).join(', ') || '--' %></p>
+        <p>N (31-45): <%= game.drawnNumbers.filter(n => n >= 31 && n <= 45).join(', ') || '--' %></p>
+        <p>G (46-60): <%= game.drawnNumbers.filter(n => n >= 46 && n <= 60).join(', ') || '--' %></p>
+        <p>O (61-75): <%= game.drawnNumbers.filter(n => n >= 61 && n <= 75).join(', ') || '--' %></p>
       </div>
-      <div class="mt-4">
-        <button id="drawNumber" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Sortear Número (Automático)</button>
-        <form id="markNumberForm" class="mt-4 flex space-x-2">
-          <input type="number" id="manualNumber" name="number" min="1" max="75" class="border rounded p-2 w-24" placeholder="Nº">
-          <input type="password" id="manualPassword" name="password" class="border rounded p-2 w-32" placeholder="Senha">
-          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Marcar</button>
+      <form action="/draw" method="POST">
+        <button type="submit">Sortear Número (Automático)</button>
+      </form>
+      <form action="/mark-number" method="POST">
+        <input type="number" name="number" min="1" max="75" required>
+        <button type="submit">Marcar</button>
+      </form>
+    </div>
+
+    <div class="section">
+      <h2>Ações</h2>
+      <button onclick="showModal('resetModal')">Reiniciar o Bingo</button>
+      <button onclick="showModal('deleteAllModal')">Excluir Todas as Cartelas</button>
+      <button onclick="showModal('deleteByPhoneModal')">Excluir por Telefone</button>
+    </div>
+
+    <div id="resetModal" class="modal">
+      <div class="modal-content">
+        <h2>Confirmar Reinicialização do Bingo</h2>
+        <form action="/reset" method="POST">
+          <div class="form-group">
+            <label for="password">Senha</label>
+            <input type="password" id="password" name="password" required>
+          </div>
+          <button type="button" onclick="hideModal('resetModal')">Cancelar</button>
+          <button type="submit">Reiniciar</button>
         </form>
       </div>
     </div>
 
-    <!-- Ações -->
-    <div class="highlight-box">
-      <h2 class="text-xl font-semibold mb-2 text-gray-700">Ações</h2>
-      <div class="flex space-x-4">
-        <button id="resetBingo" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded">Reiniciar o Bingo</button>
-        <button id="deleteAllCartelas" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Excluir Todas as Cartelas</button>
-        <button id="deleteByPhone" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Excluir por Telefone</button>
+    <div id="deleteAllModal" class="modal">
+      <div class="modal-content">
+        <h2>Confirmar Exclusão de Todas as Cartelas</h2>
+        <form action="/delete-all" method="POST">
+          <div class="form-group">
+            <label for="password">Senha</label>
+            <input type="password" id="password" name="password" required>
+          </div>
+          <button type="button" onclick="hideModal('deleteAllModal')">Cancelar</button>
+          <button type="submit">Excluir</button>
+        </form>
       </div>
     </div>
 
-    <!-- Vencedores -->
-    <div class="highlight-box">
-      <h2 class="text-xl font-semibold mb-2 text-gray-700">Vencedores</h2>
-      <table class="w-full border-collapse">
+    <div id="deleteByPhoneModal" class="modal">
+      <div class="modal-content">
+        <h2>Excluir por Telefone</h2>
+        <form action="/delete-by-phone" method="POST">
+          <div class="form-group">
+            <label for="phoneNumber">Número de Telefone</label>
+            <input type="text" id="phoneNumber" name="phoneNumber" required>
+          </div>
+          <div class="form-group">
+            <label for="password">Senha</label>
+            <input type="password" id="password" name="password" required>
+          </div>
+          <button type="button" onclick="hideModal('deleteByPhoneModal')">Cancelar</button>
+          <button type="submit">Excluir</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Vencedores</h2>
+      <table>
         <thead>
-          <tr class="bg-gray-200">
-            <th class="border p-2">Nome</th>
-            <th class="border p-2">Telefone</th>
-            <th class="border p-2">Cartela</th>
-            <th class="border p-2">Link</th>
+          <tr>
+            <th>Nome</th>
+            <th>Telefone</th>
+            <th>Cartela</th>
+            <th>Link</th>
           </tr>
         </thead>
-        <tbody id="winnersTable"></tbody>
+        <tbody>
+          <% winners.forEach(winner => { %>
+            <tr>
+              <td><%= winner.playerName %></td>
+              <td><%= winner.phoneNumber || '-' %></td>
+              <td><%= winner.cartelaId %></td>
+              <td><a href="<%= winner.link %>" target="_blank">Ver</a></td>
+            </tr>
+          <% }) %>
+        </tbody>
       </table>
     </div>
   </div>
 
   <script>
-    function getLetterNumber(number) {
-      if (number >= 1 && number <= 15) return `B-${number}`;
-      if (number >= 16 && number <= 30) return `I-${number}`;
-      if (number >= 31 && number <= 45) return `N-${number}`;
-      if (number >= 46 && number <= 60) return `G-${number}`;
-      if (number >= 61 && number <= 75) return `O-${number}`;
-      return number;
+    function showModal(modalId) {
+      document.getElementById(modalId).style.display = 'block';
     }
 
-    function formatDrawnNumbers(numbers) {
-      const groups = { B: [], I: [], N: [], G: [], O: [] };
-      numbers.forEach(num => {
-        if (num <= 15) groups.B.push(`B-${num}`);
-        else if (num <= 30) groups.I.push(`I-${num}`);
-        else if (num <= 45) groups.N.push(`N-${num}`);
-        else if (num <= 60) groups.G.push(`G-${num}`);
-        else groups.O.push(`O-${num}`);
-      });
-      document.getElementById('drawnB').textContent = groups.B.join(', ') || '--';
-      document.getElementById('drawnI').textContent = groups.I.join(', ') || '--';
-      document.getElementById('drawnN').textContent = groups.N.join(', ') || '--';
-      document.getElementById('drawnG').textContent = groups.G.join(', ') || '--';
-      document.getElementById('drawnO').textContent = groups.O.join(', ') || '--';
+    function hideModal(modalId) {
+      document.getElementById(modalId).style.display = 'none';
     }
-
-    async function fetchWinners() {
-      const res = await fetch('/winners');
-      const winners = await res.json();
-      const table = document.getElementById('winnersTable');
-      table.innerHTML = '';
-      winners.forEach(w => {
-        const tel = w.phoneNumber ? w.phoneNumber.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-****") : '--';
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td class="border p-2">${w.playerName}</td>
-          <td class="border p-2">${tel}</td>
-          <td class="border p-2">${w.cartelaId}</td>
-          <td class="border p-2"><a href="${w.link}" target="_blank" class="text-blue-600">Link</a></td>
-        `;
-        table.appendChild(tr);
-      });
-    }
-
-    const ws = new WebSocket('wss://' + window.location.host);
-    ws.onmessage = e => {
-      const data = JSON.parse(e.data);
-      if (data.type === 'update') {
-        if (data.game.lastNumber) {
-          document.getElementById('lastNumber').textContent = getLetterNumber(data.game.lastNumber);
-        }
-        formatDrawnNumbers(data.game.drawnNumbers || []);
-        fetchWinners();
-      }
-    };
-
-    fetchWinners();
   </script>
 </body>
 </html>
