@@ -3,74 +3,45 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bingo - Tela Pública</title>
+  <title>Exibição Pública - Bingo</title>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
-  <link rel="icon" href="data:;base64,iVBORw0KGgo=">
   <style>
-    body {
-      background: linear-gradient(135deg, #34d399, #3b82f6);
-      font-family: 'Arial', sans-serif;
-    }
-    .highlight-box {
-      background: rgba(255, 255, 255, 0.9);
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
-    }
-    .pulse {
-      animation: pulse 2s infinite;
-    }
-    @keyframes pulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.05); }
-      100% { transform: scale(1); }
-    }
+    body { background: linear-gradient(135deg, #34d399, #3b82f6); font-family: Arial, sans-serif; }
+    .highlight-box { background: rgba(255,255,255,0.9); border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); padding: 1.5rem; margin-bottom: 1.5rem; }
+    .pulse { animation: pulse 2s infinite; }
+    @keyframes pulse { 0%{transform:scale(1)} 50%{transform:scale(1.05)} 100%{transform:scale(1)} }
   </style>
 </head>
 <body class="flex items-center justify-center min-h-screen text-gray-800">
   <div class="w-full max-w-3xl p-6">
-    <h1 class="text-4xl font-bold text-center mb-6 text-white drop-shadow-lg">Bingo</h1>
-    <div id="startMessage" class="text-2xl font-semibold text-center mb-6 text-white animate-pulse hidden"></div>
-    <div class="highlight-box">
-      <h2 class="text-2xl font-semibold text-center text-green-600">Prêmio Atual</h2>
-      <p id="currentPrize" class="text-3xl font-bold text-center text-green-700 pulse">--</p>
-    </div>
-    <div class="highlight-box">
-      <h2 class="text-2xl font-semibold text-center text-blue-600">Informações Adicionais</h2>
-      <p id="additionalInfo" class="text-xl text-center text-blue-700">--</p>
-    </div>
+
+    <!-- Último Número Sorteado -->
     <div class="highlight-box">
       <h2 class="text-2xl font-semibold text-center text-gray-700">Último Número Sorteado</h2>
-      <p id="lastNumber" class="text-4xl font-bold text-center text-gray-800">--</p>
+      <p id="lastNumber" class="text-6xl font-bold text-center text-red-600">--</p>
     </div>
+
+    <!-- Últimos 5 Números -->
     <div class="highlight-box">
       <h2 class="text-2xl font-semibold text-center text-gray-700">Últimos 5 Números Sorteados</h2>
       <p id="drawnNumbers" class="text-xl text-center text-gray-800">--</p>
     </div>
+
   </div>
+
   <script>
     const ws = new WebSocket('wss://' + window.location.host);
-    ws.onopen = () => console.log('WebSocket conectado em /display');
-    ws.onmessage = (event) => {
-      console.log('Mensagem WebSocket recebida em /display:', event.data);
-      const data = JSON.parse(event.data);
-      if (data.type === 'update') {
-        updateUI(data.game, data.winners || []);
-      }
-    };
-    ws.onerror = (err) => console.error('Erro no WebSocket em /display:', err);
-    ws.onclose = () => console.log('WebSocket desconectado em /display');
 
-    function updateUI(game, winners) {
-      document.getElementById('startMessage').classList.toggle('hidden', game.drawnNumbers.length > 0);
-      document.getElementById('startMessage').textContent = game.startMessage || 'Em Breve o Bingo Irá Começar';
-      document.getElementById('currentPrize').textContent = game.currentPrize || '--';
-      document.getElementById('additionalInfo').textContent = game.additionalInfo || '--';
+    ws.onmessage = event => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'update') updateUI(data.game);
+    };
+
+    function updateUI(game) {
       document.getElementById('lastNumber').textContent = game.lastNumber ? getLetterNumber(game.lastNumber) : '--';
-      const lastFive = game.drawnNumbers.slice(-5);
-      document.getElementById('drawnNumbers').textContent = lastFive.length > 0 ? lastFive.map(num => getLetterNumber(num)).join(', ') : '--';
+      const lastFive = game.drawnNumbers.slice(-5).reverse();
+      document.getElementById('drawnNumbers').textContent = lastFive.length ? lastFive.map(n => getLetterNumber(n)).join(', ') : '--';
     }
 
     function getLetterNumber(number) {
@@ -82,11 +53,7 @@
       return number;
     }
 
-    // Carregar estado inicial
-    fetch('/game').then(res => res.json()).then(game => {
-      console.log('Estado inicial do jogo em /display:', game);
-      updateUI(game, []);
-    }).catch(err => console.error('Erro ao carregar estado inicial em /display:', err));
+    fetch('/game').then(res => res.json()).then(updateUI);
   </script>
 </body>
 </html>
