@@ -1,683 +1,287 @@
-const express = require('express');
-const http = require('http');
-const WebSocket = require('ws');
-const mongoose = require('mongoose');
-const path = require('path');
-const cookieParser = require('cookie-parser');
-require('dotenv').config();
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel de Administração</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    /* Fallback básico caso o CSS não carregue */
+    body { font-family: Arial, sans-serif; background-color: #f4f4f4; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .section { margin-bottom: 20px; background: white; padding: 15px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .form-group { margin-bottom: 10px; }
+    .form-group label { display: block; font-weight: bold; }
+    .form-group input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background-color: #f2f2f2; }
+    button { padding: 8px 16px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { background-color: #45a049; }
+    a { color: #0066cc; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .error { color: red; margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Painel de Administração</h1>
+    <% if (error) { %>
+      <div class="error"><%= error %></div>
+    <% } %>
 
-const app = express();
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+    <div class="section">
+      <h2>Links Fixos</h2>
+      <p><a href="/display">Exibição Pública</a></p>
+      <p><a href="/sorteador">Sorteador Público</a></p>
+      <p><a href="/cartelas-fixas">Todas as 500 Cartelas</a></p>
+    </div>
 
-// Configurar EJS
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
+    <div class="section">
+      <h2>Atribuir Cartelas</h2>
+      <form id="assignCartelasForm">
+        <div class="form-group">
+          <label for="cartelaNumbers">Números das Cartelas (separados por vírgula)</label>
+          <input type="text" id="cartelaNumbers" name="cartelaNumbers" required>
+        </div>
+        <div class="form-group">
+          <label for="playerName">Nome do Jogador</label>
+          <input type="text" id="playerName" name="playerName" required>
+        </div>
+        <div class="form-group">
+          <label for="phoneNumber">Número de Telefone</label>
+          <input type="text" id="phoneNumber" name="phoneNumber">
+        </div>
+        <button type="submit">Atribuir</button>
+      </form>
+    </div>
 
-// Servir arquivos estáticos com tipo MIME correto
-app.use(express.static(path.join(__dirname, 'public'), {
-  setHeaders: (res, path) => {
-    if (path.endsWith('.css')) {
-      res.setHeader('Content-Type', 'text/css');
-    }
-  }
-}));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
+    <div class="section">
+      <h2>Atualizar Prêmio Atual</h2>
+      <form id="updatePrizeForm">
+        <div class="form-group">
+          <label for="currentPrize">Prêmio Atual</label>
+          <input type="text" id="currentPrize" name="currentPrize" value="<%= game.currentPrize || '' %>">
+        </div>
+        <button type="submit">Atualizar Prêmio</button>
+      </form>
+    </div>
 
-// Desabilitar cache
-app.use((req, res, next) => {
-  res.set('Cache-Control', 'no-store');
-  next();
-});
+    <div class="section">
+      <h2>Último Número Sorteado</h2>
+      <p id="lastNumber"><%= game.lastNumberDisplay || '--' %></p>
+    </div>
 
-// Configurar Mongoose
-mongoose.set('strictQuery', true);
+    <div class="section">
+      <h2>Números Sorteados</h2>
+      <div id="drawnNumbers">
+        <p>B (1-15): <span id="numbersB"><%= Array.isArray(game.drawnNumbers) ? game.drawnNumbers.filter(n => n >= 1 && n <= 15).join(', ') || '--' : '--' %></span></p>
+        <p>I (16-30): <span id="numbersI"><%= Array.isArray(game.drawnNumbers) ? game.drawnNumbers.filter(n => n >= 16 && n <= 30).join(', ') || '--' : '--' %></span></p>
+        <p>N (31-45): <span id="numbersN"><%= Array.isArray(game.drawnNumbers) ? game.drawnNumbers.filter(n => n >= 31 && n <= 45).join(', ') || '--' : '--' %></span></p>
+        <p>G (46-60): <span id="numbersG"><%= Array.isArray(game.drawnNumbers) ? game.drawnNumbers.filter(n => n >= 46 && n <= 60).join(', ') || '--' : '--' %></span></p>
+        <p>O (61-75): <span id="numbersO"><%= Array.isArray(game.drawnNumbers) ? game.drawnNumbers.filter(n => n >= 61 && n <= 75).join(', ') || '--' : '--' %></span></p>
+      </div>
+      <form id="drawForm">
+        <button type="submit">Sortear Número (Automático)</button>
+      </form>
+      <form id="markNumberForm">
+        <div class="form-group">
+          <label for="number">Marcar Número Manual (1-75)</label>
+          <input type="number" id="number" name="number" min="1" max="75" required>
+        </div>
+        <div class="form-group">
+          <label for="password">Senha</label>
+          <input type="password" id="password" name="password" required>
+        </div>
+        <button type="submit">Marcar</button>
+      </form>
+    </div>
 
-// Schemas
-const gameSchema = new mongoose.Schema({
-  drawnNumbers: { type: [Number], default: [] },
-  lastNumber: { type: Number, default: null },
-  currentPrize: { type: String, default: '' },
-  startMessage: { type: String, default: 'Em breve o Bingo irá começar' }
-});
-const Game = mongoose.model('Game', gameSchema);
+    <div class="section">
+      <h2>Ações</h2>
+      <form id="resetForm" style="display:inline;">
+        <button type="submit">Reiniciar o Bingo</button>
+      </form>
+      <form id="deleteAllForm" style="display:inline;">
+        <button type="submit">Excluir Todas as Cartelas</button>
+      </form>
+      <form id="deleteByPhoneForm" style="display:inline;">
+        <input type="text" name="phoneNumber" placeholder="Número de Telefone" required>
+        <button type="submit">Excluir por Telefone</button>
+      </form>
+    </div>
 
-const cartelaSchema = new mongoose.Schema({
-  cartelaId: String,
-  numbers: [[Number]],
-  playerName: String,
-  markedNumbers: { type: [Number], default: [] },
-  createdAt: Date
-});
-const Cartela = mongoose.model('Cartela', cartelaSchema);
+    <div class="section">
+      <h2>Jogadores e Links</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Telefone</th>
+            <th>Cartelas</th>
+            <th>Link</th>
+            <th>Ação</th>
+          </tr>
+        </thead>
+        <tbody id="playersTable">
+          <% players.forEach(player => { %>
+            <tr>
+              <td><%= player.playerName || '-' %></td>
+              <td><%= player.phoneNumber || '-' %></td>
+              <td><%= player.cartelaIds.join(', ') || '-' %></td>
+              <td><a href="<%= player.link %>" target="_blank">Ver Cartelas</a></td>
+              <td><button onclick="copyToClipboard('<%= player.link %>')">Copiar</button></td>
+            </tr>
+          <% }) %>
+          <% if (players.length === 0) { %>
+            <tr>
+              <td colspan="5">Nenhum jogador registrado</td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
 
-const playerSchema = new mongoose.Schema({
-  playerName: String,
-  phoneNumber: String,
-  link: String,
-  createdAt: Date
-});
-const Player = mongoose.model('Player', playerSchema);
+    <div class="section">
+      <h2>Vencedores</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Telefone</th>
+            <th>Cartela</th>
+            <th>Link</th>
+          </tr>
+        </thead>
+        <tbody id="winnersTable">
+          <% winners.forEach(winner => { %>
+            <tr>
+              <td><%= winner.playerName || '-' %></td>
+              <td><%= winner.phoneNumber || '-' %></td>
+              <td><%= winner.cartelaId %></td>
+              <td><a href="<%= winner.link %>" target="_blank">Ver</a></td>
+            </tr>
+          <% }) %>
+          <% if (winners.length === 0) { %>
+            <tr>
+              <td colspan="4">Nenhum vencedor</td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
 
-const winnerSchema = new mongoose.Schema({
-  cartelaId: String,
-  playerName: String,
-  phoneNumber: String,
-  link: String,
-  createdAt: Date
-});
-const Winner = mongoose.model('Winner', winnerSchema);
-
-// Conexão com MongoDB
-mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(async () => {
-    console.log('Conectado ao MongoDB');
-    const game = await Game.findOne();
-    if (!game) {
-      await new Game({
-        drawnNumbers: [],
-        lastNumber: null,
-        currentPrize: '',
-        startMessage: 'Em breve o Bingo irá começar'
-      }).save();
-      console.log('Jogo inicial criado');
-    }
-
-    // Gerar 500 cartelas fixas se não existirem
-    const totalCartelas = await Cartela.countDocuments({ playerName: "FIXAS" });
-    if (totalCartelas < 500) {
-      console.log("Gerando 500 cartelas fixas...");
-      await Cartela.deleteMany({ playerName: "FIXAS" });
-      for (let i = 1; i <= 500; i++) {
-        const numbers = generateCartelaNumbers();
-        await new Cartela({
-          cartelaId: `FIXA-${i}`,
-          numbers,
-          playerName: "FIXAS",
-          markedNumbers: [],
-          createdAt: new Date()
-        }).save();
-      }
-      console.log("500 cartelas fixas geradas");
-    }
-  })
-  .catch(err => {
-    console.error('Erro ao conectar ao MongoDB:', err.message, err.stack);
-  });
-
-// Middleware de autenticação
-function isAuthenticated(req, res, next) {
-  try {
-    if (req.cookies.auth === 'true') return next();
-    console.log('Autenticação falhou, redirecionando para /login');
-    res.redirect('/login');
-  } catch (err) {
-    console.error('Erro no middleware isAuthenticated:', err.message, err.stack);
-    res.status(500).send('Erro interno no servidor');
-  }
-}
-
-// Função para gerar cartela
-function generateCartelaNumbers() {
-  const numbers = [];
-  const ranges = [
-    { min: 1, max: 15 },
-    { min: 16, max: 30 },
-    { min: 31, max: 45 },
-    { min: 46, max: 60 },
-    { min: 61, max: 75 }
-  ];
-  for (let col = 0; col < 5; col++) {
-    const column = [];
-    const { min, max } = ranges[col];
-    const available = Array.from({ length: max - min + 1 }, (_, i) => min + i);
-    for (let row = 0; row < 5; row++) {
-      if (col === 2 && row === 2) {
-        column.push(0);
-      } else {
-        const index = Math.floor(Math.random() * available.length);
-        column.push(available.splice(index, 1)[0]);
-      }
-    }
-    numbers.push(column);
-  }
-  return numbers;
-}
-
-// Função para obter a letra de um número
-function getNumberLetter(number) {
-  if (!number) return '';
-  if (number >= 1 && number <= 15) return 'B';
-  if (number >= 16 && number <= 30) return 'I';
-  if (number >= 31 && number <= 45) return 'N';
-  if (number >= 46 && number <= 60) return 'G';
-  if (number >= 61 && number <= 75) return 'O';
-  return '';
-}
-
-// Função para broadcast
-function broadcast(game, winners) {
-  try {
-    const winnerIds = winners.map(w => w.cartelaId);
-    wss.clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({
-          type: 'update',
-          game: {
-            drawnNumbers: game.drawnNumbers || [],
-            lastNumber: game.lastNumber,
-            currentPrize: game.currentPrize || '',
-            startMessage: game.startMessage || 'Em breve o Bingo irá começar',
-            lastNumberDisplay: game.lastNumber ? `${getNumberLetter(game.lastNumber)}-${game.lastNumber}` : '--'
-          },
-          winners: winnerIds
-        }));
-      }
-    });
-  } catch (err) {
-    console.error('Erro no broadcast:', err.message, err.stack);
-  }
-}
-
-// Função checkWin
-function checkWin(cartela) {
-  const marked = cartela.markedNumbers || [];
-  for (let col = 0; col < 5; col++) {
-    for (let row = 0; row < 5; row++) {
-      const num = cartela.numbers[col][row];
-      if (num !== 0 && !marked.includes(num)) {
-        return false;
-      }
-    }
-  }
-  return true;
-}
-
-// Função drawNumber
-async function drawNumber() {
-  try {
-    const game = await Game.findOne();
-    if (!game) return { error: 'Jogo não encontrado' };
-    const available = Array.from({length: 75}, (_, i) => i+1).filter(n => !game.drawnNumbers.includes(n));
-    if (!available.length) return { error: 'Não há mais números para sortear' };
-    const newNumber = available[Math.floor(Math.random() * available.length)];
-    game.drawnNumbers.push(newNumber);
-    game.lastNumber = newNumber;
-    await game.save();
-    const cartelas = await Cartela.find();
-    const winners = [];
-    const existingWinner = await Winner.findOne();
-    if (!existingWinner) {
-      for (const cartela of cartelas) {
-        if (cartela.playerName === "FIXAS") continue;
-        if (cartela.numbers.flat().includes(newNumber)) {
-          cartela.markedNumbers.push(newNumber);
-          if (checkWin(cartela)) {
-            const player = await Player.findOne({ playerName: cartela.playerName });
-            winners.push({
-              cartelaId: cartela.cartelaId,
-              playerName: cartela.playerName,
-              phoneNumber: player ? player.phoneNumber : '',
-              link: player ? player.link : ''
-            });
-          }
-          await cartela.save();
-        }
-      }
-      if (winners.length > 0) {
-        for (const winner of winners) {
-          await new Winner({
-            cartelaId: winner.cartelaId,
-            playerName: winner.playerName,
-            phoneNumber: winner.phoneNumber,
-            link: winner.link,
-            createdAt: new Date()
-          }).save();
-        }
-      }
-    }
-    return { newNumber, winners };
-  } catch (err) {
-    console.error('Erro no drawNumber:', err.message, err.stack);
-    return { error: 'Erro interno no servidor' };
-  }
-}
-
-// Função markNumber
-async function markNumber(number) {
-  try {
-    number = parseInt(number);
-    if (!Number.isInteger(number) || number < 1 || number > 75) return { error: 'Número inválido' };
-    const game = await Game.findOne();
-    if (!game) return { error: 'Jogo não encontrado' };
-    if (game.drawnNumbers.includes(number)) return { error: 'Número já sorteado' };
-    game.drawnNumbers.push(number);
-    game.lastNumber = number;
-    await game.save();
-    const cartelas = await Cartela.find();
-    const winners = [];
-    const existingWinner = await Winner.findOne();
-    if (!existingWinner) {
-      for (const cartela of cartelas) {
-        if (cartela.playerName === "FIXAS") continue;
-        if (cartela.numbers.flat().includes(number)) {
-          cartela.markedNumbers.push(number);
-          if (checkWin(cartela)) {
-            const player = await Player.findOne({ playerName: cartela.playerName });
-            winners.push({
-              cartelaId: cartela.cartelaId,
-              playerName: cartela.playerName,
-              phoneNumber: player ? player.phoneNumber : '',
-              link: player ? player.link : ''
-            });
-          }
-          await cartela.save();
-        }
-      }
-      if (winners.length > 0) {
-        for (const winner of winners) {
-          await new Winner({
-            cartelaId: winner.cartelaId,
-            playerName: winner.playerName,
-            phoneNumber: winner.phoneNumber,
-            link: winner.link,
-            createdAt: new Date()
-          }).save();
-        }
-      }
-    }
-    return { newNumber: number, winners };
-  } catch (err) {
-    console.error('Erro no markNumber:', err.message, err.stack);
-    return { error: 'Erro interno no servidor' };
-  }
-}
-
-// Rotas
-app.get('/', (req, res) => res.redirect('/display'));
-
-app.get('/login', (req, res) => {
-  try {
-    res.render('login', { error: null });
-  } catch (err) {
-    console.error('Erro ao renderizar login:', err.message, err.stack);
-    res.status(500).send('Erro ao carregar a página de login');
-  }
-});
-
-app.post('/login', (req, res) => {
-  try {
-    const { password } = req.body;
-    if (password === process.env.ADMIN_PASSWORD) {
-      res.cookie('auth', 'true', { httpOnly: true });
-      res.redirect('/admin');
-    } else {
-      res.render('login', { error: 'Senha incorreta' });
-    }
-  } catch (err) {
-    console.error('Erro no login:', err.message, err.stack);
-    res.status(500).send('Erro interno no servidor');
-  }
-});
-
-app.get('/admin', isAuthenticated, async (req, res) => {
-  try {
-    // Ignorar query parameters indesejados
-    if (Object.keys(req.query).length > 0) {
-      console.log('Query parameters indesejados em /admin:', req.query);
-      return res.redirect('/admin');
-    }
-    let game = await Game.findOne();
-    if (!game) {
-      game = await new Game({
-        drawnNumbers: [],
-        lastNumber: null,
-        currentPrize: '',
-        startMessage: 'Em breve o Bingo irá começar'
-      }).save();
-    }
-    const players = await Player.find().sort({ createdAt: -1 }) || [];
-    const winners = await Winner.find().sort({ createdAt: -1 }) || [];
-    const playersWithCartelas = await Promise.all(players.map(async (player) => {
-      const cartelas = await Cartela.find({ playerName: player.playerName });
-      return {
-        ...player.toObject(),
-        cartelaIds: cartelas.map(c => c.cartelaId)
-      };
-    }));
-    res.render('admin', {
-      players: playersWithCartelas,
-      winners,
-      game: {
-        drawnNumbers: game.drawnNumbers || [],
-        lastNumber: game.lastNumber,
-        currentPrize: game.currentPrize || '',
-        startMessage: game.startMessage || 'Em breve o Bingo irá começar',
-        lastNumberDisplay: game.lastNumber ? `${getNumberLetter(game.lastNumber)}-${game.lastNumber}` : '--'
-      },
-      error: null
-    });
-  } catch (err) {
-    console.error('Erro ao renderizar admin:', err.message, err.stack);
-    res.status(500).render('admin', {
-      players: [],
-      winners: [],
-      game: {
-        drawnNumbers: [],
-        lastNumber: null,
-        currentPrize: '',
-        startMessage: 'Erro ao carregar dados',
-        lastNumberDisplay: '--'
-      },
-      error: 'Erro ao carregar o painel de administração. Verifique os logs do servidor.'
-    });
-  }
-});
-
-app.get('/admin/data', isAuthenticated, async (req, res) => {
-  try {
-    const players = await Player.find().sort({ createdAt: -1 }) || [];
-    const winners = await Winner.find().sort({ createdAt: -1 }) || [];
-    const playersWithCartelas = await Promise.all(players.map(async (player) => {
-      const cartelas = await Cartela.find({ playerName: player.playerName });
-      return {
-        ...player.toObject(),
-        cartelaIds: cartelas.map(c => c.cartelaId)
-      };
-    }));
-    res.json({ players: playersWithCartelas, winners });
-  } catch (err) {
-    console.error('Erro no endpoint /admin/data:', err.message, err.stack);
-    res.status(500).json({ error: 'Erro ao carregar dados' });
-  }
-});
-
-app.get('/display', async (req, res) => {
-  try {
-    let game = await Game.findOne();
-    if (!game) {
-      game = { drawnNumbers: [], lastNumber: null, currentPrize: '', startMessage: 'Em breve o Bingo irá começar' };
-    }
-    res.render('display', {
-      game: {
-        drawnNumbers: game.drawnNumbers || [],
-        lastNumber: game.lastNumber,
-        currentPrize: game.currentPrize || '',
-        startMessage: game.startMessage || 'Em breve o Bingo irá começar',
-        lastNumberDisplay: game.lastNumber ? `${getNumberLetter(game.lastNumber)}-${game.lastNumber}` : '--'
-      }
-    });
-  } catch (err) {
-    console.error('Erro ao renderizar display:', err.message, err.stack);
-    res.status(500).send('Erro ao carregar a página de exibição');
-  }
-});
-
-app.get('/sorteador', async (req, res) => {
-  try {
-    let game = await Game.findOne();
-    if (!game) {
-      game = { drawnNumbers: [], lastNumber: null, currentPrize: '', startMessage: 'Em breve o Bingo irá começar' };
-    }
-    const winners = await Winner.find().sort({ createdAt: -1 }) || [];
-    res.render('sorteador', {
-      game: {
-        drawnNumbers: game.drawnNumbers || [],
-        lastNumber: game.lastNumber,
-        currentPrize: game.currentPrize || '',
-        startMessage: game.startMessage || 'Em breve o Bingo irá começar',
-        lastNumberDisplay: game.lastNumber ? `${getNumberLetter(game.lastNumber)}-${game.lastNumber}` : '--'
-      },
-      winners
-    });
-  } catch (err) {
-    console.error('Erro ao renderizar sorteador:', err.message, err.stack);
-    res.status(500).send('Erro ao carregar a página do sorteador');
-  }
-});
-
-app.get('/cartelas', async (req, res) => {
-  try {
-    const { playerName } = req.query;
-    if (!playerName) return res.status(400).send('Nome do jogador é obrigatório');
-    const cartelas = await Cartela.find({ playerName });
-    if (cartelas.length === 0) return res.status(404).send('Nenhuma cartela encontrada');
-    let game = await Game.findOne();
-    if (!game) {
-      game = { drawnNumbers: [], lastNumber: null, currentPrize: '', startMessage: 'Em breve o Bingo irá começar' };
-    }
-    const winnerIds = (await Winner.find()).map(w => w.cartelaId);
-    res.render('cartelas', {
-      cartelas,
-      playerName,
-      game: {
-        drawnNumbers: game.drawnNumbers || [],
-        lastNumber: game.lastNumber,
-        currentPrize: game.currentPrize || '',
-        startMessage: game.startMessage || 'Em breve o Bingo irá começar',
-        lastNumberDisplay: game.lastNumber ? `${getNumberLetter(game.lastNumber)}-${game.lastNumber}` : '--'
-      },
-      winners: winnerIds
-    });
-  } catch (err) {
-    console.error('Erro ao renderizar cartelas:', err.message, err.stack);
-    res.status(500).send('Erro ao carregar a página de cartelas');
-  }
-});
-
-app.get('/cartelas-fixas', async (req, res) => {
-  try {
-    const cartelas = await Cartela.find({ playerName: "FIXAS" });
-    let game = await Game.findOne();
-    if (!game) {
-      game = { drawnNumbers: [], lastNumber: null, currentPrize: '', startMessage: 'Em breve o Bingo irá começar' };
-    }
-    res.render('cartelas', {
-      cartelas,
-      playerName: "Cartelas Fixas",
-      game: {
-        drawnNumbers: game.drawnNumbers || [],
-        lastNumber: game.lastNumber,
-        currentPrize: game.currentPrize || '',
-        startMessage: game.startMessage || 'Em breve o Bingo irá começar',
-        lastNumberDisplay: game.lastNumber ? `${getNumberLetter(game.lastNumber)}-${game.lastNumber}` : '--'
-      },
-      winners: []
-    });
-  } catch (err) {
-    console.error('Erro ao renderizar cartelas-fixas:', err.message, err.stack);
-    res.status(500).send('Erro ao carregar a página de cartelas fixas');
-  }
-});
-
-// Endpoint para sortear automático
-app.post('/draw', isAuthenticated, async (req, res) => {
-  try {
-    const result = await drawNumber();
-    if (result.error) return res.status(400).json({ error: result.error });
-    const game = await Game.findOne();
-    const winners = await Winner.find();
-    broadcast(game, winners);
-    res.json({ number: result.newNumber, winners: result.winners });
-  } catch (err) {
-    console.error('Erro no endpoint /draw:', err.message, err.stack);
-    res.status(500).json({ error: 'Erro interno no servidor' });
-  }
-});
-
-// Endpoint para marcar manual
-app.post('/mark-number', isAuthenticated, async (req, res) => {
-  try {
-    const { number, password } = req.body;
-    if (password !== process.env.ADMIN_PASSWORD) return res.status(401).json({ error: 'Senha incorreta' });
-    const result = await markNumber(number);
-    if (result.error) return res.status(400).json({ error: result.error });
-    const game = await Game.findOne();
-    const winners = await Winner.find();
-    broadcast(game, winners);
-    res.json({ number: result.newNumber, winners: result.winners });
-  } catch (err) {
-    console.error('Erro no endpoint /mark-number:', err.message, err.stack);
-    res.status(500).json({ error: 'Erro interno no servidor' });
-  }
-});
-
-// Endpoint para atualizar prêmio
-app.post('/update-prize', isAuthenticated, async (req, res) => {
-  try {
-    const { currentPrize } = req.body;
-    const game = await Game.findOne();
-    if (!game) {
-      await new Game({
-        drawnNumbers: [],
-        lastNumber: null,
-        currentPrize,
-        startMessage: 'Em breve o Bingo irá começar'
-      }).save();
-    } else {
-      game.currentPrize = currentPrize;
-      await game.save();
-    }
-    const updatedGame = await Game.findOne();
-    broadcast(updatedGame, await Winner.find());
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Erro no endpoint /update-prize:', err.message, err.stack);
-    res.status(500).json({ error: 'Erro interno no servidor' });
-  }
-});
-
-// Reset sem apagar cartelas
-app.post('/reset', isAuthenticated, async (req, res) => {
-  try {
-    const { password } = req.body;
-    if (password !== process.env.ADMIN_PASSWORD) return res.status(401).json({ error: 'Senha incorreta' });
-    await Game.deleteMany({});
-    await Winner.deleteMany({});
-    const cartelas = await Cartela.find();
-    for (const c of cartelas) {
-      c.markedNumbers = [];
-      await c.save();
-    }
-    await new Game({
-      drawnNumbers: [],
-      lastNumber: null,
-      currentPrize: '',
-      startMessage: 'Em breve o Bingo irá começar'
-    }).save();
-    const game = await Game.findOne();
-    broadcast(game, []);
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Erro no endpoint /reset:', err.message, err.stack);
-    res.status(500).json({ error: 'Erro interno no servidor' });
-  }
-});
-
-// Excluir todas as cartelas (reset attributions)
-app.post('/delete-all', isAuthenticated, async (req, res) => {
-  try {
-    const { password } = req.body;
-    if (password !== process.env.ADMIN_PASSWORD) return res.status(401).json({ error: 'Senha incorreta' });
-    await Player.deleteMany({});
-    await Cartela.updateMany({ playerName: { $ne: "FIXAS" } }, { playerName: "FIXAS" });
-    const game = await Game.findOne();
-    broadcast(game, await Winner.find());
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Erro no endpoint /delete-all:', err.message, err.stack);
-    res.status(500).json({ error: 'Erro interno no servidor' });
-  }
-});
-
-// Excluir por telefone
-app.post('/delete-by-phone', isAuthenticated, async (req, res) => {
-  try {
-    const { password, phoneNumber } = req.body;
-    if (password !== process.env.ADMIN_PASSWORD) return res.status(401).json({ error: 'Senha incorreta' });
-    const player = await Player.findOne({ phoneNumber });
-    if (!player) return res.status(404).json({ error: 'Jogador não encontrado' });
-    await Cartela.updateMany({ playerName: player.playerName }, { playerName: "FIXAS" });
-    await player.deleteOne();
-    const game = await Game.findOne();
-    broadcast(game, await Winner.find());
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Erro no endpoint /delete-by-phone:', err.message, err.stack);
-    res.status(500).json({ error: 'Erro interno no servidor' });
-  }
-});
-
-// Atribuir cartelas
-app.post('/assign-cartelas', isAuthenticated, async (req, res) => {
-  try {
-    const { cartelaNumbers, playerName, phoneNumber } = req.body;
-    if (!cartelaNumbers || !playerName) return res.status(400).json({ error: 'Campos obrigatórios' });
-    const nums = cartelaNumbers.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
-    if (!nums.length) return res.status(400).json({ error: 'Números inválidos' });
-    const assigned = [];
-    for (const num of nums) {
-      const cartelaId = `FIXA-${num}`;
-      const cartela = await Cartela.findOne({ cartelaId });
-      if (cartela && cartela.playerName === "FIXAS") {
-        cartela.playerName = playerName;
-        await cartela.save();
-        assigned.push(cartelaId);
-      }
-    }
-    if (!assigned.length) return res.status(400).json({ error: 'Nenhuma cartela disponível para atribuição' });
-    const link = `${req.protocol}://${req.get('host')}/cartelas?playerName=${encodeURIComponent(playerName)}`;
-    await new Player({
-      playerName,
-      phoneNumber: phoneNumber || '',
-      link,
-      createdAt: new Date()
-    }).save();
-    const game = await Game.findOne();
-    broadcast(game, await Winner.find());
-    res.json({ success: true, playerName, phoneNumber, assigned, link });
-  } catch (err) {
-    console.error('Erro no endpoint /assign-cartelas:', err.message, err.stack);
-    res.status(500).json({ error: 'Erro interno no servidor' });
-  }
-});
-
-// WebSocket
-wss.on('connection', ws => {
-  try {
-    Game.findOne().then(game => {
-      if (!game) {
-        game = {
-          drawnNumbers: [],
-          lastNumber: null,
-          currentPrize: '',
-          startMessage: 'Em breve o Bingo irá começar'
-        };
-      }
-      Winner.find().then(winners => {
-        ws.send(JSON.stringify({
-          type: 'update',
-          game: {
-            drawnNumbers: game.drawnNumbers || [],
-            lastNumber: game.lastNumber,
-            currentPrize: game.currentPrize || '',
-            startMessage: game.startMessage || 'Em breve o Bingo irá começar',
-            lastNumberDisplay: game.lastNumber ? `${getNumberLetter(game.lastNumber)}-${game.lastNumber}` : '--'
-          },
-          winners: winners.map(w => w.cartelaId)
-        }));
+  <script>
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        alert('Link copiado para a área de transferência!');
       }).catch(err => {
-        console.error('Erro ao buscar winners no WebSocket:', err.message, err.stack);
+        console.error('Erro ao copiar link:', err);
+        alert('Erro ao copiar o link');
       });
-    }).catch(err => {
-      console.error('Erro ao buscar game no WebSocket:', err.message, err.stack);
-    });
-  } catch (err) {
-    console.error('Erro na conexão WebSocket:', err.message, err.stack);
-  }
-});
+    }
 
-const PORT = process.env.PORT || 10000;
-server.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
+    function submitForm(formId, url, reload = false) {
+      const form = document.getElementById(formId);
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+          const formData = new FormData(form);
+          let data = Object.fromEntries(formData);
+          if (['resetForm', 'deleteAllForm', 'deleteByPhoneForm'].includes(formId)) {
+            const password = prompt('Digite a senha:');
+            if (!password) return;
+            data.password = password;
+          }
+          const response = await fetch(url, {
+            method: 'POST',
+            body: JSON.stringify(data),
+            headers: { 'Content-Type': 'application/json' }
+          });
+          const result = await response.json();
+          if (result.error) {
+            alert(result.error);
+          } else if (reload) {
+            location.href = '/admin';
+          } else if (formId === 'assignCartelasForm') {
+            alert(`Cartelas ${result.assigned.join(', ')} atribuídas a ${result.playerName}. Link: ${result.link}`);
+            location.href = '/admin';
+          }
+        } catch (err) {
+          console.error(`Erro no ${formId}:`, err);
+          alert(`Erro ao executar a ação: ${err.message}`);
+        }
+      });
+    }
+
+    submitForm('drawForm', '/draw');
+    submitForm('markNumberForm', '/mark-number');
+    submitForm('updatePrizeForm', '/update-prize');
+    submitForm('resetForm', '/reset', true);
+    submitForm('deleteAllForm', '/delete-all', true);
+    submitForm('deleteByPhoneForm', '/delete-by-phone', true);
+    submitForm('assignCartelasForm', '/assign-cartelas');
+
+    // WebSocket para atualizações em tempo real
+    try {
+      const ws = new WebSocket('wss://' + window.location.host);
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'update') {
+            document.getElementById('lastNumber').textContent = data.game.lastNumberDisplay || '--';
+            document.getElementById('numbersB').textContent = Array.isArray(data.game.drawnNumbers) ? data.game.drawnNumbers.filter(n => n >= 1 && n <= 15).join(', ') || '--' : '--';
+            document.getElementById('numbersI').textContent = Array.isArray(data.game.drawnNumbers) ? data.game.drawnNumbers.filter(n => n >= 16 && n <= 30).join(', ') || '--' : '--';
+            document.getElementById('numbersN').textContent = Array.isArray(data.game.drawnNumbers) ? data.game.drawnNumbers.filter(n => n >= 31 && n <= 45).join(', ') || '--' : '--';
+            document.getElementById('numbersG').textContent = Array.isArray(data.game.drawnNumbers) ? data.game.drawnNumbers.filter(n => n >= 46 && n <= 60).join(', ') || '--' : '--';
+            document.getElementById('numbersO').textContent = Array.isArray(data.game.drawnNumbers) ? data.game.drawnNumbers.filter(n => n >= 61 && n <= 75).join(', ') || '--' : '--';
+            document.getElementById('currentPrize').value = data.game.currentPrize || '';
+            // Atualizar tabelas dinamicamente
+            fetch('/admin/data').then(res => res.json()).then(data => {
+              const winnersTable = document.getElementById('winnersTable');
+              winnersTable.innerHTML = data.winners.length > 0
+                ? data.winners.map(winner => `
+                    <tr>
+                      <td>${winner.playerName || '-'}</td>
+                      <td>${winner.phoneNumber || '-'}</td>
+                      <td>${winner.cartelaId}</td>
+                      <td><a href="${winner.link}" target="_blank">Ver</a></td>
+                    </tr>
+                  `).join('')
+                : '<tr><td colspan="4">Nenhum vencedor</td></tr>';
+              const playersTable = document.getElementById('playersTable');
+              playersTable.innerHTML = data.players.length > 0
+                ? data.players.map(player => `
+                    <tr>
+                      <td>${player.playerName || '-'}</td>
+                      <td>${player.phoneNumber || '-'}</td>
+                      <td>${player.cartelaIds.join(', ') || '-'}</td>
+                      <td><a href="${player.link}" target="_blank">Ver Cartelas</a></td>
+                      <td><button onclick="copyToClipboard('${player.link}')">Copiar</button></td>
+                    </tr>
+                  `).join('')
+                : '<tr><td colspan="5">Nenhum jogador registrado</td></tr>';
+            }).catch(err => {
+              console.error('Erro ao atualizar tabelas:', err);
+            });
+          }
+        } catch (err) {
+          console.error('Erro ao processar mensagem WebSocket:', err);
+        }
+      };
+      ws.onerror = (err) => {
+        console.error('Erro na conexão WebSocket:', err);
+      };
+      ws.onclose = () => {
+        console.log('Conexão WebSocket fechada, tentando reconectar...');
+        setTimeout(() => {
+          location.reload();
+        }, 5000);
+      };
+    } catch (err) {
+      console.error('Erro ao inicializar WebSocket:', err);
+    }
+  </script>
+</body>
+</html>
