@@ -120,6 +120,103 @@ function generateCartelaNumbers() {
   return numbers;
 }
 
+// Função para broadcast
+function broadcast(game, winners) {
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({ type: 'update', game, winners }));
+    }
+  });
+}
+
+// Função checkWin
+function checkWin(cartela) {
+  const marked = cartela.markedNumbers;
+  for (let col = 0; col < 5; col++) {
+    for (let row = 0; row < 5; row++) {
+      const num = cartela.numbers[col][row];
+      if (num !== 0 && !marked.includes(num)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+// Função drawNumber
+async function drawNumber() {
+  const game = await Game.findOne();
+  const available = Array.from({length: 75}, (_, i) => i+1).filter(n => !game.drawnNumbers.includes(n));
+  if (!available.length) return { error: 'Não há mais números para sortear' };
+  const newNumber = available[Math.floor(Math.random() * available.length)];
+  game.drawnNumbers.push(newNumber);
+  game.lastNumber = newNumber;
+  await game.save();
+  const cartelas = await Cartela.find();
+  const winners = [];
+  const existingWinner = await Winner.findOne();
+  if (!existingWinner) {
+    for (const cartela of cartelas) {
+      if (cartela.playerName === "FIXAS") continue;
+      if (cartela.numbers.flat().includes(newNumber)) {
+        cartela.markedNumbers.push(newNumber);
+        if (checkWin(cartela)) {
+          const player = await Player.findOne({ playerName: cartela.playerName });
+          await new Winner({
+            cartelaId: cartela.cartelaId,
+            playerName: cartela.playerName,
+            phoneNumber: player ? player.phoneNumber : '',
+            link: player ? player.link : '',
+            createdAt: new Date()
+          }).save();
+          winners.push(cartela.cartelaId);
+          await cartela.save();
+          break;
+        }
+        await cartela.save();
+      }
+    }
+  }
+  return { newNumber, winners };
+}
+
+// Função markNumber
+async function markNumber(number) {
+  number = parseInt(number);
+  if (!Number.isInteger(number) || number < 1 || number > 75) return { error: 'Número inválido' };
+  const game = await Game.findOne();
+  if (game.drawnNumbers.includes(number)) return { error: 'Número já sorteado' };
+  game.drawnNumbers.push(number);
+  game.lastNumber = number;
+  await game.save();
+  const cartelas = await Cartela.find();
+  const winners = [];
+  const existingWinner = await Winner.findOne();
+  if (!existingWinner) {
+    for (const cartela of cartelas) {
+      if (cartela.playerName === "FIXAS") continue;
+      if (cartela.numbers.flat().includes(number)) {
+        cartela.markedNumbers.push(number);
+        if (checkWin(cartela)) {
+          const player = await Player.findOne({ playerName: cartela.playerName });
+          await new Winner({
+            cartelaId: cartela.cartelaId,
+            playerName: cartela.playerName,
+            phoneNumber: player ? player.phoneNumber : '',
+            link: player ? player.link : '',
+            createdAt: new Date()
+          }).save();
+          winners.push(cartela.cartelaId);
+          await cartela.save();
+          break;
+        }
+        await cartela.save();
+      }
+    }
+  }
+  return { newNumber: number, winners };
+}
+
 // Rotas
 app.get('/', (req, res) => res.redirect('/display'));
 
@@ -166,6 +263,27 @@ app.get('/cartelas-fixas', async (req, res) => {
   res.render('cartelas', { cartelas, playerName: "Cartelas Fixas", game, winners: [] });
 });
 
+// Endpoint para sortear automático
+app.post('/draw', isAuthenticated, async (req, res) => {
+  const result = await drawNumber();
+  if (result.error) return res.status(400).json({ error: result.error });
+  const game = await Game.findOne();
+  const winners = (await Winner.find()).map(w => w.cartelaId);
+  broadcast(game, winners);
+  res.json({ number: result.newNumber, winners: result.winners });
+});
+
+// Endpoint para marcar manual
+app.post('/mark-number', isAuthenticated, async (req, res) => {
+  const { number } = req.body;
+  const result = await markNumber(number);
+  if (result.error) return res.status(400).json({ error: result.error });
+  const game = await Game.findOne();
+  const winners = (await Winner.find()).map(w => w.cartelaId);
+  broadcast(game, winners);
+  res.json({ number: result.newNumber, winners: result.winners });
+});
+
 // Reset sem apagar cartelas
 app.post('/reset', isAuthenticated, async (req, res) => {
   const { password } = req.body;
@@ -178,13 +296,63 @@ app.post('/reset', isAuthenticated, async (req, res) => {
     await c.save();
   }
   await new Game({ drawnNumbers: [], lastNumber: null, currentPrize: '', startMessage: 'Em breve o Bingo irá começar' }).save();
+  broadcast(await Game.findOne(), []);
   res.json({ success: true });
+});
+
+// Excluir todas as cartelas (reset attributions)
+app.post('/delete-all', isAuthenticated, async (req, res) => {
+  const { password } = req.body;
+  if (password !== process.env.ADMIN_PASSWORD) return res.status(401).json({ error: 'Senha incorreta' });
+  await Player.deleteMany({});
+  await Cartela.updateMany({ playerName: { $ne: "FIXAS" } }, { playerName: "FIXAS" });
+  res.json({ success: true });
+});
+
+// Excluir por telefone
+app.post('/delete-by-phone', isAuthenticated, async (req, res) => {
+  const { password, phoneNumber } = req.body;
+  if (password !== process.env.ADMIN_PASSWORD) return res.status(401).json({ error: 'Senha incorreta' });
+  const player = await Player.findOne({ phoneNumber });
+  if (!player) return res.status(404).json({ error: 'Jogador não encontrado' });
+  await Cartela.updateMany({ playerName: player.playerName }, { playerName: "FIXAS" });
+  await player.deleteOne();
+  res.json({ success: true });
+});
+
+// Atribuir cartelas
+app.post('/assign-cartelas', isAuthenticated, async (req, res) => {
+  const { cartelaNumbers, playerName, phoneNumber } = req.body;
+  if (!cartelaNumbers || !playerName) return res.status(400).json({ error: 'Campos obrigatórios' });
+  const nums = cartelaNumbers.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
+  if (!nums.length) return res.status(400).json({ error: 'Números inválidos' });
+  const assigned = [];
+  for (const num of nums) {
+    const cartelaId = `FIXA-${num}`;
+    const cartela = await Cartela.findOne({ cartelaId });
+    if (cartela && cartela.playerName === "FIXAS") {
+      cartela.playerName = playerName;
+      await cartela.save();
+      assigned.push(cartelaId);
+    }
+  }
+  if (!assigned.length) return res.status(400).json({ error: 'Nenhuma cartela disponível para atribuição' });
+  const link = `${req.protocol}://${req.get('host')}/cartelas?playerName=${encodeURIComponent(playerName)}`;
+  await new Player({
+    playerName,
+    phoneNumber: phoneNumber || '',
+    link,
+    createdAt: new Date()
+  }).save();
+  res.json({ playerName, phoneNumber, assigned, link });
 });
 
 // WebSocket
 wss.on('connection', ws => {
   Game.findOne().then(game => {
-    ws.send(JSON.stringify({ type: 'update', game, winners: [] }));
+    Winner.find().then(winners => {
+      ws.send(JSON.stringify({ type: 'update', game, winners: winners.map(w => w.cartelaId) }));
+    });
   });
 });
 
