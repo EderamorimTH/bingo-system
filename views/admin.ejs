@@ -5,10 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Painel de Administração</title>
   <link rel="stylesheet" href="/css/style.css">
+  <style>
+    /* Fallback básico caso o CSS não carregue */
+    body { font-family: Arial, sans-serif; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .section { margin-bottom: 20px; }
+    .form-group { margin-bottom: 10px; }
+    .form-group label { display: block; }
+    .form-group input { width: 100%; padding: 8px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background-color: #f2f2f2; }
+    button { padding: 8px 16px; cursor: pointer; }
+  </style>
 </head>
 <body>
   <div class="container">
     <h1>Painel de Administração</h1>
+    <% if (error) { %>
+      <div style="color: red; margin-bottom: 20px;"><%= error %></div>
+    <% } %>
 
     <div class="section">
       <h2>Links Fixos</h2>
@@ -41,7 +57,7 @@
       <form id="updatePrizeForm">
         <div class="form-group">
           <label for="currentPrize">Prêmio Atual</label>
-          <input type="text" id="currentPrize" name="currentPrize" value="<%= game.currentPrize %>">
+          <input type="text" id="currentPrize" name="currentPrize" value="<%= game.currentPrize || '' %>">
         </div>
         <button type="submit">Atualizar Prêmio</button>
       </form>
@@ -109,13 +125,18 @@
         <tbody id="playersTable">
           <% players.forEach(player => { %>
             <tr>
-              <td><%= player.playerName %></td>
+              <td><%= player.playerName || '-' %></td>
               <td><%= player.phoneNumber || '-' %></td>
               <td><%= player.cartelaIds.join(', ') || '-' %></td>
               <td><a href="<%= player.link %>" target="_blank">Ver Cartelas</a></td>
               <td><button onclick="copyToClipboard('<%= player.link %>')">Copiar</button></td>
             </tr>
           <% }) %>
+          <% if (players.length === 0) { %>
+            <tr>
+              <td colspan="5">Nenhum jogador registrado</td>
+            </tr>
+          <% } %>
         </tbody>
       </table>
     </div>
@@ -134,7 +155,7 @@
         <tbody id="winnersTable">
           <% winners.forEach(winner => { %>
             <tr>
-              <td><%= winner.playerName %></td>
+              <td><%= winner.playerName || '-' %></td>
               <td><%= winner.phoneNumber || '-' %></td>
               <td><%= winner.cartelaId %></td>
               <td><a href="<%= winner.link %>" target="_blank">Ver</a></td>
@@ -156,136 +177,187 @@
         alert('Link copiado para a área de transferência!');
       }).catch(err => {
         console.error('Erro ao copiar link:', err);
+        alert('Erro ao copiar o link');
       });
     }
 
     document.getElementById('drawForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const response = await fetch('/draw', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const result = await response.json();
-      if (result.error) alert(result.error);
+      try {
+        const response = await fetch('/draw', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const result = await response.json();
+        if (result.error) alert(result.error);
+      } catch (err) {
+        console.error('Erro no draw:', err);
+        alert('Erro ao sortear número');
+      }
     });
 
     document.getElementById('markNumberForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const formData = new FormData(e.target);
-      const response = await fetch('/mark-number', {
-        method: 'POST',
-        body: JSON.stringify(Object.fromEntries(formData)),
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const result = await response.json();
-      if (result.error) alert(result.error);
+      try {
+        const formData = new FormData(e.target);
+        const response = await fetch('/mark-number', {
+          method: 'POST',
+          body: JSON.stringify(Object.fromEntries(formData)),
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const result = await response.json();
+        if (result.error) alert(result.error);
+      } catch (err) {
+        console.error('Erro no mark-number:', err);
+        alert('Erro ao marcar número');
+      }
     });
 
     document.getElementById('updatePrizeForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const formData = new FormData(e.target);
-      const response = await fetch('/update-prize', {
-        method: 'POST',
-        body: JSON.stringify(Object.fromEntries(formData)),
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const result = await response.json();
-      if (result.error) alert(result.error);
+      try {
+        const formData = new FormData(e.target);
+        const response = await fetch('/update-prize', {
+          method: 'POST',
+          body: JSON.stringify(Object.fromEntries(formData)),
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const result = await response.json();
+        if (result.error) alert(result.error);
+      } catch (err) {
+        console.error('Erro no update-prize:', err);
+        alert('Erro ao atualizar prêmio');
+      }
     });
 
     document.getElementById('resetForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const password = prompt('Digite a senha:');
-      if (!password) return;
-      const response = await fetch('/reset', {
-        method: 'POST',
-        body: JSON.stringify({ password }),
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const result = await response.json();
-      if (result.error) alert(result.error);
+      try {
+        const password = prompt('Digite a senha:');
+        if (!password) return;
+        const response = await fetch('/reset', {
+          method: 'POST',
+          body: JSON.stringify({ password }),
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const result = await response.json();
+        if (result.error) alert(result.error);
+        else location.reload(); // Recarrega apenas após reset bem-sucedido
+      } catch (err) {
+        console.error('Erro no reset:', err);
+        alert('Erro ao reiniciar o bingo');
+      }
     });
 
     document.getElementById('deleteAllForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const password = prompt('Digite a senha:');
-      if (!password) return;
-      const response = await fetch('/delete-all', {
-        method: 'POST',
-        body: JSON.stringify({ password }),
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const result = await response.json();
-      if (result.error) alert(result.error);
+      try {
+        const password = prompt('Digite a senha:');
+        if (!password) return;
+        const response = await fetch('/delete-all', {
+          method: 'POST',
+          body: JSON.stringify({ password }),
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const result = await response.json();
+        if (result.error) alert(result.error);
+        else location.reload(); // Recarrega apenas após exclusão bem-sucedida
+      } catch (err) {
+        console.error('Erro no delete-all:', err);
+        alert('Erro ao excluir cartelas');
+      }
     });
 
     document.getElementById('deleteByPhoneForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const formData = new FormData(e.target);
-      const password = prompt('Digite a senha:');
-      if (!password) return;
-      formData.append('password', password);
-      const response = await fetch('/delete-by-phone', {
-        method: 'POST',
-        body: JSON.stringify(Object.fromEntries(formData)),
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const result = await response.json();
-      if (result.error) alert(result.error);
+      try {
+        const formData = new FormData(e.target);
+        const password = prompt('Digite a senha:');
+        if (!password) return;
+        formData.append('password', password);
+        const response = await fetch('/delete-by-phone', {
+          method: 'POST',
+          body: JSON.stringify(Object.fromEntries(formData)),
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const result = await response.json();
+        if (result.error) alert(result.error);
+        else location.reload(); // Recarrega apenas após exclusão bem-sucedida
+      } catch (err) {
+        console.error('Erro no delete-by-phone:', err);
+        alert('Erro ao excluir por telefone');
+      }
     });
 
     document.getElementById('assignCartelasForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const formData = new FormData(e.target);
-      const response = await fetch('/assign-cartelas', {
-        method: 'POST',
-        body: JSON.stringify(Object.fromEntries(formData)),
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const result = await response.json();
-      if (result.error) {
-        alert(result.error);
-      } else {
-        alert(`Cartelas ${result.assigned.join(', ')} atribuídas a ${result.playerName}. Link: ${result.link}`);
-        location.reload();
+      try {
+        const formData = new FormData(e.target);
+        const response = await fetch('/assign-cartelas', {
+          method: 'POST',
+          body: JSON.stringify(Object.fromEntries(formData)),
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const result = await response.json();
+        if (result.error) {
+          alert(result.error);
+        } else {
+          alert(`Cartelas ${result.assigned.join(', ')} atribuídas a ${result.playerName}. Link: ${result.link}`);
+          location.reload(); // Recarrega para atualizar a tabela de jogadores
+        }
+      } catch (err) {
+        console.error('Erro no assign-cartelas:', err);
+        alert('Erro ao atribuir cartelas');
       }
     });
 
-    const ws = new WebSocket('ws://' + window.location.host);
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === 'update') {
-        document.getElementById('lastNumber').textContent = data.game.lastNumberDisplay;
-        document.getElementById('numbersB').textContent = data.game.drawnNumbers.filter(n => n >= 1 && n <= 15).join(', ') || '--';
-        document.getElementById('numbersI').textContent = data.game.drawnNumbers.filter(n => n >= 16 && n <= 30).join(', ') || '--';
-        document.getElementById('numbersN').textContent = data.game.drawnNumbers.filter(n => n >= 31 && n <= 45).join(', ') || '--';
-        document.getElementById('numbersG').textContent = data.game.drawnNumbers.filter(n => n >= 46 && n <= 60).join(', ') || '--';
-        document.getElementById('numbersO').textContent = data.game.drawnNumbers.filter(n => n >= 61 && n <= 75).join(', ') || '--';
-        document.getElementById('currentPrize').value = data.game.currentPrize || '';
-        const winnersTable = document.getElementById('winnersTable');
-        winnersTable.innerHTML = data.winners.length > 0
-          ? data.winners.map(w => {
-              const winner = <%= JSON.stringify(winners) %>.find(winner => winner.cartelaId === w);
+    // WebSocket para atualizações em tempo real
+    try {
+      const ws = new WebSocket('wss://' + window.location.host);
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'update') {
+            document.getElementById('lastNumber').textContent = data.game.lastNumberDisplay;
+            document.getElementById('numbersB').textContent = data.game.drawnNumbers.filter(n => n >= 1 && n <= 15).join(', ') || '--';
+            document.getElementById('numbersI').textContent = data.game.drawnNumbers.filter(n => n >= 16 && n <= 30).join(', ') || '--';
+            document.getElementById('numbersN').textContent = data.game.drawnNumbers.filter(n => n >= 31 && n <= 45).join(', ') || '--';
+            document.getElementById('numbersG').textContent = data.game.drawnNumbers.filter(n => n >= 46 && n <= 60).join(', ') || '--';
+            document.getElementById('numbersO').textContent = data.game.drawnNumbers.filter(n => n >= 61 && n <= 75).join(', ') || '--';
+            document.getElementById('currentPrize').value = data.game.currentPrize || '';
+            const winnersTable = document.getElementById('winnersTable');
+            winnersTable.innerHTML = data.winners.length > 0
+              ? data.winners.map(w => {
+                  const winner = <%= JSON.stringify(winners) %>.find(winner => winner.cartelaId === w);
+                  return `<tr>
+                    <td>${winner.playerName || '-'}</td>
+                    <td>${winner.phoneNumber || '-'}</td>
+                    <td>${winner.cartelaId}</td>
+                    <td><a href="${winner.link}" target="_blank">Ver</a></td>
+                  </tr>`;
+                }).join('')
+              : '<tr><td colspan="4">Nenhum vencedor</td></tr>';
+            const playersTable = document.getElementById('playersTable');
+            playersTable.innerHTML = <%= JSON.stringify(players) %>.map(player => {
               return `<tr>
-                <td>${winner.playerName}</td>
-                <td>${winner.phoneNumber || '-'}</td>
-                <td>${winner.cartelaId}</td>
-                <td><a href="${winner.link}" target="_blank">Ver</a></td>
+                <td>${player.playerName || '-'}</td>
+                <td>${player.phoneNumber || '-'}</td>
+                <td>${player.cartelaIds.join(', ') || '-'}</td>
+                <td><a href="${player.link}" target="_blank">Ver Cartelas</a></td>
+                <td><button onclick="copyToClipboard('${player.link}')">Copiar</button></td>
               </tr>`;
-            }).join('')
-          : '<tr><td colspan="4">Nenhum vencedor</td></tr>';
-        const playersTable = document.getElementById('playersTable');
-        playersTable.innerHTML = <%= JSON.stringify(players) %>.map(player => {
-          return `<tr>
-            <td>${player.playerName}</td>
-            <td>${player.phoneNumber || '-'}</td>
-            <td>${player.cartelaIds.join(', ') || '-'}</td>
-            <td><a href="${player.link}" target="_blank">Ver Cartelas</a></td>
-            <td><button onclick="copyToClipboard('${player.link}')">Copiar</button></td>
-          </tr>`;
-        }).join('');
-      }
-    };
+            }).join('') || '<tr><td colspan="5">Nenhum jogador registrado</td></tr>';
+          }
+        } catch (err) {
+          console.error('Erro ao processar mensagem WebSocket:', err);
+        }
+      };
+      ws.onerror = (err) => {
+        console.error('Erro na conexão WebSocket:', err);
+      };
+    } catch (err) {
+      console.error('Erro ao inicializar WebSocket:', err);
+    }
   </script>
 </body>
 </html>
