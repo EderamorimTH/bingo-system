@@ -59,6 +59,7 @@
       </form>
     </div>
 
+    <!-- Campo para atualizar prêmio -->
     <div class="section">
       <h2>Atualizar Prêmio Atual</h2>
       <form id="updatePrizeForm">
@@ -114,58 +115,6 @@
       </form>
     </div>
 
-    <div id="addCartelasModal" class="modal" style="display: none;">
-      <div class="modal-content">
-        <h2>Adicionar Mais Cartelas</h2>
-        <form id="addCartelasForm">
-          <div class="form-group">
-            <label for="addCartelaNumbers">Números das Cartelas (separados por vírgula)</label>
-            <input type="text" id="addCartelaNumbers" name="cartelaNumbers" required>
-          </div>
-          <div class="form-group">
-            <label for="addPlayerName">Nome do Jogador</label>
-            <input type="text" id="addPlayerName" name="playerName" readonly>
-          </div>
-          <button type="button" onclick="closeAddCartelasModal()">Cancelar</button>
-          <button type="submit">Adicionar</button>
-        </form>
-      </div>
-    </div>
-
-    <div class="section">
-      <h2>Jogadores e Links</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Nome</th>
-            <th>Telefone</th>
-            <th>Cartelas</th>
-            <th>Link</th>
-            <th>Ações</th>
-          </tr>
-        </thead>
-        <tbody id="playersTable">
-          <% players.forEach(player => { %>
-            <tr>
-              <td><%= player.playerName || '-' %></td>
-              <td><%= player.phoneNumber || '-' %></td>
-              <td><%= player.cartelaIds.join(', ') || '-' %></td>
-              <td><a href="<%= player.link %>" target="_blank">Ver Cartelas</a></td>
-              <td>
-                <button onclick="copyToClipboard('<%= player.link %>')">Copiar</button>
-                <button onclick="showAddCartelasModal('<%= player.playerName %>')">Adicionar Cartelas</button>
-              </td>
-            </tr>
-          <% }) %>
-          <% if (players.length === 0) { %>
-            <tr>
-              <td colspan="5">Nenhum jogador registrado</td>
-            </tr>
-          <% } %>
-        </tbody>
-      </table>
-    </div>
-
     <div class="section sticky-winners">
       <h2>Vencedores</h2>
       <table>
@@ -199,24 +148,6 @@
   </div>
 
   <script>
-    function copyToClipboard(text) {
-      navigator.clipboard.writeText(text).then(() => {
-        alert('Link copiado para a área de transferência!');
-      }).catch(err => {
-        console.error('Erro ao copiar link:', err);
-        alert('Erro ao copiar o link');
-      });
-    }
-
-    function showAddCartelasModal(playerName) {
-      document.getElementById('addPlayerName').value = playerName;
-      document.getElementById('addCartelasModal').style.display = 'block';
-    }
-
-    function closeAddCartelasModal() {
-      document.getElementById('addCartelasModal').style.display = 'none';
-    }
-
     function submitForm(formId, url, reload = false) {
       const form = document.getElementById(formId);
       form.addEventListener('submit', async (e) => {
@@ -237,98 +168,37 @@
           const result = await response.json();
           if (result.error) {
             alert(result.error);
-          } else if (formId === 'assignCartelasForm' || formId === 'addCartelasForm') {
-            alert(`Cartelas ${result.assigned.join(', ')} atribuídas a ${result.playerName}. Link: ${result.link}`);
-            if (reload) location.href = '/admin';
           } else {
             if (reload) location.href = '/admin';
             else alert('Ação realizada com sucesso!');
           }
         } catch (err) {
-          console.error(`Erro no ${formId}:`, err);
-          alert(`Erro ao executar a ação: ${err.message}`);
+          alert(`Erro: ${err.message}`);
         }
       });
     }
 
+    submitForm('updatePrizeForm', '/update-prize');
     submitForm('drawForm', '/draw');
     submitForm('markNumberForm', '/mark-number');
-    submitForm('updatePrizeForm', '/update-prize');
     submitForm('resetForm', '/reset', true);
     submitForm('deleteAllForm', '/delete-all', true);
     submitForm('deleteByPhoneForm', '/delete-by-phone', true);
     submitForm('assignCartelasForm', '/assign-cartelas');
-    submitForm('addCartelasForm', '/assign-cartelas', true);
 
-    // WebSocket para atualizações em tempo real
-    try {
-      const ws = new WebSocket('wss://' + window.location.host);
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === 'update') {
-            document.getElementById('lastNumber').textContent = data.game.lastNumberDisplay || '--';
-            document.getElementById('numbersB').textContent = data.game.drawnNumbers ? data.game.drawnNumbers.filter(n => n >= 1 && n <= 15).join(', ') || '--' : '--';
-            document.getElementById('numbersI').textContent = data.game.drawnNumbers ? data.game.drawnNumbers.filter(n => n >= 16 && n <= 30).join(', ') || '--' : '--';
-            document.getElementById('numbersN').textContent = data.game.drawnNumbers ? data.game.drawnNumbers.filter(n => n >= 31 && n <= 45).join(', ') || '--' : '--';
-            document.getElementById('numbersG').textContent = data.game.drawnNumbers ? data.game.drawnNumbers.filter(n => n >= 46 && n <= 60).join(', ') || '--' : '--';
-            document.getElementById('numbersO').textContent = data.game.drawnNumbers ? data.game.drawnNumbers.filter(n => n >= 61 && n <= 75).join(', ') || '--' : '--';
-            document.getElementById('currentPrize').value = data.game.currentPrize || '';
-            // Atualizar tabelas dinamicamente
-            fetch('/admin/data').then(res => res.json()).then(data => {
-              const winnersTable = document.getElementById('winnersTable');
-              winnersTable.innerHTML = data.winners.length > 0
-                ? data.winners.map(winner => `
-                    <tr>
-                      <td>${winner.playerName || '-'}</td>
-                      <td>${winner.phoneNumber || '-'}</td>
-                      <td>${winner.cartelaId}</td>
-                      <td>${winner.prize || '-'}</td>
-                      <td><a href="${winner.link}" target="_blank">Ver</a></td>
-                    </tr>
-                  `).join('')
-                : '<tr><td colspan="5">Nenhum vencedor</td></tr>';
-              const playersTable = document.getElementById('playersTable');
-              playersTable.innerHTML = data.players.length > 0
-                ? data.players.map(player => `
-                    <tr>
-                      <td>${player.playerName || '-'}</td>
-                      <td>${player.phoneNumber || '-'}</td>
-                      <td>${player.cartelaIds.join(', ') || '-'}</td>
-                      <td><a href="${player.link}" target="_blank">Ver Cartelas</a></td>
-                      <td>
-                        <button onclick="copyToClipboard('${player.link}')">Copiar</button>
-                        <button onclick="showAddCartelasModal('${player.playerName}')">Adicionar Cartelas</button>
-                      </td>
-                    </tr>
-                  `).join('')
-                : '<tr><td colspan="5">Nenhum jogador registrado</td></tr>';
-              // Exibir mensagem para vencedores
-              if (data.winners.length > 0) {
-                data.winners.forEach(winner => {
-                  if (winner.playerName && winner.playerName !== 'FIXAS') {
-                    alert(`Parabéns, ${winner.playerName}! Sua cartela ${winner.cartelaId} completou todos os números e é a vencedora! Prêmio: ${winner.prize || 'Não especificado'}`);
-                  }
-                });
-              }
-            }).catch(err => {
-              console.error('Erro ao atualizar tabelas:', err);
-            });
-          }
-        } catch (err) {
-          console.error('Erro ao processar mensagem WebSocket:', err);
-        }
-      };
-      ws.onerror = (err) => {
-        console.error('Erro na conexão WebSocket:', err);
-      };
-      ws.onclose = () => {
-        console.log('Conexão WebSocket fechada, tentando reconectar...');
-        setTimeout(() => location.reload(), 5000);
-      };
-    } catch (err) {
-      console.error('Erro ao inicializar WebSocket:', err);
-    }
+    const ws = new WebSocket('wss://' + window.location.host);
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'update') {
+        document.getElementById('lastNumber').textContent = data.game.lastNumberDisplay || '--';
+        document.getElementById('numbersB').textContent = (data.game.drawnNumbers || []).filter(n => n <= 15).join(', ') || '--';
+        document.getElementById('numbersI').textContent = (data.game.drawnNumbers || []).filter(n => n >= 16 && n <= 30).join(', ') || '--';
+        document.getElementById('numbersN').textContent = (data.game.drawnNumbers || []).filter(n => n >= 31 && n <= 45).join(', ') || '--';
+        document.getElementById('numbersG').textContent = (data.game.drawnNumbers || []).filter(n => n >= 46 && n <= 60).join(', ') || '--';
+        document.getElementById('numbersO').textContent = (data.game.drawnNumbers || []).filter(n => n >= 61).join(', ') || '--';
+        document.getElementById('currentPrize').value = data.game.currentPrize || '';
+      }
+    };
   </script>
 </body>
 </html>
