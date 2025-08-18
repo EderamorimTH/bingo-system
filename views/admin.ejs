@@ -19,7 +19,7 @@
 
     <div class="section">
       <h2>Atribuir Cartelas</h2>
-      <form action="/assign-cartelas" method="POST">
+      <form id="assignCartelasForm">
         <div class="form-group">
           <label for="cartelaNumbers">Números das Cartelas (separados por vírgula)</label>
           <input type="text" id="cartelaNumbers" name="cartelaNumbers" required>
@@ -37,79 +37,87 @@
     </div>
 
     <div class="section">
+      <h2>Atualizar Prêmio Atual</h2>
+      <form id="updatePrizeForm">
+        <div class="form-group">
+          <label for="currentPrize">Prêmio Atual</label>
+          <input type="text" id="currentPrize" name="currentPrize" value="<%= game.currentPrize %>">
+        </div>
+        <button type="submit">Atualizar Prêmio</button>
+      </form>
+    </div>
+
+    <div class="section">
       <h2>Último Número Sorteado</h2>
-      <p><%= game.lastNumber || '--' %></p>
+      <p id="lastNumber"><%= game.lastNumberDisplay %></p>
     </div>
 
     <div class="section">
       <h2>Números Sorteados</h2>
       <div id="drawnNumbers">
-        <p>B (1-15): <%= game.drawnNumbers.filter(n => n >= 1 && n <= 15).join(', ') || '--' %></p>
-        <p>I (16-30): <%= game.drawnNumbers.filter(n => n >= 16 && n <= 30).join(', ') || '--' %></p>
-        <p>N (31-45): <%= game.drawnNumbers.filter(n => n >= 31 && n <= 45).join(', ') || '--' %></p>
-        <p>G (46-60): <%= game.drawnNumbers.filter(n => n >= 46 && n <= 60).join(', ') || '--' %></p>
-        <p>O (61-75): <%= game.drawnNumbers.filter(n => n >= 61 && n <= 75).join(', ') || '--' %></p>
+        <p>B (1-15): <span id="numbersB"><%= game.drawnNumbers.filter(n => n >= 1 && n <= 15).join(', ') || '--' %></span></p>
+        <p>I (16-30): <span id="numbersI"><%= game.drawnNumbers.filter(n => n >= 16 && n <= 30).join(', ') || '--' %></span></p>
+        <p>N (31-45): <span id="numbersN"><%= game.drawnNumbers.filter(n => n >= 31 && n <= 45).join(', ') || '--' %></span></p>
+        <p>G (46-60): <span id="numbersG"><%= game.drawnNumbers.filter(n => n >= 46 && n <= 60).join(', ') || '--' %></span></p>
+        <p>O (61-75): <span id="numbersO"><%= game.drawnNumbers.filter(n => n >= 61 && n <= 75).join(', ') || '--' %></span></p>
       </div>
-      <form action="/draw" method="POST">
+      <form id="drawForm">
         <button type="submit">Sortear Número (Automático)</button>
       </form>
-      <form action="/mark-number" method="POST">
-        <input type="number" name="number" min="1" max="75" required>
+      <form id="markNumberForm">
+        <div class="form-group">
+          <label for="number">Marcar Número Manual (1-75)</label>
+          <input type="number" id="number" name="number" min="1" max="75" required>
+        </div>
+        <div class="form-group">
+          <label for="password">Senha</label>
+          <input type="password" id="password" name="password" required>
+        </div>
         <button type="submit">Marcar</button>
       </form>
     </div>
 
     <div class="section">
       <h2>Ações</h2>
-      <button onclick="showModal('resetModal')">Reiniciar o Bingo</button>
-      <button onclick="showModal('deleteAllModal')">Excluir Todas as Cartelas</button>
-      <button onclick="showModal('deleteByPhoneModal')">Excluir por Telefone</button>
+      <form id="resetForm" style="display:inline;">
+        <input type="hidden" name="password" value="">
+        <button type="submit">Reiniciar o Bingo</button>
+      </form>
+      <form id="deleteAllForm" style="display:inline;">
+        <input type="hidden" name="password" value="">
+        <button type="submit">Excluir Todas as Cartelas</button>
+      </form>
+      <form id="deleteByPhoneForm" style="display:inline;">
+        <input type="text" name="phoneNumber" placeholder="Número de Telefone" required>
+        <input type="hidden" name="password" value="">
+        <button type="submit">Excluir por Telefone</button>
+      </form>
     </div>
 
-    <div id="resetModal" class="modal">
-      <div class="modal-content">
-        <h2>Confirmar Reinicialização do Bingo</h2>
-        <form action="/reset" method="POST">
-          <div class="form-group">
-            <label for="password">Senha</label>
-            <input type="password" id="password" name="password" required>
-          </div>
-          <button type="button" onclick="hideModal('resetModal')">Cancelar</button>
-          <button type="submit">Reiniciar</button>
-        </form>
-      </div>
-    </div>
-
-    <div id="deleteAllModal" class="modal">
-      <div class="modal-content">
-        <h2>Confirmar Exclusão de Todas as Cartelas</h2>
-        <form action="/delete-all" method="POST">
-          <div class="form-group">
-            <label for="password">Senha</label>
-            <input type="password" id="password" name="password" required>
-          </div>
-          <button type="button" onclick="hideModal('deleteAllModal')">Cancelar</button>
-          <button type="submit">Excluir</button>
-        </form>
-      </div>
-    </div>
-
-    <div id="deleteByPhoneModal" class="modal">
-      <div class="modal-content">
-        <h2>Excluir por Telefone</h2>
-        <form action="/delete-by-phone" method="POST">
-          <div class="form-group">
-            <label for="phoneNumber">Número de Telefone</label>
-            <input type="text" id="phoneNumber" name="phoneNumber" required>
-          </div>
-          <div class="form-group">
-            <label for="password">Senha</label>
-            <input type="password" id="password" name="password" required>
-          </div>
-          <button type="button" onclick="hideModal('deleteByPhoneModal')">Cancelar</button>
-          <button type="submit">Excluir</button>
-        </form>
-      </div>
+    <div class="section">
+      <h2>Jogadores e Links</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Telefone</th>
+            <th>Cartelas</th>
+            <th>Link</th>
+            <th>Ação</th>
+          </tr>
+        </thead>
+        <tbody id="playersTable">
+          <% players.forEach(player => { %>
+            <tr>
+              <td><%= player.playerName %></td>
+              <td><%= player.phoneNumber || '-' %></td>
+              <td><%= player.cartelaIds.join(', ') || '-' %></td>
+              <td><a href="<%= player.link %>" target="_blank">Ver Cartelas</a></td>
+              <td><button onclick="copyToClipboard('<%= player.link %>')">Copiar</button></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
     </div>
 
     <div class="section">
@@ -123,7 +131,7 @@
             <th>Link</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="winnersTable">
           <% winners.forEach(winner => { %>
             <tr>
               <td><%= winner.playerName %></td>
@@ -132,19 +140,152 @@
               <td><a href="<%= winner.link %>" target="_blank">Ver</a></td>
             </tr>
           <% }) %>
+          <% if (winners.length === 0) { %>
+            <tr>
+              <td colspan="4">Nenhum vencedor</td>
+            </tr>
+          <% } %>
         </tbody>
       </table>
     </div>
   </div>
 
   <script>
-    function showModal(modalId) {
-      document.getElementById(modalId).style.display = 'block';
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        alert('Link copiado para a área de transferência!');
+      }).catch(err => {
+        console.error('Erro ao copiar link:', err);
+      });
     }
 
-    function hideModal(modalId) {
-      document.getElementById(modalId).style.display = 'none';
-    }
+    document.getElementById('drawForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const response = await fetch('/draw', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const result = await response.json();
+      if (result.error) alert(result.error);
+    });
+
+    document.getElementById('markNumberForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const response = await fetch('/mark-number', {
+        method: 'POST',
+        body: JSON.stringify(Object.fromEntries(formData)),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const result = await response.json();
+      if (result.error) alert(result.error);
+    });
+
+    document.getElementById('updatePrizeForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const response = await fetch('/update-prize', {
+        method: 'POST',
+        body: JSON.stringify(Object.fromEntries(formData)),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const result = await response.json();
+      if (result.error) alert(result.error);
+    });
+
+    document.getElementById('resetForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const password = prompt('Digite a senha:');
+      if (!password) return;
+      const response = await fetch('/reset', {
+        method: 'POST',
+        body: JSON.stringify({ password }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const result = await response.json();
+      if (result.error) alert(result.error);
+    });
+
+    document.getElementById('deleteAllForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const password = prompt('Digite a senha:');
+      if (!password) return;
+      const response = await fetch('/delete-all', {
+        method: 'POST',
+        body: JSON.stringify({ password }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const result = await response.json();
+      if (result.error) alert(result.error);
+    });
+
+    document.getElementById('deleteByPhoneForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const password = prompt('Digite a senha:');
+      if (!password) return;
+      formData.append('password', password);
+      const response = await fetch('/delete-by-phone', {
+        method: 'POST',
+        body: JSON.stringify(Object.fromEntries(formData)),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const result = await response.json();
+      if (result.error) alert(result.error);
+    });
+
+    document.getElementById('assignCartelasForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const response = await fetch('/assign-cartelas', {
+        method: 'POST',
+        body: JSON.stringify(Object.fromEntries(formData)),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const result = await response.json();
+      if (result.error) {
+        alert(result.error);
+      } else {
+        alert(`Cartelas ${result.assigned.join(', ')} atribuídas a ${result.playerName}. Link: ${result.link}`);
+        location.reload();
+      }
+    });
+
+    const ws = new WebSocket('ws://' + window.location.host);
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'update') {
+        document.getElementById('lastNumber').textContent = data.game.lastNumberDisplay;
+        document.getElementById('numbersB').textContent = data.game.drawnNumbers.filter(n => n >= 1 && n <= 15).join(', ') || '--';
+        document.getElementById('numbersI').textContent = data.game.drawnNumbers.filter(n => n >= 16 && n <= 30).join(', ') || '--';
+        document.getElementById('numbersN').textContent = data.game.drawnNumbers.filter(n => n >= 31 && n <= 45).join(', ') || '--';
+        document.getElementById('numbersG').textContent = data.game.drawnNumbers.filter(n => n >= 46 && n <= 60).join(', ') || '--';
+        document.getElementById('numbersO').textContent = data.game.drawnNumbers.filter(n => n >= 61 && n <= 75).join(', ') || '--';
+        document.getElementById('currentPrize').value = data.game.currentPrize || '';
+        const winnersTable = document.getElementById('winnersTable');
+        winnersTable.innerHTML = data.winners.length > 0
+          ? data.winners.map(w => {
+              const winner = <%= JSON.stringify(winners) %>.find(winner => winner.cartelaId === w);
+              return `<tr>
+                <td>${winner.playerName}</td>
+                <td>${winner.phoneNumber || '-'}</td>
+                <td>${winner.cartelaId}</td>
+                <td><a href="${winner.link}" target="_blank">Ver</a></td>
+              </tr>`;
+            }).join('')
+          : '<tr><td colspan="4">Nenhum vencedor</td></tr>';
+        const playersTable = document.getElementById('playersTable');
+        playersTable.innerHTML = <%= JSON.stringify(players) %>.map(player => {
+          return `<tr>
+            <td>${player.playerName}</td>
+            <td>${player.phoneNumber || '-'}</td>
+            <td>${player.cartelaIds.join(', ') || '-'}</td>
+            <td><a href="${player.link}" target="_blank">Ver Cartelas</a></td>
+            <td><button onclick="copyToClipboard('${player.link}')">Copiar</button></td>
+          </tr>`;
+        }).join('');
+      }
+    };
   </script>
 </body>
 </html>
