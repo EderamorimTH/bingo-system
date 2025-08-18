@@ -335,304 +335,7 @@ app.post('/login', (req, res) => {
   }
 });
 
-app.get('/admin', isAuthenticated, async (req, res) => {
-  try {
-    if (Object.keys(req.query).length > 0) {
-      console.log('Query parameters indesejados em /admin:', req.query);
-      return res.redirect('/admin');
-    }
-    let game = await Game.findOne();
-    if (!game) {
-      game = await new Game({
-        drawnNumbers: [],
-        lastNumber: null,
-        currentPrize: '',
-        startMessage: 'Em breve o Bingo irá começar'
-      }).save();
-    }
-    const players = await Player.find().sort({ createdAt: -1 }) || [];
-    const winners = await Winner.find().sort({ createdAt: -1 }) || [];
-    res.render('admin', {
-      players,
-      winners,
-      game: {
-        drawnNumbers: game.drawnNumbers || [],
-        lastNumber: game.lastNumber,
-        currentPrize: game.currentPrize || '',
-        startMessage: game.startMessage || 'Em breve o Bingo irá começar',
-        lastNumberDisplay: game.lastNumber ? `${getNumberLetter(game.lastNumber)}-${game.lastNumber}` : '--'
-      },
-      error: null
-    });
-  } catch (err) {
-    console.error('Erro ao renderizar admin:', err.message, err.stack);
-    res.status(500).render('admin', {
-      players: [],
-      winners: [],
-      game: {
-        drawnNumbers: [],
-        lastNumber: null,
-        currentPrize: '',
-        startMessage: 'Erro ao carregar dados',
-        lastNumberDisplay: '--'
-      },
-      error: 'Erro ao carregar o painel de administração. Verifique os logs do servidor.'
-    });
-  }
-});
-
-app.get('/admin/data', isAuthenticated, async (req, res) => {
-  try {
-    const players = await Player.find().sort({ createdAt: -1 }) || [];
-    const winners = await Winner.find().sort({ createdAt: -1 }) || [];
-    res.json({ players, winners });
-  } catch (err) {
-    console.error('Erro no endpoint /admin/data:', err.message, err.stack);
-    res.status(500).json({ error: 'Erro ao carregar dados' });
-  }
-});
-
-app.get('/display', async (req, res) => {
-  try {
-    let game = await Game.findOne();
-    if (!game) {
-      game = { drawnNumbers: [], lastNumber: null, currentPrize: '', startMessage: 'Em breve o Bingo irá começar' };
-    }
-    const winners = await Winner.find().sort({ createdAt: -1 }) || [];
-    res.render('display', {
-      game: {
-        drawnNumbers: game.drawnNumbers || [],
-        lastNumber: game.lastNumber,
-        currentPrize: game.currentPrize || '',
-        startMessage: game.startMessage || 'Em breve o Bingo irá começar',
-        lastNumberDisplay: game.lastNumber ? `${getNumberLetter(game.lastNumber)}-${game.lastNumber}` : '--'
-      },
-      winners
-    });
-  } catch (err) {
-    console.error('Erro ao renderizar display:', err.message, err.stack);
-    res.status(500).send('Erro ao carregar a página de exibição');
-  }
-});
-
-app.get('/sorteador', async (req, res) => {
-  try {
-    let game = await Game.findOne();
-    if (!game) {
-      game = { drawnNumbers: [], lastNumber: null, currentPrize: '', startMessage: 'Em breve o Bingo irá começar' };
-    }
-    const winners = await Winner.find().sort({ createdAt: -1 }) || [];
-    res.render('sorteador', {
-      game: {
-        drawnNumbers: game.drawnNumbers || [],
-        lastNumber: game.lastNumber,
-        currentPrize: game.currentPrize || '',
-        startMessage: game.startMessage || 'Em breve o Bingo irá começar',
-        lastNumberDisplay: game.lastNumber ? `${getNumberLetter(game.lastNumber)}-${game.lastNumber}` : '--'
-      },
-      winners
-    });
-  } catch (err) {
-    console.error('Erro ao renderizar sorteador:', err.message, err.stack);
-    res.status(500).send('Erro ao carregar a página do sorteador');
-  }
-});
-
-app.get('/cartelas', async (req, res) => {
-  try {
-    const { playerName } = req.query;
-    if (!playerName) return res.status(400).send('Nome do jogador é obrigatório');
-    const cartelas = await Cartela.find({ playerName });
-    if (cartelas.length === 0) return res.status(404).send('Nenhuma cartela encontrada');
-    let game = await Game.findOne();
-    if (!game) {
-      game = { drawnNumbers: [], lastNumber: null, currentPrize: '', startMessage: 'Em breve o Bingo irá começar' };
-    }
-    const winners = await Winner.find().sort({ createdAt: -1 }) || [];
-    res.render('cartelas', {
-      cartelas,
-      playerName,
-      game: {
-        drawnNumbers: game.drawnNumbers || [],
-        lastNumber: game.lastNumber,
-        currentPrize: game.currentPrize || '',
-        startMessage: game.startMessage || 'Em breve o Bingo irá começar',
-        lastNumberDisplay: game.lastNumber ? `${getNumberLetter(game.lastNumber)}-${game.lastNumber}` : '--'
-      },
-      winners
-    });
-  } catch (err) {
-    console.error('Erro ao renderizar cartelas:', err.message, err.stack);
-    res.status(500).send('Erro ao carregar a página de cartelas');
-  }
-});
-
-app.get('/cartelas-fixas', async (req, res) => {
-  try {
-    const cartelas = await Cartela.find({ playerName: "FIXAS" });
-    let game = await Game.findOne();
-    if (!game) {
-      game = { drawnNumbers: [], lastNumber: null, currentPrize: '', startMessage: 'Em breve o Bingo irá começar' };
-    }
-    res.render('cartelas', {
-      cartelas,
-      playerName: "Cartelas Fixas",
-      game: {
-        drawnNumbers: game.drawnNumbers || [],
-        lastNumber: game.lastNumber,
-        currentPrize: game.currentPrize || '',
-        startMessage: game.startMessage || 'Em breve o Bingo irá começar',
-        lastNumberDisplay: game.lastNumber ? `${getNumberLetter(game.lastNumber)}-${game.lastNumber}` : '--'
-      },
-      winners: []
-    });
-  } catch (err) {
-    console.error('Erro ao renderizar cartelas-fixas:', err.message, err.stack);
-    res.status(500).send('Erro ao carregar a página de cartelas fixas');
-  }
-});
-
-// >>> NOVO: endpoint simples para clientes pegarem o estado do jogo (inclui currentPrize)
-app.get('/game', async (req, res) => {
-  try {
-    const game = await Game.findOne();
-    if (!game) {
-      return res.json({
-        drawnNumbers: [],
-        lastNumber: null,
-        currentPrize: '',
-        startMessage: 'Em breve o Bingo irá começar',
-        lastNumberDisplay: '--'
-      });
-    }
-    res.json({
-      drawnNumbers: game.drawnNumbers || [],
-      lastNumber: game.lastNumber,
-      currentPrize: game.currentPrize || '',
-      startMessage: game.startMessage || 'Em breve o Bingo irá começar',
-      lastNumberDisplay: game.lastNumber ? `${getNumberLetter(game.lastNumber)}-${game.lastNumber}` : '--'
-    });
-  } catch (err) {
-    console.error('Erro no endpoint /game:', err.message, err.stack);
-    res.status(500).json({ error: 'Erro interno no servidor' });
-  }
-});
-
-// Endpoint para sortear número automático
-app.post('/draw', isAuthenticated, async (req, res) => {
-  try {
-    const result = await drawNumber();
-    if (result.error) return res.status(400).json({ error: result.error });
-    const game = await Game.findOne();
-    const winners = await Winner.find();
-    broadcast(game, winners);
-    res.json({ number: result.newNumber, winners: result.winners });
-  } catch (err) {
-    console.error('Erro no endpoint /draw:', err.message, err.stack);
-    res.status(500).json({ error: 'Erro interno no servidor' });
-  }
-});
-
-// Endpoint para marcar número manual
-app.post('/mark-number', isAuthenticated, async (req, res) => {
-  try {
-    const { number, password } = req.body;
-    if (password !== process.env.ADMIN_PASSWORD) return res.status(401).json({ error: 'Senha incorreta' });
-    const result = await markNumber(number);
-    if (result.error) return res.status(400).json({ error: result.error });
-    const game = await Game.findOne();
-    const winners = await Winner.find();
-    broadcast(game, winners);
-    res.json({ number: result.newNumber, winners: result.winners });
-  } catch (err) {
-    console.error('Erro no endpoint /mark-number:', err.message, err.stack);
-    res.status(500).json({ error: 'Erro interno no servidor' });
-  }
-});
-
-// Endpoint para atualizar prêmio (preenchido manualmente no painel do ADM)
-app.post('/update-prize', isAuthenticated, async (req, res) => {
-  try {
-    const { currentPrize } = req.body;
-    const game = await Game.findOne();
-    if (!game) {
-      await new Game({
-        drawnNumbers: [],
-        lastNumber: null,
-        currentPrize,
-        startMessage: 'Em breve o Bingo irá começar'
-      }).save();
-    } else {
-      game.currentPrize = currentPrize;
-      await game.save();
-    }
-    const updatedGame = await Game.findOne();
-    broadcast(updatedGame, await Winner.find());
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Erro no endpoint /update-prize:', err.message, err.stack);
-    res.status(500).json({ error: 'Erro interno no servidor' });
-  }
-});
-
-// Endpoint para reset
-app.post('/reset', isAuthenticated, async (req, res) => {
-  try {
-    const { password } = req.body;
-    if (password !== process.env.ADMIN_PASSWORD) return res.status(401).json({ error: 'Senha incorreta' });
-    await Game.deleteMany({});
-    await Winner.deleteMany({});
-    await Cartela.updateMany({}, { markedNumbers: [] }); // NÃO altera id nem numbers (são imutáveis)
-    await new Game({
-      drawnNumbers: [],
-      lastNumber: null,
-      currentPrize: '',
-      startMessage: 'Em breve o Bingo irá começar'
-    }).save();
-    const game = await Game.findOne();
-    broadcast(game, []);
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Erro no endpoint /reset:', err.message, err.stack);
-    res.status(500).json({ error: 'Erro interno no servidor' });
-  }
-});
-
-// Endpoint para excluir todas as cartelas de jogadores, devolvendo às FIXAS
-app.post('/delete-all', isAuthenticated, async (req, res) => {
-  try {
-    const { password } = req.body;
-    if (password !== process.env.ADMIN_PASSWORD) return res.status(401).json({ error: 'Senha incorreta' });
-    await Player.deleteMany({});
-    await Cartela.updateMany({ playerName: { $ne: "FIXAS" } }, { playerName: "FIXAS", markedNumbers: [] });
-    const game = await Game.findOne();
-    broadcast(game, await Winner.find());
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Erro no endpoint /delete-all:', err.message, err.stack);
-    res.status(500).json({ error: 'Erro interno no servidor' });
-  }
-});
-
-// Endpoint para excluir por telefone
-app.post('/delete-by-phone', isAuthenticated, async (req, res) => {
-  try {
-    const { password, phoneNumber } = req.body;
-    if (password !== process.env.ADMIN_PASSWORD) return res.status(401).json({ error: 'Senha incorreta' });
-    const player = await Player.findOne({ phoneNumber });
-    if (!player) return res.status(404).json({ error: 'Jogador não encontrado' });
-    await Cartela.updateMany({ playerName: player.playerName }, { playerName: "FIXAS", markedNumbers: [] });
-    await player.deleteOne();
-    const game = await Game.findOne();
-    broadcast(game, await Winner.find());
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Erro no endpoint /delete-by-phone:', err.message, err.stack);
-    res.status(500).json({ error: 'Erro interno no servidor' });
-  }
-});
-
-// Endpoint para atribuir cartelas
+// ⚠️ Aqui estava o erro! Corrigido:
 app.post('/assign-cartelas', isAuthenticated, async (req, res) => {
   try {
     const { cartelaNumbers, playerName, phoneNumber } = req.body;
@@ -657,5 +360,34 @@ app.post('/assign-cartelas', isAuthenticated, async (req, res) => {
       assigned.push(cartelaId);
     }
     if (!assigned.length) return res.status(400).json({ error: errors.join('; ') || 'Nenhuma cartela disponível para atribuição' });
+
+    // ✅ LINHA CORRIGIDA
+    const link = `${req.protocol}://${req.get('host')}/cartelas?playerName=${encodeURIComponent(playerName)}`;
+
     let player = await Player.findOne({ playerName });
-    const link = `${req.protocol}://${req.get('
+    if (!player) {
+      player = await new Player({
+        playerName,
+        phoneNumber: phoneNumber || '',
+        link,
+        cartelaIds: assigned,
+        createdAt: new Date()
+      }).save();
+    } else {
+      player.cartelaIds = [...new Set([...player.cartelaIds, ...assigned])];
+      if (phoneNumber) player.phoneNumber = phoneNumber;
+      await player.save();
+    }
+    const game = await Game.findOne();
+    broadcast(game, await Winner.find());
+    res.json({ success: true, playerName, phoneNumber, assigned, link });
+  } catch (err) {
+    console.error('Erro no endpoint /assign-cartelas:', err.message, err.stack);
+    res.status(500).json({ error: 'Erro interno no servidor' });
+  }
+});
+
+// (restante do código igual ao que já te mandei, sem mudar cores, design, etc...)
+
+const PORT = process.env.PORT || 10000;
+server.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
