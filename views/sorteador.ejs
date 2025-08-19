@@ -9,25 +9,8 @@
   <style>
     body { background: linear-gradient(135deg, #34d399, #3b82f6); font-family: Arial, sans-serif; }
     .highlight-box { background: rgba(255,255,255,0.9); border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); padding: 1.5rem; margin-bottom: 1.5rem; }
-    .winner-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      display: none;
-      background: rgba(0, 0, 0, 0.8);
-      align-items: center;
-      justify-content: center;
-      z-index: 999;
-    }
-    .winner-overlay.show { display: flex; }
-    .winner-text {
-      font-size: 3rem;
-      color: #fff;
-      font-weight: bold;
-      text-align: center;
-    }
+    .pulse { animation: pulse 2s infinite; }
+    @keyframes pulse { 0%{transform:scale(1)} 50%{transform:scale(1.05)} 100%{transform:scale(1)} }
   </style>
 </head>
 <body class="flex items-center justify-center min-h-screen text-gray-800">
@@ -62,6 +45,14 @@
         <p><strong>G (46-60):</strong> <span id="drawnG">--</span></p>
         <p><strong>O (61-75):</strong> <span id="drawnO">--</span></p>
       </div>
+      <div class="mt-4">
+        <form id="markNumberForm" class="flex space-x-2">
+          <input type="number" id="manualNumber" name="number" min="1" max="75" class="border rounded p-2 w-24" placeholder="Nº">
+          <input type="password" id="adminPassword" name="password" class="border rounded p-2 w-48" placeholder="Senha do ADM">
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Marcar Número</button>
+        </form>
+        <p id="manualMsg" class="mt-2 text-sm"></p>
+      </div>
     </div>
 
     <!-- Vencedores -->
@@ -79,11 +70,6 @@
         <tbody id="winnersTable"></tbody>
       </table>
     </div>
-  </div>
-
-  <!-- Overlay Vencedor -->
-  <div id="winnerOverlay" class="winner-overlay">
-    <div class="winner-text">🎉 CARTELA VENCEDORA! 🎉</div>
   </div>
 
   <script>
@@ -130,30 +116,57 @@
       });
     }
 
+    document.getElementById('markNumberForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const number = document.getElementById('manualNumber').value;
+      const password = document.getElementById('adminPassword').value;
+      const msg = document.getElementById('manualMsg');
+      msg.textContent = '';
+      if (!number) return;
+      try {
+        const res = await fetch('/mark-number', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ number, password })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          msg.textContent = data.error || 'Erro ao marcar número';
+          msg.className = 'mt-2 text-sm text-red-700';
+        } else {
+          msg.textContent = `Número ${number} marcado com sucesso.`;
+          msg.className = 'mt-2 text-sm text-green-700';
+          document.getElementById('manualNumber').value = '';
+        }
+      } catch {
+        msg.textContent = 'Erro de comunicação com o servidor.';
+        msg.className = 'mt-2 text-sm text-red-700';
+      }
+    });
+
     const ws = new WebSocket('wss://' + window.location.host);
     ws.onmessage = e => {
       const data = JSON.parse(e.data);
       if (data.type === 'update') {
         if (data.game.lastNumber) {
           document.getElementById('lastNumber').textContent = getLetterNumber(data.game.lastNumber);
+        } else {
+          document.getElementById('lastNumber').textContent = '--';
         }
         const lastFive = (data.game.drawnNumbers || []).slice(-5).reverse();
         document.getElementById('lastFive').textContent = lastFive.map(n => getLetterNumber(n)).join(', ') || '--';
-        document.getElementById('currentPrize').textContent = data.game.currentPrize || '--';
+        document.getElementById('currentPrize').textContent = (data.game.currentPrize && data.game.currentPrize.trim()) ? data.game.currentPrize : '--';
         formatDrawnNumbers(data.game.drawnNumbers || []);
         fetchWinners();
-
-        if (data.winners && data.winners.length > 0) {
-          document.getElementById('winnerOverlay').classList.add('show');
-        }
       }
     };
 
+    // Estado inicial
     fetch('/game').then(r => r.json()).then(g => {
       document.getElementById('lastNumber').textContent = g.lastNumber ? getLetterNumber(g.lastNumber) : '--';
       const lastFive = (g.drawnNumbers || []).slice(-5).reverse();
       document.getElementById('lastFive').textContent = lastFive.map(n => getLetterNumber(n)).join(', ') || '--';
-      document.getElementById('currentPrize').textContent = g.currentPrize || '--';
+      document.getElementById('currentPrize').textContent = g.currentPrize && g.currentPrize.trim() ? g.currentPrize : '--';
       formatDrawnNumbers(g.drawnNumbers || []);
     });
 
