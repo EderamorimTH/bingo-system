@@ -2,95 +2,333 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Painel do Administrador</title>
-  <script src="/socket.io/socket.io.js"></script>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel de Administração</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f4f4; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .section { margin-bottom: 20px; background: white; padding: 15px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .form-group { margin-bottom: 10px; }
+    .form-group label { display: block; font-weight: bold; }
+    .form-group input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background-color: #f2f2f2; }
+    button { padding: 8px 16px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { background-color: #45a049; }
+    a { color: #0066cc; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .error { color: red; margin-bottom: 20px; }
+    .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; }
+    .modal-content { background: white; padding: 20px; border-radius: 5px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .modal-content button { margin: 10px; }
+    .sticky-winners { position: sticky; top: 0; background: white; z-index: 100; }
+  </style>
 </head>
-<body class="bg-gray-900 text-white p-6">
+<body>
+  <div class="container">
+    <h1>Painel de Administração</h1>
+    <% if (error) { %>
+      <div class="error"><%= error %></div>
+    <% } %>
 
-  <h1 class="text-3xl font-bold mb-6">Painel do Administrador</h1>
+    <div class="section">
+      <h2>Links Fixos</h2>
+      <p><a href="/display">Exibição Pública</a></p>
+      <p><a href="/sorteador">Sorteador Público</a></p>
+      <p><a href="/cartelas-fixas">Todas as 500 Cartelas</a></p>
+    </div>
 
-  <!-- Último número sorteado -->
-  <div class="mb-6">
-    <h2 class="text-xl font-semibold">Último Número Sorteado:</h2>
-    <p class="text-2xl"><%= game.lastNumber || "--" %></p>
-  </div>
+    <div class="section">
+      <h2>Atribuir Cartelas</h2>
+      <form id="assignCartelasForm">
+        <div class="form-group">
+          <label for="cartelaNumbers">Números das Cartelas (separados por vírgula)</label>
+          <input type="text" id="cartelaNumbers" name="cartelaNumbers" required>
+        </div>
+        <div class="form-group">
+          <label for="playerName">Nome do Jogador</label>
+          <input type="text" id="playerName" name="playerName" required>
+        </div>
+        <div class="form-group">
+          <label for="phoneNumber">Número de Telefone</label>
+          <input type="text" id="phoneNumber" name="phoneNumber">
+        </div>
+        <button type="submit">Atribuir</button>
+      </form>
+    </div>
 
-  <!-- Prêmio Atual -->
-  <div class="mb-6">
-    <h2 class="text-xl font-semibold">Prêmio Atual</h2>
-    <form action="/update-prize" method="POST" class="flex gap-2">
-      <input type="text" name="currentPrize" value="<%= game.currentPrize || '' %>" class="text-black px-2 py-1 rounded">
-      <button type="submit" class="bg-blue-600 px-4 py-1 rounded">Salvar</button>
-    </form>
-  </div>
+    <div class="section">
+      <h2>Atualizar Prêmio Atual</h2>
+      <form id="updatePrizeForm">
+        <div class="form-group">
+          <label for="currentPrize">Prêmio Atual</label>
+          <input type="text" id="currentPrize" name="currentPrize" value="<%= game.currentPrize || '' %>">
+        </div>
+        <button type="submit">Atualizar Prêmio</button>
+      </form>
+    </div>
 
-  <!-- Jogadores -->
-  <div class="mb-6">
-    <h2 class="text-xl font-semibold">Jogadores</h2>
-    <table class="w-full text-sm border border-gray-600">
-      <thead class="bg-gray-700">
-        <tr>
-          <th class="px-2 py-1">Nome</th>
-          <th class="px-2 py-1">Telefone</th>
-          <th class="px-2 py-1">Cartelas</th>
-          <th class="px-2 py-1">Link</th>
-          <th class="px-2 py-1">Ações</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% if (jogadores && jogadores.length > 0) { %>
-          <% jogadores.forEach(j => { %>
-            <tr class="border-t border-gray-600">
-              <td class="px-2 py-1"><%= j.nome %></td>
-              <td class="px-2 py-1"><%= j.telefone %></td>
-              <td class="px-2 py-1"><%= j.cartelas.join(", ") %></td>
-              <td class="px-2 py-1">
-                <a href="<%= j.link %>" target="_blank" class="text-blue-400 underline">Abrir</a>
-              </td>
-              <td class="px-2 py-1">
-                <form action="/assign-cartelas" method="POST" class="flex gap-1">
-                  <input type="hidden" name="playerName" value="<%= j.nome %>">
-                  <input type="hidden" name="phoneNumber" value="<%= j.telefone %>">
-                  <input type="text" name="cartelaNumbers" placeholder="Nºs" class="text-black px-1 py-0.5 rounded w-24">
-                  <button type="submit" class="bg-green-600 px-2 py-0.5 rounded">Adicionar</button>
-                </form>
+    <div class="section">
+      <h2>Último Número Sorteado</h2>
+      <p id="lastNumber"><%= game.lastNumberDisplay || '--' %></p>
+    </div>
+
+    <div class="section">
+      <h2>Números Sorteados</h2>
+      <div id="drawnNumbers">
+        <p>B (1-15): <span id="numbersB"><%= game.drawnNumbers ? game.drawnNumbers.filter(n => n >= 1 && n <= 15).join(', ') || '--' : '--' %></span></p>
+        <p>I (16-30): <span id="numbersI"><%= game.drawnNumbers ? game.drawnNumbers.filter(n => n >= 16 && n <= 30).join(', ') || '--' : '--' %></span></p>
+        <p>N (31-45): <span id="numbersN"><%= game.drawnNumbers ? game.drawnNumbers.filter(n => n >= 31 && n <= 45).join(', ') || '--' : '--' %></span></p>
+        <p>G (46-60): <span id="numbersG"><%= game.drawnNumbers ? game.drawnNumbers.filter(n => n >= 46 && n <= 60).join(', ') || '--' : '--' %></span></p>
+        <p>O (61-75): <span id="numbersO"><%= game.drawnNumbers ? game.drawnNumbers.filter(n => n >= 61 && n <= 75).join(', ') || '--' : '--' %></span></p>
+      </div>
+      <form id="drawForm">
+        <button type="submit">Sortear Número (Automático)</button>
+      </form>
+      <form id="markNumberForm">
+        <div class="form-group">
+          <label for="number">Marcar Número Manual (1-75)</label>
+          <input type="number" id="number" name="number" min="1" max="75" required>
+        </div>
+        <div class="form-group">
+          <label for="password">Senha</label>
+          <input type="password" id="password" name="password" required>
+        </div>
+        <button type="submit">Marcar</button>
+      </form>
+    </div>
+
+    <div class="section">
+      <h2>Ações</h2>
+      <form id="resetForm" style="display:inline;">
+        <button type="submit">Reiniciar o Bingo</button>
+      </form>
+      <form id="deleteAllForm" style="display:inline;">
+        <button type="submit">Excluir Todas as Cartelas</button>
+      </form>
+      <form id="deleteByPhoneForm" style="display:inline;">
+        <input type="text" name="phoneNumber" placeholder="Número de Telefone" required>
+        <button type="submit">Excluir por Telefone</button>
+      </form>
+    </div>
+
+    <div id="addCartelasModal" class="modal" style="display: none;">
+      <div class="modal-content">
+        <h2>Adicionar Mais Cartelas</h2>
+        <form id="addCartelasForm">
+          <div class="form-group">
+            <label for="addCartelaNumbers">Números das Cartelas (separados por vírgula)</label>
+            <input type="text" id="addCartelaNumbers" name="cartelaNumbers" required>
+          </div>
+          <div class="form-group">
+            <label for="addPlayerName">Nome do Jogador</label>
+            <input type="text" id="addPlayerName" name="playerName" readonly>
+          </div>
+          <button type="button" onclick="closeAddCartelasModal()">Cancelar</button>
+          <button type="submit">Adicionar</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Jogadores e Links</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Telefone</th>
+            <th>Cartelas</th>
+            <th>Link</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="playersTable">
+          <% players.forEach(player => { %>
+            <tr>
+              <td><%= player.playerName || '-' %></td>
+              <td><%= player.phoneNumber || '-' %></td>
+              <td><%= player.cartelaIds.join(', ') || '-' %></td>
+              <td><a href="<%= player.link %>" target="_blank">Ver Cartelas</a></td>
+              <td>
+                <button onclick="copyToClipboard('<%= player.link %>')">Copiar</button>
+                <button onclick="showAddCartelasModal('<%= player.playerName %>')">Adicionar Cartelas</button>
               </td>
             </tr>
           <% }) %>
-        <% } else { %>
+          <% if (players.length === 0) { %>
+            <tr>
+              <td colspan="5">Nenhum jogador registrado</td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section sticky-winners">
+      <h2>Vencedores</h2>
+      <table>
+        <thead>
           <tr>
-            <td colspan="5" class="text-center py-2">Nenhum jogador cadastrado</td>
+            <th>Nome</th>
+            <th>Telefone</th>
+            <th>Cartela</th>
+            <th>Prêmio</th>
+            <th>Link</th>
           </tr>
-        <% } %>
-      </tbody>
-    </table>
+        </thead>
+        <tbody id="winnersTable">
+          <% winners.forEach(winner => { %>
+            <tr>
+              <td><%= winner.playerName || '-' %></td>
+              <td><%= winner.phoneNumber || '-' %></td>
+              <td><%= winner.cartelaId %></td>
+              <td><%= winner.prize || '-' %></td>
+              <td><a href="<%= winner.link %>" target="_blank">Ver</a></td>
+            </tr>
+          <% }) %>
+          <% if (winners.length === 0) { %>
+            <tr>
+              <td colspan="5">Nenhum vencedor</td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
   </div>
 
-  <!-- Vencedores -->
-  <div class="mb-6">
-    <h2 class="text-xl font-semibold">Vencedores</h2>
-    <ul class="list-disc ml-6">
-      <% if (winners && winners.length > 0) { %>
-        <% winners.forEach(w => { %>
-          <li>
-            <strong><%= w.playerName %></strong> - Cartela: <%= w.cartelaId %> - Prêmio: <%= w.prize %>
-          </li>
-        <% }) %>
-      <% } else { %>
-        <li>Nenhum vencedor registrado</li>
-      <% } %>
-    </ul>
-  </div>
+  <script>
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        alert('Link copiado para a área de transferência!');
+      }).catch(err => {
+        console.error('Erro ao copiar link:', err);
+        alert('Erro ao copiar o link');
+      });
+    }
 
-  <!-- Reset do jogo -->
-  <div>
-    <h2 class="text-xl font-semibold">Resetar Jogo</h2>
-    <form action="/reset" method="POST" class="flex gap-2">
-      <input type="password" name="password" placeholder="Senha" class="text-black px-2 py-1 rounded">
-      <button type="submit" class="bg-red-600 px-4 py-1 rounded">Resetar</button>
-    </form>
-  </div>
+    function showAddCartelasModal(playerName) {
+      document.getElementById('addPlayerName').value = playerName;
+      document.getElementById('addCartelasModal').style.display = 'block';
+    }
 
+    function closeAddCartelasModal() {
+      document.getElementById('addCartelasModal').style.display = 'none';
+    }
+
+    function submitForm(formId, url, reload = false) {
+      const form = document.getElementById(formId);
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+          const formData = new FormData(form);
+          let data = Object.fromEntries(formData);
+          if (['resetForm', 'deleteAllForm', 'deleteByPhoneForm'].includes(formId)) {
+            const password = prompt('Digite a senha:');
+            if (!password) return;
+            data.password = password;
+          }
+          const response = await fetch(url, {
+            method: 'POST',
+            body: JSON.stringify(data),
+            headers: { 'Content-Type': 'application/json' }
+          });
+          const result = await response.json();
+          if (result.error) {
+            alert(result.error);
+          } else if (formId === 'assignCartelasForm' || formId === 'addCartelasForm') {
+            alert(`Cartelas ${result.assigned.join(', ')} atribuídas a ${result.playerName}. Link: ${result.link}`);
+            if (reload) location.href = '/admin';
+          } else {
+            if (reload) location.href = '/admin';
+            else alert('Ação realizada com sucesso!');
+          }
+        } catch (err) {
+          console.error(`Erro no ${formId}:`, err);
+          alert(`Erro ao executar a ação: ${err.message}`);
+        }
+      });
+    }
+
+    submitForm('drawForm', '/draw');
+    submitForm('markNumberForm', '/mark-number');
+    submitForm('updatePrizeForm', '/update-prize');
+    submitForm('resetForm', '/reset', true);
+    submitForm('deleteAllForm', '/delete-all', true);
+    submitForm('deleteByPhoneForm', '/delete-by-phone', true);
+    submitForm('assignCartelasForm', '/assign-cartelas');
+    submitForm('addCartelasForm', '/assign-cartelas', true);
+
+    // WebSocket para atualizações em tempo real
+    try {
+      const ws = new WebSocket('wss://' + window.location.host);
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'update') {
+            document.getElementById('lastNumber').textContent = data.game.lastNumberDisplay || '--';
+            document.getElementById('numbersB').textContent = data.game.drawnNumbers ? data.game.drawnNumbers.filter(n => n >= 1 && n <= 15).join(', ') || '--' : '--';
+            document.getElementById('numbersI').textContent = data.game.drawnNumbers ? data.game.drawnNumbers.filter(n => n >= 16 && n <= 30).join(', ') || '--' : '--';
+            document.getElementById('numbersN').textContent = data.game.drawnNumbers ? data.game.drawnNumbers.filter(n => n >= 31 && n <= 45).join(', ') || '--' : '--';
+            document.getElementById('numbersG').textContent = data.game.drawnNumbers ? data.game.drawnNumbers.filter(n => n >= 46 && n <= 60).join(', ') || '--' : '--';
+            document.getElementById('numbersO').textContent = data.game.drawnNumbers ? data.game.drawnNumbers.filter(n => n >= 61 && n <= 75).join(', ') || '--' : '--';
+            document.getElementById('currentPrize').value = data.game.currentPrize || '';
+            // Atualizar tabelas dinamicamente
+            fetch('/admin/data').then(res => res.json()).then(data => {
+              const winnersTable = document.getElementById('winnersTable');
+              winnersTable.innerHTML = data.winners.length > 0
+                ? data.winners.map(winner => `
+                    <tr>
+                      <td>${winner.playerName || '-'}</td>
+                      <td>${winner.phoneNumber || '-'}</td>
+                      <td>${winner.cartelaId}</td>
+                      <td>${winner.prize || '-'}</td>
+                      <td><a href="${winner.link}" target="_blank">Ver</a></td>
+                    </tr>
+                  `).join('')
+                : '<tr><td colspan="5">Nenhum vencedor</td></tr>';
+              const playersTable = document.getElementById('playersTable');
+              playersTable.innerHTML = data.players.length > 0
+                ? data.players.map(player => `
+                    <tr>
+                      <td>${player.playerName || '-'}</td>
+                      <td>${player.phoneNumber || '-'}</td>
+                      <td>${player.cartelaIds.join(', ') || '-'}</td>
+                      <td><a href="${player.link}" target="_blank">Ver Cartelas</a></td>
+                      <td>
+                        <button onclick="copyToClipboard('${player.link}')">Copiar</button>
+                        <button onclick="showAddCartelasModal('${player.playerName}')">Adicionar Cartelas</button>
+                      </td>
+                    </tr>
+                  `).join('')
+                : '<tr><td colspan="5">Nenhum jogador registrado</td></tr>';
+              // Exibir mensagem para vencedores
+              if (data.winners.length > 0) {
+                data.winners.forEach(winner => {
+                  if (winner.playerName && winner.playerName !== 'FIXAS') {
+                    alert(`Parabéns, ${winner.playerName}! Sua cartela ${winner.cartelaId} completou todos os números e é a vencedora! Prêmio: ${winner.prize || 'Não especificado'}`);
+                  }
+                });
+              }
+            }).catch(err => {
+              console.error('Erro ao atualizar tabelas:', err);
+            });
+          }
+        } catch (err) {
+          console.error('Erro ao processar mensagem WebSocket:', err);
+        }
+      };
+      ws.onerror = (err) => {
+        console.error('Erro na conexão WebSocket:', err);
+      };
+      ws.onclose = () => {
+        console.log('Conexão WebSocket fechada, tentando reconectar...');
+        setTimeout(() => location.reload(), 5000);
+      };
+    } catch (err) {
+      console.error('Erro ao inicializar WebSocket:', err);
+    }
+  </script>
 </body>
 </html>
