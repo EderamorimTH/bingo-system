@@ -1,189 +1,204 @@
-const express = require('express');
-const path = require('path');
-const mongoose = require('mongoose');
-const bodyParser = require('body-parser');
-const session = require('express-session');
-const cookieParser = require('cookie-parser');
-const { WebSocketServer } = require('ws');
-require('dotenv').config();
+const express = require("express");
+const session = require("express-session");
+const bodyParser = require("body-parser");
+const mongoose = require("mongoose");
+const cookieParser = require("cookie-parser");
+const http = require("http");
+const { Server } = require("socket.io");
+require("dotenv").config();
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
 
-// ===== CONFIGURAÇÕES =====
-const PORT = process.env.PORT || 10000;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '123456';
-const MONGODB_URI = process.env.MONGODB_URI;
+app.set("view engine", "ejs");
+app.set("views", __dirname + "/views");
+app.use(express.static("public"));
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cookieParser());
+app.use(
+  session({
+    secret: "bingo-secret",
+    resave: false,
+    saveUninitialized: true,
+  })
+);
 
-// ===== MONGODB =====
-mongoose.connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log('Conectado ao MongoDB'))
-  .catch(err => console.error('Erro ao conectar MongoDB:', err));
+// ====== MongoDB Models ======
+mongoose
+  .connect(process.env.MONGO_URI || "mongodb://127.0.0.1:27017/bingo", {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
+  .then(() => console.log("Conectado ao MongoDB"))
+  .catch((err) => console.error("Erro MongoDB:", err));
 
-// ===== MODELOS =====
 const cartelaSchema = new mongoose.Schema({
   cartelaId: Number,
   numeros: [Number],
   dono: String,
   telefone: String,
-  link: String
 });
-const Cartela = mongoose.model('Cartela', cartelaSchema);
 
 const gameSchema = new mongoose.Schema({
-  drawnNumbers: [Number],
   lastNumber: Number,
-  currentPrize: String
-});
-const Game = mongoose.model('Game', gameSchema);
-
-const winnerSchema = new mongoose.Schema({
-  playerName: String,
-  phoneNumber: String,
-  cartelaId: Number,
-  prize: String,
-  link: String
-});
-const Winner = mongoose.model('Winner', winnerSchema);
-
-// ===== MIDDLEWARE =====
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(bodyParser.json());
-app.use(cookieParser());
-app.use(session({ secret: 'bingo-secret', resave: false, saveUninitialized: false }));
-
-// ===== AUTENTICAÇÃO =====
-function isAuthenticated(req, res, next) {
-  if (req.session && req.session.authenticated) return next();
-  res.redirect('/login');
-}
-
-app.get('/login', (req, res) => {
-  res.send(`
-    <form method="post" action="/login">
-      <input type="password" name="password" placeholder="Senha"/>
-      <button type="submit">Entrar</button>
-    </form>
-  `);
+  drawnNumbers: [Number],
+  currentPrize: String,
 });
 
-app.post('/login', bodyParser.urlencoded({ extended: true }), (req, res) => {
-  if (req.body.password === ADMIN_PASSWORD) {
-    req.session.authenticated = true;
-    res.redirect('/admin');
+const Cartela = mongoose.model("Cartela", cartelaSchema);
+const Game = mongoose.model("Game", gameSchema);
+
+// ====== Estado do jogo ======
+let game = {
+  lastNumber: null,
+  drawnNumbers: [],
+  currentPrize: "",
+};
+
+// Carregar estado inicial
+(async () => {
+  const savedGame = await Game.findOne();
+  if (savedGame) {
+    game = savedGame.toObject();
   } else {
-    res.send('Senha incorreta');
+    await Game.create(game);
   }
+})();
+
+// ====== Rotas ======
+app.get("/", (req, res) => {
+  res.send("Servidor Bingo rodando 🚀");
 });
 
-// ===== ROTAS PRINCIPAIS =====
-app.get('/admin', isAuthenticated, async (req, res) => {
-  const game = await Game.findOne() || {};
-  const winners = await Winner.find();
-  res.render('admin', { game, winners, error: null });
+// Painel do Admin
+app.get("/admin", async (req, res) => {
+  const players = await Cartela.aggregate([
+    {
+      $group: {
+        _id: "$dono",
+        telefone: { $first: "$telefone" },
+        cartelas: { $push: "$cartelaId" },
+      },
+    },
+  ]);
+  res.render("admin", { game, players });
 });
 
-app.get('/display', async (req, res) => {
-  const game = await Game.findOne() || {};
-  res.render('display', { game });
-});
+// Cartelas por jogador
+app.get("/cartelas", async (req, res) => {
+  try {
+    const { playerName } = req.query;
+    if (!playerName) return res.status(400).send("Jogador não especificado");
 
-app.get('/sorteador', async (req, res) => {
-  const game = await Game.findOne() || {};
-  res.render('sorteador', { game });
-});
-
-app.get('/cartelas-fixas', async (req, res) => {
-  const cartelas = await Cartela.find();
-  res.render('cartelas', { cartelas });
-});
-
-// ===== ENDPOINTS =====
-app.post('/assign-cartelas', async (req, res) => {
-  const { cartelaNumbers, playerName, phoneNumber } = req.body;
-  if (!cartelaNumbers || !playerName) {
-    return res.json({ error: 'Dados inválidos' });
-  }
-
-  const numbers = cartelaNumbers.split(',').map(n => parseInt(n.trim()));
-  for (let id of numbers) {
-    const existente = await Cartela.findOne({ cartelaId: id, dono: { $ne: null } });
-    if (existente) {
-      return res.json({ error: `Cartela ${id} já atribuída para ${existente.dono}` });
+    const cartelas = await Cartela.find({ dono: playerName });
+    if (!cartelas || cartelas.length === 0) {
+      return res.status(404).send("Nenhuma cartela encontrada para este jogador");
     }
-  }
 
-  for (let id of numbers) {
-    const link = `${req.protocol}://${req.get('host')}/cartelas?playerName=${encodeURIComponent(playerName)}`;
-    await Cartela.updateOne(
-      { cartelaId: id },
-      { dono: playerName, telefone: phoneNumber, link },
-      { upsert: true }
+    res.render("cartelas", {
+      playerName,
+      phoneNumber: cartelas[0].telefone,
+      cartelas,
+      game,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Erro ao carregar cartelas");
+  }
+});
+
+// Display público
+app.get("/display", (req, res) => {
+  res.render("display", { game });
+});
+
+// Sorteador
+app.get("/sorteador", (req, res) => {
+  res.render("sorteador", { game });
+});
+
+// ====== Ações do jogo ======
+
+// Sortear número
+app.post("/sortear", async (req, res) => {
+  const { numero } = req.body;
+  let num;
+
+  if (numero) {
+    num = parseInt(numero);
+    if (isNaN(num) || num < 1 || num > 75) {
+      return res.status(400).send("Número inválido");
+    }
+  } else {
+    const disponiveis = Array.from({ length: 75 }, (_, i) => i + 1).filter(
+      (n) => !game.drawnNumbers.includes(n)
     );
+    if (disponiveis.length === 0) {
+      return res.status(400).send("Todos os números já foram sorteados");
+    }
+    num = disponiveis[Math.floor(Math.random() * disponiveis.length)];
   }
 
-  res.json({ success: true });
+  game.lastNumber = num;
+  game.drawnNumbers.push(num);
+  await Game.updateOne({}, game, { upsert: true });
+
+  io.emit("updateGame", game);
+  res.redirect("/sorteador");
 });
 
-app.post('/update-prize', async (req, res) => {
-  let game = await Game.findOne();
-  if (!game) game = new Game();
-  game.currentPrize = req.body.currentPrize;
-  await game.save();
-  broadcast({ type: 'update', game });
-  res.json({ success: true });
+// Atualizar prêmio atual
+app.post("/premio", async (req, res) => {
+  game.currentPrize = req.body.premio;
+  await Game.updateOne({}, game, { upsert: true });
+
+  io.emit("updateGame", game);
+  res.redirect("/admin");
 });
 
-app.post('/draw', async (req, res) => {
-  let game = await Game.findOne();
-  if (!game) game = new Game({ drawnNumbers: [] });
-
-  let numero;
-  do {
-    numero = Math.floor(Math.random() * 75) + 1;
-  } while (game.drawnNumbers.includes(numero));
-
-  game.drawnNumbers.push(numero);
-  game.lastNumber = numero;
-  await game.save();
-
-  broadcast({ type: 'update', game });
-  res.json({ numero });
-});
-
-app.post('/mark-number', async (req, res) => {
-  const { number, password } = req.body;
-  if (password !== ADMIN_PASSWORD) return res.json({ error: 'Senha incorreta' });
-
-  let game = await Game.findOne();
-  if (!game) game = new Game({ drawnNumbers: [] });
-
-  if (!game.drawnNumbers.includes(number)) {
-    game.drawnNumbers.push(number);
-    game.lastNumber = number;
-    await game.save();
-    broadcast({ type: 'update', game });
-  }
-  res.json({ success: true });
-});
-
-app.post('/reset', async (req, res) => {
-  const { password } = req.body;
-  if (password !== ADMIN_PASSWORD) return res.json({ error: 'Senha incorreta' });
-
+// Resetar jogo
+app.post("/reset", async (req, res) => {
+  game = { lastNumber: null, drawnNumbers: [], currentPrize: "" };
   await Game.deleteMany({});
-  await Winner.deleteMany({});
-  broadcast({ type: 'update', game: {} });
-  res.json({ success: true });
+  await Game.create(game);
+
+  io.emit("updateGame", game);
+  res.redirect("/admin");
 });
 
-// ===== WEBSOCKET =====
-const server = app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
-const wss = new WebSocketServer({ server });
+// Atribuir cartela
+app.post("/atribuir", async (req, res) => {
+  const { cartelaId, dono, telefone } = req.body;
+  const cartela = await Cartela.findOne({ cartelaId });
 
-function broadcast(data) {
-  wss.clients.forEach(client => {
-    if (client.readyState === 1) client.send(JSON.stringify(data));
+  if (!cartela) return res.status(404).send("Cartela não encontrada");
+  if (cartela.dono) {
+    return res
+      .status(400)
+      .send(`Cartela já atribuída para ${cartela.dono}`);
+  }
+
+  cartela.dono = dono;
+  cartela.telefone = telefone;
+  await cartela.save();
+
+  io.emit("updateGame", game);
+  res.redirect("/admin");
+});
+
+// ====== Socket.IO ======
+io.on("connection", (socket) => {
+  console.log("Novo cliente conectado");
+  socket.emit("updateGame", game);
+
+  socket.on("disconnect", () => {
+    console.log("Cliente desconectado");
   });
-}
+});
+
+// ====== Servidor ======
+const PORT = process.env.PORT || 10000;
+server.listen(PORT, () => {
+  console.log(`Servidor rodando na porta ${PORT}`);
+});
