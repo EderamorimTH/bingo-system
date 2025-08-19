@@ -2,120 +2,45 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cartelas do Bingo</title>
+  <title>Cartelas - <%= playerName %></title>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css">
-  <style>
-    body { background: linear-gradient(135deg, #34d399, #3b82f6); font-family: Arial, sans-serif; }
-    .cartela-container { background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); padding: 1.5rem; margin-bottom: 2rem; }
-    .cartela-table { border-collapse: separate; border-spacing: 0; width: 100%; }
-    .cartela-table th { background: #10b981; color: white; padding: 0.75rem; font-size: 1.25rem; }
-    .cartela-table td { background: #f3f4f6; border: 2px solid #e5e7eb; padding: 0.75rem; font-size: 1.1rem; font-weight: bold; transition: background 0.3s; }
-    .cartela-table td.marked { background: #facc15; color: #1f2937; }
-    .cartela-table td.free { background: #60a5fa; color: white; }
-    .highlight-box { background: rgba(255,255,255,0.9); border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); padding: 1.5rem; margin-bottom: 1.5rem; }
-  </style>
 </head>
-<body class="flex items-center justify-center min-h-screen">
-  <div class="w-full max-w-5xl p-6">
-    <h1 class="text-4xl font-bold text-center mb-6 text-white drop-shadow-lg"><%= playerName %></h1>
+<body class="bg-gray-900 text-white min-h-screen p-6">
 
-    <!-- Último Número Sorteado -->
-    <div class="highlight-box">
-      <h2 class="text-2xl font-semibold text-center text-gray-700">Último Número Sorteado</h2>
-      <p id="lastNumber" class="text-5xl font-bold text-center text-red-600">--</p>
-    </div>
+  <h1 class="text-3xl font-bold text-center mb-6">Cartelas de <%= playerName %></h1>
+  <p class="text-center mb-6">Telefone: <%= phoneNumber || "Não informado" %></p>
 
-    <!-- Prêmio Atual (substitui os "Últimos 5 números") -->
-    <div class="highlight-box">
-      <h2 class="text-2xl font-semibold text-center text-gray-700">Prêmio Atual</h2>
-      <p id="currentPrize" class="text-2xl text-center text-gray-900">--</p>
-    </div>
+  <!-- Último número sorteado -->
+  <div class="text-center mb-4">
+    <h2 class="text-xl font-semibold">Último Número Sorteado:</h2>
+    <p class="text-2xl"><%= game.lastNumber || "--" %></p>
+  </div>
 
-    <% cartelas.forEach((cartela, index) => { %>
-      <div class="cartela-container">
-        <h2 class="text-xl font-semibold mb-2 text-gray-700">Cartela <%= index + 1 %> (ID: <%= cartela.cartelaId %>)</h2>
-        <div id="winnerMessage-<%= cartela.cartelaId %>" class="text-2xl font-bold text-center text-green-600 hidden mb-4">🎉 Parabéns! Esta cartela venceu!</div>
-        <table class="cartela-table" id="table-<%= cartela.cartelaId %>">
-          <thead>
-            <tr>
-              <th>B</th><th>I</th><th>N</th><th>G</th><th>O</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% for (let row = 0; row < 5; row++) { %>
-              <tr>
-                <% for (let col = 0; col < 5; col++) { %>
-                  <td class="<%= cartela.numbers[col][row] === 0 ? 'free' : (cartela.markedNumbers.includes(cartela.numbers[col][row]) ? 'marked' : '') %> text-center">
-                    <%= cartela.numbers[col][row] === 0 ? 'X' : cartela.numbers[col][row] %>
-                  </td>
-                <% } %>
-              </tr>
+  <!-- Prêmio Atual -->
+  <div class="text-center mb-6">
+    <h2 class="text-xl font-semibold">Prêmio Atual:</h2>
+    <p class="text-2xl"><%= game.currentPrize || "Nenhum definido" %></p>
+  </div>
+
+  <!-- Cartelas do jogador -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <% cartelas.forEach(c => { %>
+      <div class="bg-gray-800 p-4 rounded-lg shadow-lg">
+        <h3 class="text-lg font-semibold mb-2">Cartela <%= c.cartelaId %></h3>
+        <div class="grid grid-cols-5 gap-2">
+          <% c.numeros.forEach(n => { %>
+            <% if (game.drawnNumbers && game.drawnNumbers.includes(n)) { %>
+              <!-- Número já sorteado (mantém cor original, só destaca com borda e negrito) -->
+              <div class="bg-gray-700 text-center py-2 rounded border-2 border-yellow-400 font-bold"><%= n %></div>
+            <% } else { %>
+              <!-- Número ainda não sorteado (igual ao original) -->
+              <div class="bg-gray-700 text-center py-2 rounded"><%= n %></div>
             <% } %>
-          </tbody>
-        </table>
+          <% }) %>
+        </div>
       </div>
     <% }) %>
   </div>
 
-  <script>
-    const cartelasData = <%- JSON.stringify(cartelas) %>;
-    const winners = <%- JSON.stringify(winners) %>;
-
-    const ws = new WebSocket('wss://' + window.location.host);
-    ws.onmessage = e => {
-      const data = JSON.parse(e.data);
-      if (data.type === 'update') updateUI(data.game, (data.winners || []).map(w => w.cartelaId));
-    };
-
-    function updateUI(game, winnerIds) {
-      document.getElementById('lastNumber').textContent = game.lastNumber ? getLetterNumber(game.lastNumber) : '--';
-      document.getElementById('currentPrize').textContent = game.currentPrize && game.currentPrize.trim() ? game.currentPrize : '--';
-
-      cartelasData.forEach(cartela => {
-        const winnerMsg = document.getElementById(`winnerMessage-${cartela.cartelaId}`);
-        if (winnerMsg) {
-          if (winnerIds && winnerIds.includes(cartela.cartelaId)) winnerMsg.classList.remove('hidden');
-          else winnerMsg.classList.add('hidden');
-        }
-
-        const table = document.getElementById(`table-${cartela.cartelaId}`);
-        if (!table) return;
-
-        for (let row = 0; row < 5; row++) {
-          for (let col = 0; col < 5; col++) {
-            const num = cartela.numbers[col][row];
-            const cell = table.rows[row + 1].cells[col];
-            if (num === 0) {
-              cell.className = 'free text-center';
-              cell.textContent = 'X';
-            } else if (game.drawnNumbers.includes(num)) {
-              cell.className = 'marked text-center';
-              cell.textContent = num;
-            } else {
-              cell.className = 'text-center';
-              cell.textContent = num;
-            }
-          }
-        }
-      });
-    }
-
-    function getLetterNumber(number) {
-      if (number >= 1 && number <= 15) return `B-${number}`;
-      if (number >= 16 && number <= 30) return `I-${number}`;
-      if (number >= 31 && number <= 45) return `N-${number}`;
-      if (number >= 46 && number <= 60) return `G-${number}`;
-      if (number >= 61 && number <= 75) return `O-${number}`;
-      return number;
-    }
-
-    // Carrega estado inicial
-    fetch('/game').then(res => res.json()).then(game => {
-      const initialWinnerIds = winners.map(w => w.cartelaId);
-      updateUI(game, initialWinnerIds);
-    });
-  </script>
 </body>
 </html>
