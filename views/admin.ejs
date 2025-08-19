@@ -24,16 +24,11 @@
     .modal-content { background: white; padding: 20px; border-radius: 5px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
     .modal-content button { margin: 10px; }
     .sticky-winners { position: sticky; top: 0; background: white; z-index: 100; }
-    #winnerAlert { display: none; background: #16a34a; color: white; padding: 10px; font-weight: bold; text-align: center; border-radius: 4px; margin-bottom: 15px; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>Painel de Administração</h1>
-
-    <!-- ALERTA DE CARTELA VENCEDORA -->
-    <div id="winnerAlert">🎉 Temos uma cartela vencedora! Verifique na tabela de vencedores! 🎉</div>
-
     <% if (error) { %>
       <div class="error"><%= error %></div>
     <% } %>
@@ -73,12 +68,6 @@
         </div>
         <button type="submit">Atualizar Prêmio</button>
       </form>
-    </div>
-
-    <!-- BOTÃO DE EXPORTAÇÃO DE CARTELAS -->
-    <div class="section">
-      <h2>Exportar IDs e Números</h2>
-      <a href="/export-cartelas" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded shadow">Baixar CSV</a>
     </div>
 
     <div class="section">
@@ -125,7 +114,6 @@
       </form>
     </div>
 
-    <!-- Modal para adicionar cartelas -->
     <div id="addCartelasModal" class="modal" style="display: none;">
       <div class="modal-content">
         <h2>Adicionar Mais Cartelas</h2>
@@ -254,6 +242,7 @@
             if (reload) location.href = '/admin';
           } else {
             if (reload) location.href = '/admin';
+            else alert('Ação realizada com sucesso!');
           }
         } catch (err) {
           console.error(`Erro no ${formId}:`, err);
@@ -271,7 +260,7 @@
     submitForm('assignCartelasForm', '/assign-cartelas');
     submitForm('addCartelasForm', '/assign-cartelas', true);
 
-    // WebSocket para atualizações
+    // WebSocket para atualizações em tempo real
     try {
       const ws = new WebSocket('wss://' + window.location.host);
       ws.onmessage = (event) => {
@@ -285,7 +274,7 @@
             document.getElementById('numbersG').textContent = data.game.drawnNumbers ? data.game.drawnNumbers.filter(n => n >= 46 && n <= 60).join(', ') || '--' : '--';
             document.getElementById('numbersO').textContent = data.game.drawnNumbers ? data.game.drawnNumbers.filter(n => n >= 61 && n <= 75).join(', ') || '--' : '--';
             document.getElementById('currentPrize').value = data.game.currentPrize || '';
-            // Atualiza tabelas
+            // Atualizar tabelas dinamicamente
             fetch('/admin/data').then(res => res.json()).then(data => {
               const winnersTable = document.getElementById('winnersTable');
               winnersTable.innerHTML = data.winners.length > 0
@@ -309,4 +298,37 @@
                       <td><a href="${player.link}" target="_blank">Ver Cartelas</a></td>
                       <td>
                         <button onclick="copyToClipboard('${player.link}')">Copiar</button>
-                        <button onclick="showAddCartelasModal('${player.playerName}')">Adicionar
+                        <button onclick="showAddCartelasModal('${player.playerName}')">Adicionar Cartelas</button>
+                      </td>
+                    </tr>
+                  `).join('')
+                : '<tr><td colspan="5">Nenhum jogador registrado</td></tr>';
+              // Exibir mensagem para vencedores
+              if (data.winners.length > 0) {
+                data.winners.forEach(winner => {
+                  if (winner.playerName && winner.playerName !== 'FIXAS') {
+                    alert(`Parabéns, ${winner.playerName}! Sua cartela ${winner.cartelaId} completou todos os números e é a vencedora! Prêmio: ${winner.prize || 'Não especificado'}`);
+                  }
+                });
+              }
+            }).catch(err => {
+              console.error('Erro ao atualizar tabelas:', err);
+            });
+          }
+        } catch (err) {
+          console.error('Erro ao processar mensagem WebSocket:', err);
+        }
+      };
+      ws.onerror = (err) => {
+        console.error('Erro na conexão WebSocket:', err);
+      };
+      ws.onclose = () => {
+        console.log('Conexão WebSocket fechada, tentando reconectar...');
+        setTimeout(() => location.reload(), 5000);
+      };
+    } catch (err) {
+      console.error('Erro ao inicializar WebSocket:', err);
+    }
+  </script>
+</body>
+</html>
