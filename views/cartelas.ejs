@@ -27,10 +27,10 @@
       <p id="lastNumber" class="text-5xl font-bold text-center text-red-600">--</p>
     </div>
 
-    <!-- Últimos 5 Números -->
+    <!-- Prêmio Atual -->
     <div class="highlight-box">
-      <h2 class="text-2xl font-semibold text-center text-gray-700">Últimos 5 Números Sorteados</h2>
-      <p id="drawnNumbers" class="text-xl text-center text-gray-800">--</p>
+      <h2 class="text-2xl font-semibold text-center text-gray-700">Prêmio Atual</h2>
+      <p id="currentPrize" class="text-2xl text-center text-gray-900">--</p>
     </div>
 
     <% cartelas.forEach((cartela, index) => { %>
@@ -62,8 +62,8 @@
   <script>
     const cartelasData = <%- JSON.stringify(cartelas) %>;
     const winners = <%- JSON.stringify(winners) %>;
-
     const ws = new WebSocket('wss://' + window.location.host);
+
     ws.onmessage = e => {
       const data = JSON.parse(e.data);
       if (data.type === 'update') updateUI(data.game, data.winners || []);
@@ -71,8 +71,7 @@
 
     function updateUI(game, winners) {
       document.getElementById('lastNumber').textContent = game.lastNumber ? getLetterNumber(game.lastNumber) : '--';
-      const lastFive = game.drawnNumbers.slice(-5).reverse();
-      document.getElementById('drawnNumbers').textContent = lastFive.length ? lastFive.map(n => getLetterNumber(n)).join(', ') : '--';
+      document.getElementById('currentPrize').textContent = game.currentPrize && game.currentPrize.trim() ? game.currentPrize : '--';
 
       cartelasData.forEach(cartela => {
         const winnerMsg = document.getElementById(`winnerMessage-${cartela.cartelaId}`);
