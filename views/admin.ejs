@@ -4,331 +4,119 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Painel de Administração</title>
-  <link rel="stylesheet" href="/css/style.css">
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
   <style>
-    body { font-family: Arial, sans-serif; background-color: #f4f4f4; }
-    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-    .section { margin-bottom: 20px; background: white; padding: 15px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    .form-group { margin-bottom: 10px; }
-    .form-group label { display: block; font-weight: bold; }
-    .form-group input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-    th { background-color: #f2f2f2; }
-    button { padding: 8px 16px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
-    button:hover { background-color: #45a049; }
-    a { color: #0066cc; text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    .error { color: red; margin-bottom: 20px; }
-    .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; }
-    .modal-content { background: white; padding: 20px; border-radius: 5px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-    .modal-content button { margin: 10px; }
-    .sticky-winners { position: sticky; top: 0; background: white; z-index: 100; }
+    body { background: #f1f5f9; font-family: Arial, sans-serif; }
+    .highlight-box { background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); padding: 1.5rem; margin-bottom: 1.5rem; }
   </style>
 </head>
-<body>
-  <div class="container">
-    <h1>Painel de Administração</h1>
-    <% if (error) { %>
-      <div class="error"><%= error %></div>
-    <% } %>
+<body class="flex items-center justify-center min-h-screen">
+  <div class="w-full max-w-4xl p-6">
+    <h1 class="text-3xl font-bold text-center mb-6">Painel de Administração</h1>
 
-    <div class="section">
-      <h2>Links Fixos</h2>
-      <p><a href="/display">Exibição Pública</a></p>
-      <p><a href="/sorteador">Sorteador Público</a></p>
-      <p><a href="/cartelas-fixas">Todas as 500 Cartelas</a></p>
-    </div>
-
-    <div class="section">
-      <h2>Atribuir Cartelas</h2>
-      <form id="assignCartelasForm">
-        <div class="form-group">
-          <label for="cartelaNumbers">Números das Cartelas (separados por vírgula)</label>
-          <input type="text" id="cartelaNumbers" name="cartelaNumbers" required>
-        </div>
-        <div class="form-group">
-          <label for="playerName">Nome do Jogador</label>
-          <input type="text" id="playerName" name="playerName" required>
-        </div>
-        <div class="form-group">
-          <label for="phoneNumber">Número de Telefone</label>
-          <input type="text" id="phoneNumber" name="phoneNumber">
-        </div>
-        <button type="submit">Atribuir</button>
+    <!-- Prêmio Atual -->
+    <div class="highlight-box">
+      <h2 class="text-xl font-semibold mb-2">Definir Prêmio Atual</h2>
+      <form id="prizeForm">
+        <input id="prizeInput" type="text" name="currentPrize" placeholder="Digite o prêmio atual" class="border p-2 rounded w-full" />
+        <button class="mt-3 bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded" type="submit">Salvar Prêmio</button>
       </form>
     </div>
 
-    <div class="section">
-      <h2>Atualizar Prêmio Atual</h2>
-      <form id="updatePrizeForm">
-        <div class="form-group">
-          <label for="currentPrize">Prêmio Atual</label>
-          <input type="text" id="currentPrize" name="currentPrize" value="<%= game.currentPrize || '' %>">
-        </div>
-        <button type="submit">Atualizar Prêmio</button>
-      </form>
+    <!-- Botão para Exportar Cartelas -->
+    <div class="highlight-box text-center">
+      <h2 class="text-xl font-semibold mb-4">Exportar IDs e Números das Cartelas</h2>
+      <a href="/export-cartelas" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded shadow">Baixar CSV</a>
     </div>
 
-    <div class="section">
-      <h2>Último Número Sorteado</h2>
-      <p id="lastNumber"><%= game.lastNumberDisplay || '--' %></p>
+    <!-- Atribuir Cartelas -->
+    <div class="highlight-box">
+      <h2 class="text-xl font-semibold mb-2">Atribuir Cartelas a Jogador</h2>
+      <form id="assignForm">
+        <input name="playerName" placeholder="Nome do jogador" class="border p-2 rounded w-full mb-2" required />
+        <input name="phoneNumber" placeholder="Telefone (opcional)" class="border p-2 rounded w-full mb-2" />
+        <input name="cartelaNumbers" placeholder="Números das cartelas (ex: 1,2,3)" class="border p-2 rounded w-full mb-2" required />
+        <button class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded" type="submit">Atribuir Cartelas</button>
+      </form>
+      <div id="assignMessage" class="text-sm mt-2"></div>
     </div>
 
-    <div class="section">
-      <h2>Números Sorteados</h2>
-      <div id="drawnNumbers">
-        <p>B (1-15): <span id="numbersB"><%= game.drawnNumbers ? game.drawnNumbers.filter(n => n >= 1 && n <= 15).join(', ') || '--' : '--' %></span></p>
-        <p>I (16-30): <span id="numbersI"><%= game.drawnNumbers ? game.drawnNumbers.filter(n => n >= 16 && n <= 30).join(', ') || '--' : '--' %></span></p>
-        <p>N (31-45): <span id="numbersN"><%= game.drawnNumbers ? game.drawnNumbers.filter(n => n >= 31 && n <= 45).join(', ') || '--' : '--' %></span></p>
-        <p>G (46-60): <span id="numbersG"><%= game.drawnNumbers ? game.drawnNumbers.filter(n => n >= 46 && n <= 60).join(', ') || '--' : '--' %></span></p>
-        <p>O (61-75): <span id="numbersO"><%= game.drawnNumbers ? game.drawnNumbers.filter(n => n >= 61 && n <= 75).join(', ') || '--' : '--' %></span></p>
-      </div>
-      <form id="drawForm">
-        <button type="submit">Sortear Número (Automático)</button>
-      </form>
-      <form id="markNumberForm">
-        <div class="form-group">
-          <label for="number">Marcar Número Manual (1-75)</label>
-          <input type="number" id="number" name="number" min="1" max="75" required>
-        </div>
-        <div class="form-group">
-          <label for="password">Senha</label>
-          <input type="password" id="password" name="password" required>
-        </div>
-        <button type="submit">Marcar</button>
-      </form>
-    </div>
-
-    <div class="section">
-      <h2>Ações</h2>
-      <form id="resetForm" style="display:inline;">
-        <button type="submit">Reiniciar o Bingo</button>
-      </form>
-      <form id="deleteAllForm" style="display:inline;">
-        <button type="submit">Excluir Todas as Cartelas</button>
-      </form>
-      <form id="deleteByPhoneForm" style="display:inline;">
-        <input type="text" name="phoneNumber" placeholder="Número de Telefone" required>
-        <button type="submit">Excluir por Telefone</button>
-      </form>
-    </div>
-
-    <div id="addCartelasModal" class="modal" style="display: none;">
-      <div class="modal-content">
-        <h2>Adicionar Mais Cartelas</h2>
-        <form id="addCartelasForm">
-          <div class="form-group">
-            <label for="addCartelaNumbers">Números das Cartelas (separados por vírgula)</label>
-            <input type="text" id="addCartelaNumbers" name="cartelaNumbers" required>
-          </div>
-          <div class="form-group">
-            <label for="addPlayerName">Nome do Jogador</label>
-            <input type="text" id="addPlayerName" name="playerName" readonly>
-          </div>
-          <button type="button" onclick="closeAddCartelasModal()">Cancelar</button>
-          <button type="submit">Adicionar</button>
-        </form>
-      </div>
-    </div>
-
-    <div class="section">
-      <h2>Jogadores e Links</h2>
-      <table>
+    <!-- Lista de Vencedores -->
+    <div class="highlight-box">
+      <h2 class="text-xl font-semibold mb-2">Vencedores</h2>
+      <table class="w-full border-collapse">
         <thead>
-          <tr>
-            <th>Nome</th>
-            <th>Telefone</th>
-            <th>Cartelas</th>
-            <th>Link</th>
-            <th>Ações</th>
+          <tr class="bg-gray-200">
+            <th class="border p-2">Nome</th>
+            <th class="border p-2">Telefone</th>
+            <th class="border p-2">Cartela</th>
+            <th class="border p-2">Prêmio</th>
           </tr>
         </thead>
-        <tbody id="playersTable">
-          <% players.forEach(player => { %>
-            <tr>
-              <td><%= player.playerName || '-' %></td>
-              <td><%= player.phoneNumber || '-' %></td>
-              <td><%= player.cartelaIds.join(', ') || '-' %></td>
-              <td><a href="<%= player.link %>" target="_blank">Ver Cartelas</a></td>
-              <td>
-                <button onclick="copyToClipboard('<%= player.link %>')">Copiar</button>
-                <button onclick="showAddCartelasModal('<%= player.playerName %>')">Adicionar Cartelas</button>
-              </td>
-            </tr>
-          <% }) %>
-          <% if (players.length === 0) { %>
-            <tr>
-              <td colspan="5">Nenhum jogador registrado</td>
-            </tr>
-          <% } %>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="section sticky-winners">
-      <h2>Vencedores</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Nome</th>
-            <th>Telefone</th>
-            <th>Cartela</th>
-            <th>Prêmio</th>
-            <th>Link</th>
-          </tr>
-        </thead>
-        <tbody id="winnersTable">
-          <% winners.forEach(winner => { %>
-            <tr>
-              <td><%= winner.playerName || '-' %></td>
-              <td><%= winner.phoneNumber || '-' %></td>
-              <td><%= winner.cartelaId %></td>
-              <td><%= winner.prize || '-' %></td>
-              <td><a href="<%= winner.link %>" target="_blank">Ver</a></td>
-            </tr>
-          <% }) %>
-          <% if (winners.length === 0) { %>
-            <tr>
-              <td colspan="5">Nenhum vencedor</td>
-            </tr>
-          <% } %>
-        </tbody>
+        <tbody id="winnersTable"></tbody>
       </table>
     </div>
   </div>
 
   <script>
-    function copyToClipboard(text) {
-      navigator.clipboard.writeText(text).then(() => {
-        alert('Link copiado para a área de transferência!');
-      }).catch(err => {
-        console.error('Erro ao copiar link:', err);
-        alert('Erro ao copiar o link');
+    const assignForm = document.getElementById('assignForm');
+    const assignMessage = document.getElementById('assignMessage');
+
+    assignForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      assignMessage.textContent = 'Processando...';
+      const formData = new FormData(assignForm);
+      const body = Object.fromEntries(formData.entries());
+
+      const res = await fetch('/assign-cartelas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        assignMessage.textContent = `Cartelas atribuídas com sucesso: ${data.assigned.join(', ')}`;
+        assignMessage.className = 'text-green-600';
+      } else {
+        assignMessage.textContent = data.error || 'Erro ao atribuir cartelas';
+        assignMessage.className = 'text-red-600';
+      }
+    });
+
+    // Atualizar lista de vencedores
+    async function fetchWinners() {
+      const res = await fetch('/winners');
+      const winners = await res.json();
+      const table = document.getElementById('winnersTable');
+      table.innerHTML = '';
+      winners.forEach(w => {
+        const tel = w.phoneNumber ? w.phoneNumber.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-****") : '--';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="border p-2">${w.playerName}</td>
+          <td class="border p-2">${tel}</td>
+          <td class="border p-2">${w.cartelaId}</td>
+          <td class="border p-2">${w.prize || '--'}</td>
+        `;
+        table.appendChild(tr);
       });
     }
 
-    function showAddCartelasModal(playerName) {
-      document.getElementById('addPlayerName').value = playerName;
-      document.getElementById('addCartelasModal').style.display = 'block';
-    }
+    fetchWinners();
 
-    function closeAddCartelasModal() {
-      document.getElementById('addCartelasModal').style.display = 'none';
-    }
-
-    function submitForm(formId, url, reload = false) {
-      const form = document.getElementById(formId);
-      form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        try {
-          const formData = new FormData(form);
-          let data = Object.fromEntries(formData);
-          if (['resetForm', 'deleteAllForm', 'deleteByPhoneForm'].includes(formId)) {
-            const password = prompt('Digite a senha:');
-            if (!password) return;
-            data.password = password;
-          }
-          const response = await fetch(url, {
-            method: 'POST',
-            body: JSON.stringify(data),
-            headers: { 'Content-Type': 'application/json' }
-          });
-          const result = await response.json();
-          if (result.error) {
-            alert(result.error);
-          } else if (formId === 'assignCartelasForm' || formId === 'addCartelasForm') {
-            alert(`Cartelas ${result.assigned.join(', ')} atribuídas a ${result.playerName}. Link: ${result.link}`);
-            if (reload) location.href = '/admin';
-          } else {
-            if (reload) location.href = '/admin';
-            else alert('Ação realizada com sucesso!');
-          }
-        } catch (err) {
-          console.error(`Erro no ${formId}:`, err);
-          alert(`Erro ao executar a ação: ${err.message}`);
-        }
+    // Atualizar prêmio atual
+    const prizeForm = document.getElementById('prizeForm');
+    prizeForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      const prize = document.getElementById('prizeInput').value;
+      await fetch('/set-prize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPrize: prize })
       });
-    }
-
-    submitForm('drawForm', '/draw');
-    submitForm('markNumberForm', '/mark-number');
-    submitForm('updatePrizeForm', '/update-prize');
-    submitForm('resetForm', '/reset', true);
-    submitForm('deleteAllForm', '/delete-all', true);
-    submitForm('deleteByPhoneForm', '/delete-by-phone', true);
-    submitForm('assignCartelasForm', '/assign-cartelas');
-    submitForm('addCartelasForm', '/assign-cartelas', true);
-
-    // WebSocket para atualizações em tempo real
-    try {
-      const ws = new WebSocket('wss://' + window.location.host);
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === 'update') {
-            document.getElementById('lastNumber').textContent = data.game.lastNumberDisplay || '--';
-            document.getElementById('numbersB').textContent = data.game.drawnNumbers ? data.game.drawnNumbers.filter(n => n >= 1 && n <= 15).join(', ') || '--' : '--';
-            document.getElementById('numbersI').textContent = data.game.drawnNumbers ? data.game.drawnNumbers.filter(n => n >= 16 && n <= 30).join(', ') || '--' : '--';
-            document.getElementById('numbersN').textContent = data.game.drawnNumbers ? data.game.drawnNumbers.filter(n => n >= 31 && n <= 45).join(', ') || '--' : '--';
-            document.getElementById('numbersG').textContent = data.game.drawnNumbers ? data.game.drawnNumbers.filter(n => n >= 46 && n <= 60).join(', ') || '--' : '--';
-            document.getElementById('numbersO').textContent = data.game.drawnNumbers ? data.game.drawnNumbers.filter(n => n >= 61 && n <= 75).join(', ') || '--' : '--';
-            document.getElementById('currentPrize').value = data.game.currentPrize || '';
-            // Atualizar tabelas dinamicamente
-            fetch('/admin/data').then(res => res.json()).then(data => {
-              const winnersTable = document.getElementById('winnersTable');
-              winnersTable.innerHTML = data.winners.length > 0
-                ? data.winners.map(winner => `
-                    <tr>
-                      <td>${winner.playerName || '-'}</td>
-                      <td>${winner.phoneNumber || '-'}</td>
-                      <td>${winner.cartelaId}</td>
-                      <td>${winner.prize || '-'}</td>
-                      <td><a href="${winner.link}" target="_blank">Ver</a></td>
-                    </tr>
-                  `).join('')
-                : '<tr><td colspan="5">Nenhum vencedor</td></tr>';
-              const playersTable = document.getElementById('playersTable');
-              playersTable.innerHTML = data.players.length > 0
-                ? data.players.map(player => `
-                    <tr>
-                      <td>${player.playerName || '-'}</td>
-                      <td>${player.phoneNumber || '-'}</td>
-                      <td>${player.cartelaIds.join(', ') || '-'}</td>
-                      <td><a href="${player.link}" target="_blank">Ver Cartelas</a></td>
-                      <td>
-                        <button onclick="copyToClipboard('${player.link}')">Copiar</button>
-                        <button onclick="showAddCartelasModal('${player.playerName}')">Adicionar Cartelas</button>
-                      </td>
-                    </tr>
-                  `).join('')
-                : '<tr><td colspan="5">Nenhum jogador registrado</td></tr>';
-              // Exibir mensagem para vencedores
-              if (data.winners.length > 0) {
-                data.winners.forEach(winner => {
-                  if (winner.playerName && winner.playerName !== 'FIXAS') {
-                    alert(`Parabéns, ${winner.playerName}! Sua cartela ${winner.cartelaId} completou todos os números e é a vencedora! Prêmio: ${winner.prize || 'Não especificado'}`);
-                  }
-                });
-              }
-            }).catch(err => {
-              console.error('Erro ao atualizar tabelas:', err);
-            });
-          }
-        } catch (err) {
-          console.error('Erro ao processar mensagem WebSocket:', err);
-        }
-      };
-      ws.onerror = (err) => {
-        console.error('Erro na conexão WebSocket:', err);
-      };
-      ws.onclose = () => {
-        console.log('Conexão WebSocket fechada, tentando reconectar...');
-        setTimeout(() => location.reload(), 5000);
-      };
-    } catch (err) {
-      console.error('Erro ao inicializar WebSocket:', err);
-    }
+    });
   </script>
 </body>
 </html>
