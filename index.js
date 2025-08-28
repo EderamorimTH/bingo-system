@@ -1,3 +1,5 @@
+Vou te mandar o index js para voce ver 
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
@@ -22,7 +24,7 @@ const cartelaSchema = new mongoose.Schema({
   cartelaId: String,
   numbers: [[Number]]
 });
-const Cartela = mongoose.model('Cartela', cartelaSchema, 'cartelas'); // <-- força coleção "cartelas"
+const Cartela = mongoose.model('Cartela', cartelaSchema);
 
 const cartelaAtribuidaSchema = new mongoose.Schema({
   cartelaId: String,
@@ -32,8 +34,7 @@ const cartelaAtribuidaSchema = new mongoose.Schema({
   markedNumbers: { type: [Number], default: [] },
   createdAt: { type: Date, default: Date.now }
 });
-const CartelaAtribuida = mongoose.model('CartelaAtribuida', cartelaAtribuidaSchema, 'assignedcartelas'); 
-// <-- força coleção "assignedcartelas"
+const CartelaAtribuida = mongoose.model('CartelaAtribuida', cartelaAtribuidaSchema);
 
 const playerSchema = new mongoose.Schema({
   playerName: String,
@@ -42,7 +43,7 @@ const playerSchema = new mongoose.Schema({
   link: String,
   createdAt: Date
 });
-const Player = mongoose.model('Player', playerSchema, 'players'); // <-- força coleção "players"
+const Player = mongoose.model('Player', playerSchema);
 
 // Autenticação simples
 const isAuthenticated = (req, res, next) => next();
@@ -202,3 +203,5 @@ app.get('/download-cartelas', isAuthenticated, async (req, res) => {
 
 // Inicia servidor
 app.listen(3000, () => console.log('Servidor rodando na porta 3000'));
+
+
