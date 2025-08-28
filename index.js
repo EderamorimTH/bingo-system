@@ -299,7 +299,7 @@ async function markNumber(number) {
             cartelaId: winner.cartelaId,
             playerName: winner.playerName,
             phoneNumber: winner.phoneNumber,
-            link: winner.link,
+            link: player.link,
             prize: winner.prize,
             createdAt: new Date()
           }).save();
@@ -454,9 +454,11 @@ app.get('/cartelas', async (req, res) => {
       game = { drawnNumbers: [], lastNumber: null, currentPrize: '', startMessage: 'Em breve o Bingo irá começar' };
     }
     const winners = await Winner.find().sort({ createdAt: -1 }) || [];
+    const players = await Player.find({ playerName }).sort({ createdAt: -1 }) || []; // Adiciona a busca por players
     res.render('cartelas', {
       cartelas,
       playerName,
+      players, // Passa a variável players para o template
       game: {
         drawnNumbers: game.drawnNumbers || [],
         lastNumber: game.lastNumber,
@@ -482,6 +484,7 @@ app.get('/cartelas-fixas', async (req, res) => {
     res.render('cartelas', {
       cartelas,
       playerName: "Cartelas Fixas",
+      players: [], // Passa um array vazio para players, já que cartelas fixas não têm jogadores associados
       game: {
         drawnNumbers: game.drawnNumbers || [],
         lastNumber: game.lastNumber,
@@ -679,7 +682,7 @@ wss.on('connection', ws => {
             drawnNumbers: game.drawnNumbers || [],
             lastNumber: game.lastNumber,
             currentPrize: game.currentPrize || '',
-            startMessage: game.startMessage || 'Em breve o Bingo irá começar',
+            startMessage: game.start Mlessage || 'Em breve o Bingo irá começar',
             lastNumberDisplay: game.lastNumber ? `${getNumberLetter(game.lastNumber)}-${game.lastNumber}` : '--'
           },
           winners: winners.map(w => ({
