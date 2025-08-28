@@ -166,7 +166,7 @@ function broadcast(game, winners) {
       console.warn('Game não encontrado no broadcast');
       return;
     }
-    const winnerData = (winners || []).map(w => ({
+    const winnerData = winners.map(w => ({
       cartelaId: w.cartelaId,
       playerName: w.playerName,
       phoneNumber: w.phoneNumber,
@@ -220,37 +220,37 @@ async function drawNumber() {
     await game.save();
     const cartelas = await Cartela.find({ playerName: { $ne: "FIXAS" } });
     const winners = [];
-    const existingWinner = await Winner.findOne();
-    if (!existingWinner) {
-      for (const cartela of cartelas) {
-        if (cartela.numbers.flat().includes(newNumber)) {
-          cartela.markedNumbers.push(newNumber);
-          if (checkWin(cartela)) {
-            const player = await Player.findOne({ playerName: cartela.playerName });
-            winners.push({
-              cartelaId: cartela.cartelaId,
-              playerName: cartela.playerName,
-              phoneNumber: player ? player.phoneNumber : '',
-              link: player ? player.link : '',
-              prize: game.currentPrize || 'Não especificado'
-            });
-          }
-          await cartela.save();
+
+    for (const cartela of cartelas) {
+      if (cartela.numbers.flat().includes(newNumber)) {
+        cartela.markedNumbers.push(newNumber);
+        if (checkWin(cartela)) {
+          const player = await Player.findOne({ playerName: cartela.playerName });
+          winners.push({
+            cartelaId: cartela.cartelaId,
+            playerName: cartela.playerName,
+            phoneNumber: player ? player.phoneNumber : '',
+            link: player ? player.link : '',
+            prize: game.currentPrize || 'Não especificado'
+          });
         }
-      }
-      if (winners.length > 0) {
-        for (const winner of winners) {
-          await new Winner({
-            cartelaId: winner.cartelaId,
-            playerName: winner.playerName,
-            phoneNumber: winner.phoneNumber,
-            link: winner.link,
-            prize: winner.prize,
-            createdAt: new Date()
-          }).save();
-        }
+        await cartela.save();
       }
     }
+
+    if (winners.length > 0) {
+      for (const winner of winners) {
+        await new Winner({
+          cartelaId: winner.cartelaId,
+          playerName: winner.playerName,
+          phoneNumber: winner.phoneNumber,
+          link: winner.link,
+          prize: winner.prize,
+          createdAt: new Date()
+        }).save();
+      }
+    }
+
     return { newNumber, winners };
   } catch (err) {
     console.error('Erro no drawNumber:', err.message, err.stack);
@@ -271,37 +271,37 @@ async function markNumber(number) {
     await game.save();
     const cartelas = await Cartela.find({ playerName: { $ne: "FIXAS" } });
     const winners = [];
-    const existingWinner = await Winner.findOne();
-    if (!existingWinner) {
-      for (const cartela of cartelas) {
-        if (cartela.numbers.flat().includes(number)) {
-          cartela.markedNumbers.push(number);
-          if (checkWin(cartela)) {
-            const player = await Player.findOne({ playerName: cartela.playerName });
-            winners.push({
-              cartelaId: cartela.cartelaId,
-              playerName: cartela.playerName,
-              phoneNumber: player ? player.phoneNumber : '',
-              link: player ? player.link : '',
-              prize: game.currentPrize || 'Não especificado'
-            });
-          }
-          await cartela.save();
+
+    for (const cartela of cartelas) {
+      if (cartela.numbers.flat().includes(number)) {
+        cartela.markedNumbers.push(number);
+        if (checkWin(cartela)) {
+          const player = await Player.findOne({ playerName: cartela.playerName });
+          winners.push({
+            cartelaId: cartela.cartelaId,
+            playerName: cartela.playerName,
+            phoneNumber: player ? player.phoneNumber : '',
+            link: player ? player.link : '',
+            prize: game.currentPrize || 'Não especificado'
+          });
         }
-      }
-      if (winners.length > 0) {
-        for (const winner of winners) {
-          await new Winner({
-            cartelaId: winner.cartelaId,
-            playerName: winner.playerName,
-            phoneNumber: winner.phoneNumber,
-            link: winner.link,
-            prize: winner.prize,
-            createdAt: new Date()
-          }).save();
-        }
+        await cartela.save();
       }
     }
+
+    if (winners.length > 0) {
+      for (const winner of winners) {
+        await new Winner({
+          cartelaId: winner.cartelaId,
+          playerName: winner.playerName,
+          phoneNumber: winner.phoneNumber,
+          link: winner.link,
+          prize: winner.prize,
+          createdAt: new Date()
+        }).save();
+      }
+    }
+
     return { newNumber: number, winners };
   } catch (err) {
     console.error('Erro no markNumber:', err.message, err.stack);
@@ -550,20 +550,15 @@ app.post('/update-prize', isAuthenticated, async (req, res) => {
   }
 });
 
-// Endpoint para reset (AGORA APAGA VENCEDORES — para que as mensagens sumam no display/cartela)
+// Endpoint para reset (NÃO APAGA VENCEDORES)
 app.post('/reset', isAuthenticated, async (req, res) => {
   try {
     const { password } = req.body;
     if (password !== process.env.ADMIN_PASSWORD) return res.status(401).json({ error: 'Senha incorreta' });
 
-    // Remove game state e limpa marcações das cartelas
     await Game.deleteMany({});
     await Cartela.updateMany({}, { markedNumbers: [] });
 
-    // NOVO: limpar vencedores para que no display/sorteador/cartelas as mensagens desapareçam
-    await Winner.deleteMany({});
-
-    // recria o jogo inicial
     await new Game({
       drawnNumbers: [],
       lastNumber: null,
@@ -679,17 +674,11 @@ app.post('/assign-cartelas', isAuthenticated, async (req, res) => {
 });
 
 // -------------------
-// NOVO ENDPOINT: baixar as 500 cartelas fixas (Excel) - organizado numericamente de 1 a 500
+// NOVO ENDPOINT: baixar as 500 cartelas fixas (Excel)
 // -------------------
 app.get('/download-cartelas', isAuthenticated, async (req, res) => {
   try {
-    const cartelasRaw = await Cartela.find({ playerName: "FIXAS" });
-    // ordenar numericamente pelo número após "FIXA-"
-    const cartelas = cartelasRaw.sort((a, b) => {
-      const na = parseInt((a.cartelaId || '').split('-')[1] || '0', 10);
-      const nb = parseInt((b.cartelaId || '').split('-')[1] || '0', 10);
-      return na - nb;
-    });
+    const cartelas = await Cartela.find({ playerName: "FIXAS" }).sort({ cartelaId: 1 });
 
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('Cartelas');
@@ -714,35 +703,6 @@ app.get('/download-cartelas', isAuthenticated, async (req, res) => {
   } catch (err) {
     console.error('Erro ao gerar Excel:', err.message, err.stack);
     res.status(500).send('Erro ao gerar cartelas');
-  }
-});
-
-// -------------------
-// NOVOS ENDPOINTS ÚTEIS PARA O FRONT
-// -------------------
-
-// Retorna estado do jogo (usado por fetch('/game') nos ejs)
-app.get('/game', async (req, res) => {
-  try {
-    const game = await Game.findOne();
-    if (!game) {
-      return res.json({ drawnNumbers: [], lastNumber: null, currentPrize: '', startMessage: 'Em breve o Bingo irá começar' });
-    }
-    res.json(game);
-  } catch (err) {
-    console.error('Erro no endpoint /game:', err.message, err.stack);
-    res.status(500).json({ error: 'Erro ao obter game' });
-  }
-});
-
-// Retorna lista de vencedores (usado por /sorteador e outros)
-app.get('/winners', async (req, res) => {
-  try {
-    const winners = await Winner.find().sort({ createdAt: -1 });
-    res.json(winners);
-  } catch (err) {
-    console.error('Erro no endpoint /winners:', err.message, err.stack);
-    res.status(500).json({ error: 'Erro ao obter vencedores' });
   }
 });
 
