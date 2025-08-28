@@ -102,17 +102,19 @@
       const res = await fetch('/winners');
       const winners = await res.json();
       const table = document.getElementById('winnersTable');
-      table.innerHTML = '';
       winners.forEach(w => {
-        const tel = w.phoneNumber ? w.phoneNumber.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-****") : '--';
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td class="border p-2">${w.playerName}</td>
-          <td class="border p-2">${tel}</td>
-          <td class="border p-2">${w.cartelaId}</td>
-          <td class="border p-2">${w.prize || '--'}</td>
-        `;
-        table.appendChild(tr);
+        if (!document.querySelector(`#winnersTable tr[data-id="${w.cartelaId}"]`)) {
+          const tel = w.phoneNumber ? w.phoneNumber.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-****") : '--';
+          const tr = document.createElement('tr');
+          tr.setAttribute("data-id", w.cartelaId);
+          tr.innerHTML = `
+            <td class="border p-2">${w.playerName}</td>
+            <td class="border p-2">${tel}</td>
+            <td class="border p-2">${w.cartelaId}</td>
+            <td class="border p-2">${w.prize || '--'}</td>
+          `;
+          table.appendChild(tr);
+        }
       });
     }
 
@@ -157,11 +159,10 @@
         document.getElementById('lastFive').textContent = lastFive.map(n => getLetterNumber(n)).join(', ') || '--';
         document.getElementById('currentPrize').textContent = (data.game.currentPrize && data.game.currentPrize.trim()) ? data.game.currentPrize : '--';
         formatDrawnNumbers(data.game.drawnNumbers || []);
-        fetchWinners();
+        fetchWinners(); // não limpa vencedores
       }
     };
 
-    // Estado inicial
     fetch('/game').then(r => r.json()).then(g => {
       document.getElementById('lastNumber').textContent = g.lastNumber ? getLetterNumber(g.lastNumber) : '--';
       const lastFive = (g.drawnNumbers || []).slice(-5).reverse();
