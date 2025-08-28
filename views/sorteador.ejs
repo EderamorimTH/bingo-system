@@ -99,11 +99,13 @@
     }
 
     async function fetchWinners() {
-      const res = await fetch('/winners');
-      const winners = await res.json();
-      const table = document.getElementById('winnersTable');
-      winners.forEach(w => {
-        if (!document.querySelector(`#winnersTable tr[data-id="${w.cartelaId}"]`)) {
+      try {
+        const res = await fetch('/winners');
+        if (!res.ok) return;
+        const winners = await res.json();
+        const table = document.getElementById('winnersTable');
+        table.innerHTML = ''; // limpa e preenche com o que está no servidor (fixo igual ao admin)
+        winners.forEach(w => {
           const tel = w.phoneNumber ? w.phoneNumber.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-****") : '--';
           const tr = document.createElement('tr');
           tr.setAttribute("data-id", w.cartelaId);
@@ -114,8 +116,10 @@
             <td class="border p-2">${w.prize || '--'}</td>
           `;
           table.appendChild(tr);
-        }
-      });
+        });
+      } catch (err) {
+        console.error('Erro ao buscar winners:', err);
+      }
     }
 
     document.getElementById('markNumberForm').addEventListener('submit', async e => {
@@ -139,6 +143,7 @@
           msg.textContent = `Número ${number} marcado com sucesso.`;
           msg.className = 'mt-2 text-sm text-green-700';
           document.getElementById('manualNumber').value = '';
+          fetchWinners(); // atualiza vencedores
         }
       } catch {
         msg.textContent = 'Erro de comunicação com o servidor.';
@@ -146,7 +151,7 @@
       }
     });
 
-    const ws = new WebSocket('wss://' + window.location.host);
+    const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host);
     ws.onmessage = e => {
       const data = JSON.parse(e.data);
       if (data.type === 'update') {
@@ -159,7 +164,7 @@
         document.getElementById('lastFive').textContent = lastFive.map(n => getLetterNumber(n)).join(', ') || '--';
         document.getElementById('currentPrize').textContent = (data.game.currentPrize && data.game.currentPrize.trim()) ? data.game.currentPrize : '--';
         formatDrawnNumbers(data.game.drawnNumbers || []);
-        fetchWinners(); // não limpa vencedores
+        fetchWinners(); // buscar vencedores sempre que houver update
       }
     };
 
@@ -169,8 +174,9 @@
       document.getElementById('lastFive').textContent = lastFive.map(n => getLetterNumber(n)).join(', ') || '--';
       document.getElementById('currentPrize').textContent = g.currentPrize && g.currentPrize.trim() ? g.currentPrize : '--';
       formatDrawnNumbers(g.drawnNumbers || []);
-    });
+    }).catch(()=>{});
 
+    // Carrega vencedores ao abrir a página (fixo, igual ao painel do admin)
     fetchWinners();
   </script>
 </body>
