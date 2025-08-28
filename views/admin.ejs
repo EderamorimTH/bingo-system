@@ -168,7 +168,7 @@
     </div>
 
     <div class="section sticky-winners">
-      <h2>Vencedores</h2>
+      <h2>Vencedores (fixados até reiniciar)</h2>
       <table>
         <thead>
           <tr>
@@ -261,36 +261,42 @@
     submitForm('addCartelasForm', '/assign-cartelas', true);
 
     try {
-      const ws = new WebSocket('wss://' + window.location.host);
+      // conectar WebSocket para receber atualizações (inclui winners)
+      const proto = (location.protocol === 'https:') ? 'wss://' : 'ws://';
+      const ws = new WebSocket(proto + window.location.host);
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
           if (data.type === 'update') {
+            // atualizar números
             document.getElementById('lastNumber').textContent = data.game.lastNumberDisplay || '--';
             document.getElementById('numbersB').textContent = data.game.drawnNumbers ? data.game.drawnNumbers.filter(n => n >= 1 && n <= 15).join(', ') || '--' : '--';
             document.getElementById('numbersI').textContent = data.game.drawnNumbers ? data.game.drawnNumbers.filter(n => n >= 16 && n <= 30).join(', ') || '--' : '--';
             document.getElementById('numbersN').textContent = data.game.drawnNumbers ? data.game.drawnNumbers.filter(n => n >= 31 && n <= 45).join(', ') || '--' : '--';
             document.getElementById('numbersG').textContent = data.game.drawnNumbers ? data.game.drawnNumbers.filter(n => n >= 46 && n <= 60).join(', ') || '--' : '--';
             document.getElementById('numbersO').textContent = data.game.drawnNumbers ? data.game.drawnNumbers.filter(n => n >= 61 && n <= 75).join(', ') || '--' : '--';
-            document.getElementById('currentPrize').value = data.game.currentPrize || '';
+            if (document.getElementById('currentPrize')) {
+              document.getElementById('currentPrize').value = data.game.currentPrize || '';
+            }
 
+            // Atualizar tabela de winners: aqui substituímos todo o tbody para garantir que fique "fixo" e completo
+            const winnersTable = document.getElementById('winnersTable');
+            if (Array.isArray(data.winners)) {
+              winnersTable.innerHTML = data.winners.length > 0
+                ? data.winners.map(winner => `
+                    <tr data-id="${winner.cartelaId}">
+                      <td>${winner.playerName || '-'}</td>
+                      <td>${winner.phoneNumber || '-'}</td>
+                      <td>${winner.cartelaId}</td>
+                      <td>${winner.prize || '-'}</td>
+                      <td><a href="${winner.link}" target="_blank">Ver</a></td>
+                    </tr>
+                  `).join('')
+                : '<tr><td colspan="5">Nenhum vencedor</td></tr>';
+            }
+
+            // Atualizar players (mantive seu comportamento de buscar /admin/data porque lá tem players)
             fetch('/admin/data').then(res => res.json()).then(data => {
-              const winnersTable = document.getElementById('winnersTable');
-              data.winners.forEach(winner => {
-                if (!document.querySelector(`#winnersTable tr[data-id="${winner.cartelaId}"]`)) {
-                  const tr = document.createElement('tr');
-                  tr.setAttribute("data-id", winner.cartelaId);
-                  tr.innerHTML = `
-                    <td>${winner.playerName || '-'}</td>
-                    <td>${winner.phoneNumber || '-'}</td>
-                    <td>${winner.cartelaId}</td>
-                    <td>${winner.prize || '-'}</td>
-                    <td><a href="${winner.link}" target="_blank">Ver</a></td>
-                  `;
-                  winnersTable.appendChild(tr);
-                }
-              });
-
               const playersTable = document.getElementById('playersTable');
               playersTable.innerHTML = data.players.length > 0
                 ? data.players.map(player => `
@@ -307,7 +313,7 @@
                   `).join('')
                 : '<tr><td colspan="5">Nenhum jogador registrado</td></tr>';
             }).catch(err => {
-              console.error('Erro ao atualizar tabelas:', err);
+              console.error('Erro ao atualizar players:', err);
             });
           }
         } catch (err) {
