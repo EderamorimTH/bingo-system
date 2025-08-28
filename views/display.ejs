@@ -3,73 +3,43 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Exibição Pública - Bingo</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css">
-  <style>
-    body { background: linear-gradient(135deg, #34d399, #3b82f6); font-family: Arial, sans-serif; }
-    .highlight-box { background: rgba(255,255,255,0.9); border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); padding: 1.5rem; margin-bottom: 1.5rem; }
-    .pulse { animation: pulse 2s infinite; }
-    @keyframes pulse { 0%{transform:scale(1)} 50%{transform:scale(1.05)} 100%{transform:scale(1)} }
-  </style>
+  <title>Display do Bingo</title>
+  <link rel="stylesheet" href="/styles/display.css">
 </head>
-<body class="flex items-center justify-center min-h-screen text-gray-800">
-  <div class="w-full max-w-3xl p-6">
+<body>
+  <div class="container">
+    <h1>🎲 Bingo Online</h1>
+    <p>Prêmio Atual: <span id="currentPrize"><%= game.currentPrize || '--' %></span></p>
+    <p>Último Número: <span id="lastNumber"><%= game.lastNumberDisplay || '--' %></span></p>
+    <p>Números Sorteados: <span id="drawnNumbers"><%= game.drawnNumbers.map(n => n).join(', ') || '--' %></span></p>
 
-    <!-- Último Número Sorteado -->
-    <div class="highlight-box">
-      <h2 class="text-2xl font-semibold text-center text-gray-700">Último Número Sorteado</h2>
-      <p id="lastNumber" class="text-6xl font-bold text-center text-red-600">--</p>
+    <!-- ALERTA DE VENCEDOR -->
+    <div id="winnerAlert" class="<%= winners.length > 0 ? '' : 'hidden' %>">
+      ⚠️ Uma cartela completou todos os números!
+      <div id="winnerInfo"></div>
     </div>
-
-    <!-- Últimos 5 Números -->
-    <div class="highlight-box">
-      <h2 class="text-2xl font-semibold text-center text-gray-700">Últimos 5 Números Sorteados</h2>
-      <p id="drawnNumbers" class="text-xl text-center text-gray-800">--</p>
-    </div>
-
-    <!-- Prêmio Atual -->
-    <div class="highlight-box">
-      <h2 class="text-2xl font-semibold text-center text-gray-700">Prêmio Atual</h2>
-      <p id="currentPrize" class="text-2xl text-center text-gray-900">--</p>
-    </div>
-
-    <!-- Alerta de cartela vencedora -->
-    <div id="winnerAlert" class="hidden highlight-box pulse border-4 border-red-500 text-center">
-      <h2 class="text-2xl font-bold text-red-600">⚠️ Uma cartela completou todos os números!</h2>
-      <p id="winnerInfo" class="text-xl text-gray-800 mt-2"></p>
-    </div>
-
   </div>
 
   <script>
     const ws = new WebSocket('wss://' + window.location.host);
 
     ws.onmessage = event => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'update') {
-          updateUI(data.game || {});
-          showWinner(data.winners || []);
-        }
-      } catch (err) {
-        console.error('Erro ao processar mensagem WebSocket (display):', err);
+      const data = JSON.parse(event.data);
+      if (data.type === 'update') {
+        updateUI(data.game);
+        showWinner(data.winners || []);
       }
     };
 
     function updateUI(game) {
       document.getElementById('lastNumber').textContent = game.lastNumber ? getLetterNumber(game.lastNumber) : '--';
-      const lastFive = (game.drawnNumbers || []).slice(-5).reverse();
+      const lastFive = game.drawnNumbers.slice(-5).reverse();
       document.getElementById('drawnNumbers').textContent = lastFive.length ? lastFive.map(n => getLetterNumber(n)).join(', ') : '--';
       document.getElementById('currentPrize').textContent = game.currentPrize && game.currentPrize.trim() ? game.currentPrize : '--';
 
-      // Se o jogo foi reiniciado (nenhum número sorteado), esconde o aviso de vencedor
-      if (!game.drawnNumbers || game.drawnNumbers.length === 0) {
-        const alertBox = document.getElementById('winnerAlert');
-        if (alertBox && !alertBox.classList.contains('hidden')) {
-          alertBox.classList.add('hidden');
-          document.getElementById('winnerInfo').textContent = '';
-        }
+      // NOVO: limpa mensagem de vencedores se o bingo foi reiniciado
+      if (game.drawnNumbers.length === 0) {
+        document.getElementById('winnerAlert').classList.add('hidden');
       }
     }
 
@@ -85,27 +55,18 @@
     function showWinner(winners) {
       const alertBox = document.getElementById('winnerAlert');
       const infoBox = document.getElementById('winnerInfo');
-
-      // Sem winners: esconde completamente
       if (!winners || winners.length === 0) {
-        if (alertBox && !alertBox.classList.contains('hidden')) {
-          alertBox.classList.add('hidden');
-          infoBox.textContent = '';
-        }
+        alertBox.classList.add('hidden');
+        infoBox.textContent = '';
         return;
       }
-
-      // Caso existam winners, mostra o primeiro (mesma lógica que já tinha)
       const winner = winners[0];
       const maskedPhone = winner.phoneNumber ? winner.phoneNumber.replace(/(\d{2})(\d{5})(\d{4})/, "($1) *****-$3") : '';
       alertBox.classList.remove('hidden');
       infoBox.textContent = `Nome: ${winner.playerName} | Telefone: ${maskedPhone} | Cartela: ${winner.cartelaId}`;
     }
 
-    // Carrega estado inicial (quando abre a página)
-    fetch('/game').then(res => res.json()).then(updateUI).catch(err => {
-      console.error('Erro ao buscar /game no display:', err);
-    });
+    fetch('/game').then(res => res.json()).then(updateUI);
   </script>
 </body>
 </html>
