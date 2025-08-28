@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Cartela <%= cartela.id %></title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+body { background-color: #fff7e6; }
+h1 { color: #fd7e14; }
+.numeros { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.numero { width: 40px; height: 40px; display:flex; align-items:center; justify-content:center; background-color:#0d6efd; color:white; font-weight:bold; border-radius:5px; }
+</style>
+</head>
+<body class="p-4">
+
+<div class="container text-center">
+<h1>Cartela ID: <%= cartela.id %></h1>
+<p><strong>Dono:</strong> <%= cartela.dono %></p>
+<p><strong>Telefone:</strong> <%= cartela.telefone.replace(/^(\d{2})\d+(\d{3})$/, "$1*****$2") %></p>
+<p><strong>Prêmio Atual:</strong> <%= cartela.premio %></p>
+
+<div class="numeros">
+<% cartela.numeros.forEach(n => { %>
+<div class="numero"><%= n %></div>
+<% }) %>
+</div>
+</div>
+
+</body>
+</html>
