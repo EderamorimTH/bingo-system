@@ -4,7 +4,7 @@ const WebSocket = require('ws');
 const mongoose = require('mongoose');
 const path = require('path');
 const cookieParser = require('cookie-parser');
-const ExcelJS = require('exceljs');
+const ExcelJS = require('exceljs'); // <- para exportar cartelas em Excel
 require('dotenv').config();
 
 const app = express();
@@ -15,7 +15,7 @@ const wss = new WebSocket.Server({ server });
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// Servir arquivos estáticos
+// Servir arquivos estáticos com tipo MIME correto
 app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders: (res, p) => {
     if (p.endsWith('.css')) {
@@ -162,6 +162,10 @@ function getNumberLetter(number) {
 // Função para broadcast
 function broadcast(game, winners) {
   try {
+    if (!game) {
+      console.warn('Game não encontrado no broadcast');
+      return;
+    }
     const winnerData = winners.map(w => ({
       cartelaId: w.cartelaId,
       playerName: w.playerName,
@@ -305,12 +309,373 @@ async function markNumber(number) {
   }
 }
 
-// Rotas principais
+// Rotas
 app.get('/', (req, res) => res.redirect('/display'));
 
-// ... [MANTIVE TODAS AS SUAS OUTRAS ROTAS IGUAIS]
+app.get('/login', (req, res) => {
+  try {
+    res.render('login', { error: null });
+  } catch (err) {
+    console.error('Erro ao renderizar login:', err.message, err.stack);
+    res.status(500).send('Erro ao carregar a página de login');
+  }
+});
 
-// Endpoint atualizado para baixar cartelas 5x5
+app.post('/login', (req, res) => {
+  try {
+    const { password } = req.body;
+    if (password === process.env.ADMIN_PASSWORD) {
+      res.cookie('auth', 'true', { httpOnly: true });
+      res.redirect('/admin');
+    } else {
+      res.render('login', { error: 'Senha incorreta' });
+    }
+  } catch (err) {
+    console.error('Erro no login:', err.message, err.stack);
+    res.status(500).send('Erro interno no servidor');
+  }
+});
+
+app.get('/admin', isAuthenticated, async (req, res) => {
+  try {
+    if (Object.keys(req.query).length > 0) {
+      console.log('Query parameters indesejados em /admin:', req.query);
+      return res.redirect('/admin');
+    }
+    let game = await Game.findOne();
+    if (!game) {
+      game = await new Game({
+        drawnNumbers: [],
+        lastNumber: null,
+        currentPrize: '',
+        startMessage: 'Em breve o Bingo irá começar'
+      }).save();
+    }
+    const players = await Player.find().sort({ createdAt: -1 }) || [];
+    const winners = await Winner.find().sort({ createdAt: -1 }) || [];
+    res.render('admin', {
+      players,
+      winners,
+      game: {
+        drawnNumbers: game.drawnNumbers || [],
+        lastNumber: game.lastNumber,
+        currentPrize: game.currentPrize || '',
+        startMessage: game.startMessage || 'Em breve o Bingo irá começar',
+        lastNumberDisplay: game.lastNumber ? `${getNumberLetter(game.lastNumber)}-${game.lastNumber}` : '--'
+      },
+      error: null
+    });
+  } catch (err) {
+    console.error('Erro ao renderizar admin:', err.message, err.stack);
+    res.status(500).render('admin', {
+      players: [],
+      winners: [],
+      game: {
+        drawnNumbers: [],
+        lastNumber: null,
+        currentPrize: '',
+        startMessage: 'Erro ao carregar dados',
+        lastNumberDisplay: '--'
+      },
+      error: 'Erro ao carregar o painel de administração. Verifique os logs do servidor.'
+    });
+  }
+});
+
+app.get('/admin/data', isAuthenticated, async (req, res) => {
+  try {
+    const players = await Player.find().sort({ createdAt: -1 }) || [];
+    const winners = await Winner.find().sort({ createdAt: -1 }) || [];
+    res.json({ players, winners });
+  } catch (err) {
+    console.error('Erro no endpoint /admin/data:', err.message, err.stack);
+    res.status(500).json({ error: 'Erro ao carregar dados' });
+  }
+});
+
+app.get('/display', async (req, res) => {
+  try {
+    let game = await Game.findOne();
+    if (!game) {
+      game = { drawnNumbers: [], lastNumber: null, currentPrize: '', startMessage: 'Em breve o Bingo irá começar' };
+    }
+    const winners = await Winner.find().sort({ createdAt: -1 }) || [];
+    res.render('display', {
+      game: {
+        drawnNumbers: game.drawnNumbers || [],
+        lastNumber: game.lastNumber,
+        currentPrize: game.currentPrize || '',
+        startMessage: game.startMessage || 'Em breve o Bingo irá começar',
+        lastNumberDisplay: game.lastNumber ? `${getNumberLetter(game.lastNumber)}-${game.lastNumber}` : '--'
+      },
+      winners
+    });
+  } catch (err) {
+    console.error('Erro ao renderizar display:', err.message, err.stack);
+    res.status(500).send('Erro ao carregar a página de exibição');
+  }
+});
+
+app.get('/sorteador', async (req, res) => {
+  try {
+    let game = await Game.findOne();
+    if (!game) {
+      game = { drawnNumbers: [], lastNumber: null, currentPrize: '', startMessage: 'Em breve o Bingo irá começar' };
+    }
+    const winners = await Winner.find().sort({ createdAt: -1 }) || [];
+    res.render('sorteador', {
+      game: {
+        drawnNumbers: game.drawnNumbers || [],
+        lastNumber: game.lastNumber,
+        currentPrize: game.currentPrize || '',
+        startMessage: game.startMessage || 'Em breve o Bingo irá começar',
+        lastNumberDisplay: game.lastNumber ? `${getNumberLetter(game.lastNumber)}-${game.lastNumber}` : '--'
+      },
+      winners
+    });
+  } catch (err) {
+    console.error('Erro ao renderizar sorteador:', err.message, err.stack);
+    res.status(500).send('Erro ao carregar a página do sorteador');
+  }
+});
+
+app.get('/cartelas', async (req, res) => {
+  try {
+    const { playerName } = req.query;
+    if (!playerName) return res.status(400).send('Nome do jogador é obrigatório');
+    const cartelas = await Cartela.find({ playerName });
+    if (cartelas.length === 0) return res.status(404).send('Nenhuma cartela encontrada');
+    let game = await Game.findOne();
+    if (!game) {
+      game = { drawnNumbers: [], lastNumber: null, currentPrize: '', startMessage: 'Em breve o Bingo irá começar' };
+    }
+    const winners = await Winner.find().sort({ createdAt: -1 }) || [];
+    res.render('cartelas', {
+      cartelas,
+      playerName,
+      game: {
+        drawnNumbers: game.drawnNumbers || [],
+        lastNumber: game.lastNumber,
+        currentPrize: game.currentPrize || '',
+        startMessage: game.startMessage || 'Em breve o Bingo irá começar',
+        lastNumberDisplay: game.lastNumber ? `${getNumberLetter(game.lastNumber)}-${game.lastNumber}` : '--'
+      },
+      winners
+    });
+  } catch (err) {
+    console.error('Erro ao renderizar cartelas:', err.message, err.stack);
+    res.status(500).send('Erro ao carregar a página de cartelas');
+  }
+});
+
+app.get('/cartelas-fixas', async (req, res) => {
+  try {
+    const cartelas = await Cartela.find({ playerName: "FIXAS" });
+    let game = await Game.findOne();
+    if (!game) {
+      game = { drawnNumbers: [], lastNumber: null, currentPrize: '', startMessage: 'Em breve o Bingo irá começar' };
+    }
+    res.render('cartelas', {
+      cartelas,
+      playerName: "Cartelas Fixas",
+      game: {
+        drawnNumbers: game.drawnNumbers || [],
+        lastNumber: game.lastNumber,
+        currentPrize: game.currentPrize || '',
+        startMessage: game.startMessage || 'Em breve o Bingo irá começar',
+        lastNumberDisplay: game.lastNumber ? `${getNumberLetter(game.lastNumber)}-${game.lastNumber}` : '--'
+      },
+      winners: []
+    });
+  } catch (err) {
+    console.error('Erro ao renderizar cartelas-fixas:', err.message, err.stack);
+    res.status(500).send('Erro ao carregar a página de cartelas fixas');
+  }
+});
+
+// Endpoint para sortear número automático
+app.post('/draw', isAuthenticated, async (req, res) => {
+  try {
+    const result = await drawNumber();
+    if (result.error) return res.status(400).json({ error: result.error });
+    const game = await Game.findOne();
+    const winners = await Winner.find();
+    broadcast(game, winners);
+    res.json({ number: result.newNumber, winners: result.winners });
+  } catch (err) {
+    console.error('Erro no endpoint /draw:', err.message, err.stack);
+    res.status(500).json({ error: 'Erro interno no servidor' });
+  }
+});
+
+// Endpoint para marcar número manual
+app.post('/mark-number', isAuthenticated, async (req, res) => {
+  try {
+    const { number, password } = req.body;
+    if (password !== process.env.ADMIN_PASSWORD) return res.status(401).json({ error: 'Senha incorreta' });
+    const result = await markNumber(number);
+    if (result.error) return res.status(400).json({ error: result.error });
+    const game = await Game.findOne();
+    const winners = await Winner.find();
+    broadcast(game, winners);
+    res.json({ number: result.newNumber, winners: result.winners });
+  } catch (err) {
+    console.error('Erro no endpoint /mark-number:', err.message, err.stack);
+    res.status(500).json({ error: 'Erro interno no servidor' });
+  }
+});
+
+// Endpoint para atualizar prêmio
+app.post('/update-prize', isAuthenticated, async (req, res) => {
+  try {
+    const { currentPrize } = req.body;
+    const game = await Game.findOne();
+    if (!game) {
+      await new Game({
+        drawnNumbers: [],
+        lastNumber: null,
+        currentPrize,
+        startMessage: 'Em breve o Bingo irá começar'
+      }).save();
+    } else {
+      game.currentPrize = currentPrize;
+      await game.save();
+    }
+    const updatedGame = await Game.findOne();
+    broadcast(updatedGame, await Winner.find());
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Erro no endpoint /update-prize:', err.message, err.stack);
+    res.status(500).json({ error: 'Erro interno no servidor' });
+  }
+});
+
+// Endpoint para reset (NÃO APAGA VENCEDORES)
+app.post('/reset', isAuthenticated, async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (password !== process.env.ADMIN_PASSWORD) return res.status(401).json({ error: 'Senha incorreta' });
+
+    await Game.deleteMany({});
+    await Cartela.updateMany({}, { markedNumbers: [] });
+
+    await new Game({
+      drawnNumbers: [],
+      lastNumber: null,
+      currentPrize: '',
+      startMessage: 'Em breve o Bingo irá começar'
+    }).save();
+
+    const game = await Game.findOne();
+    const winners = await Winner.find().sort({ createdAt: -1 });
+
+    broadcast(game, winners);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Erro no endpoint /reset:', err.message, err.stack);
+    res.status(500).json({ error: 'Erro interno no servidor' });
+  }
+});
+
+// Endpoint para excluir todas as cartelas
+app.post('/delete-all', isAuthenticated, async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (password !== process.env.ADMIN_PASSWORD) return res.status(401).json({ error: 'Senha incorreta' });
+    await Player.deleteMany({});
+    await Cartela.updateMany({ playerName: { $ne: "FIXAS" } }, { playerName: "FIXAS", markedNumbers: [] });
+    const game = await Game.findOne();
+    broadcast(game, await Winner.find());
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Erro no endpoint /delete-all:', err.message, err.stack);
+    res.status(500).json({ error: 'Erro interno no servidor' });
+  }
+});
+
+// Endpoint para excluir por telefone
+app.post('/delete-by-phone', isAuthenticated, async (req, res) => {
+  try {
+    const { password, phoneNumber } = req.body;
+    if (password !== process.env.ADMIN_PASSWORD) return res.status(401).json({ error: 'Senha incorreta' });
+    const player = await Player.findOne({ phoneNumber });
+    if (!player) return res.status(404).json({ error: 'Jogador não encontrado' });
+    await Cartela.updateMany({ playerName: player.playerName }, { playerName: "FIXAS", markedNumbers: [] });
+    await player.deleteOne();
+    const game = await Game.findOne();
+    broadcast(game, await Winner.find());
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Erro no endpoint /delete-by-phone:', err.message, err.stack);
+    res.status(500).json({ error: 'Erro interno no servidor' });
+  }
+});
+
+// Endpoint para atribuir cartelas
+app.post('/assign-cartelas', isAuthenticated, async (req, res) => {
+  try {
+    const { cartelaNumbers, playerName, phoneNumber } = req.body;
+    if (!cartelaNumbers || !playerName) return res.status(400).json({ error: 'Campos obrigatórios' });
+    const nums = cartelaNumbers
+      .split(',')
+      .map(n => n.trim())
+      .filter(n => n.match(/^\d+$/))
+      .map(n => parseInt(n));
+
+    if (!nums.length) return res.status(400).json({ error: 'Números inválidos' });
+
+    const assigned = [];
+    const errors = [];
+
+    for (const num of nums) {
+      const cartelaId = `FIXA-${num}`;
+      const cartela = await Cartela.findOne({ cartelaId });
+      if (!cartela) {
+        errors.push(`Cartela FIXA-${num} não existe`);
+        continue;
+      }
+      if (cartela.playerName !== "FIXAS") {
+        errors.push(`Cartela ${cartelaId} já atribuída a ${cartela.playerName}`);
+        continue;
+      }
+      cartela.playerName = playerName;
+      await cartela.save();
+      assigned.push(cartelaId);
+    }
+
+    if (!assigned.length) {
+      return res.status(400).json({ error: errors.join('; ') || 'Nenhuma cartela disponível para atribuição' });
+    }
+
+    let player = await Player.findOne({ playerName });
+    const link = `${req.protocol}://${req.get('host')}/cartelas?playerName=${encodeURIComponent(playerName)}`;
+
+    if (!player) {
+      player = await new Player({
+        playerName,
+        phoneNumber: phoneNumber || '',
+        link,
+        cartelaIds: assigned,
+        createdAt: new Date()
+      }).save();
+    } else {
+      player.cartelaIds = [...new Set([...player.cartelaIds, ...assigned])];
+      if (phoneNumber) player.phoneNumber = phoneNumber;
+      await player.save();
+    }
+
+    const game = await Game.findOne();
+    broadcast(game, await Winner.find());
+    res.json({ success: true, playerName, phoneNumber, assigned, link });
+  } catch (err) {
+    console.error('Erro no endpoint /assign-cartelas:', err.message, err.stack);
+    res.status(500).json({ error: 'Erro interno no servidor' });
+  }
+});
+
+// -------------------
+// ENDPOINT ATUALIZADO: baixar as 500 cartelas fixas (Excel) - formato 5x5
+// -------------------
 app.get('/download-cartelas', isAuthenticated, async (req, res) => {
   try {
     const cartelas = await Cartela.find({ playerName: "FIXAS" }).sort({ cartelaId: 1 });
@@ -318,6 +683,7 @@ app.get('/download-cartelas', isAuthenticated, async (req, res) => {
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('Cartelas - 5x5');
 
+    // Definimos colunas: a primeira coluna para ID, depois 5 colunas (B..O)
     sheet.columns = [
       { header: 'Cartela ID', key: 'cartelaId', width: 14 },
       { header: 'B', key: 'c1', width: 8 },
@@ -327,19 +693,24 @@ app.get('/download-cartelas', isAuthenticated, async (req, res) => {
       { header: 'O', key: 'c5', width: 8 }
     ];
 
+    // Estilo do cabeçalho (opcional, simples)
     sheet.getRow(1).font = { bold: true };
 
     let currentRow = 1;
 
-    cartelas.forEach((c) => {
+    cartelas.forEach((c, idx) => {
+      // Cabeçalho da cartela (merge da primeira linha para destacar o ID)
       currentRow++;
       const headerRow = sheet.getRow(currentRow);
       headerRow.getCell(1).value = `Cartela ID: ${c.cartelaId}`;
       headerRow.getCell(1).font = { bold: true };
+      // Mesclar as 6 colunas para o cabeçalho (1..6)
       sheet.mergeCells(currentRow, 1, currentRow, 6);
 
+      // Linha com os títulos B I N G O (apenas para cada cartela)
       currentRow++;
       const titlesRow = sheet.getRow(currentRow);
+      titlesRow.getCell(1).value = ''; // coluna ID vazia nesta linha
       titlesRow.getCell(2).value = 'B';
       titlesRow.getCell(3).value = 'I';
       titlesRow.getCell(4).value = 'N';
@@ -348,30 +719,43 @@ app.get('/download-cartelas', isAuthenticated, async (req, res) => {
       titlesRow.font = { bold: true };
       titlesRow.alignment = { horizontal: 'center' };
 
+      // Adiciona 5 linhas para os 5 rows da cartela
       for (let row = 0; row < 5; row++) {
         currentRow++;
         const excelRow = sheet.getRow(currentRow);
+        excelRow.getCell(1).value = ''; // primeira coluna para ID está vazia nas linhas numeradas
+        // Lembrando: c.numbers é um array por coluna: c.numbers[col][row]
+        const b = c.numbers && c.numbers[0] ? c.numbers[0][row] : null;
+        const i = c.numbers && c.numbers[1] ? c.numbers[1][row] : null;
+        const n = c.numbers && c.numbers[2] ? c.numbers[2][row] : null;
+        const g = c.numbers && c.numbers[3] ? c.numbers[3][row] : null;
+        const o = c.numbers && c.numbers[4] ? c.numbers[4][row] : null;
 
-        const b = c.numbers?.[0]?.[row] ?? '';
-        const i = c.numbers?.[1]?.[row] ?? '';
-        const n = c.numbers?.[2]?.[row] ?? '';
-        const g = c.numbers?.[3]?.[row] ?? '';
-        const o = c.numbers?.[4]?.[row] ?? '';
+        excelRow.getCell(2).value = (b === 0 || b === null) ? (b === 0 ? 'X' : '') : b;
+        excelRow.getCell(3).value = (i === 0 || i === null) ? (i === 0 ? 'X' : '') : i;
+        excelRow.getCell(4).value = (n === 0 || n === null) ? (n === 0 ? 'X' : '') : n;
+        excelRow.getCell(5).value = (g === 0 || g === null) ? (g === 0 ? 'X' : '') : g;
+        excelRow.getCell(6).value = (o === 0 || o === null) ? (o === 0 ? 'X' : '') : o;
 
-        excelRow.getCell(2).value = b === 0 ? 'X' : b;
-        excelRow.getCell(3).value = i === 0 ? 'X' : i;
-        excelRow.getCell(4).value = n === 0 ? 'X' : n;
-        excelRow.getCell(5).value = g === 0 ? 'X' : g;
-        excelRow.getCell(6).value = o === 0 ? 'X' : o;
-
+        // centralizar células B..O
         for (let col = 2; col <= 6; col++) {
           excelRow.getCell(col).alignment = { horizontal: 'center', vertical: 'middle' };
         }
       }
 
+      // Linha em branco entre cartelas para facilitar corte/impressão
       currentRow++;
       sheet.addRow([]);
+
+      // (opcional) Forçar altura um pouco maior para linhas com números
+      for (let r = currentRow - 6; r <= currentRow; r++) {
+        const rowObj = sheet.getRow(r);
+        rowObj.height = 16;
+      }
     });
+
+    // Ajustes finais de layout
+    sheet.properties.defaultRowHeight = 16;
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename="cartelas_5x5.xlsx"');
@@ -381,6 +765,47 @@ app.get('/download-cartelas', isAuthenticated, async (req, res) => {
   } catch (err) {
     console.error('Erro ao gerar Excel (5x5):', err.message, err.stack);
     res.status(500).send('Erro ao gerar cartelas');
+  }
+});
+
+// WebSocket
+wss.on('connection', ws => {
+  try {
+    Game.findOne().then(game => {
+      if (!game) {
+        game = {
+          drawnNumbers: [],
+          lastNumber: null,
+          currentPrize: '',
+          startMessage: 'Em breve o Bingo irá começar'
+        };
+      }
+      Winner.find().then(winners => {
+        ws.send(JSON.stringify({
+          type: 'update',
+          game: {
+            drawnNumbers: game.drawnNumbers || [],
+            lastNumber: game.lastNumber,
+            currentPrize: game.currentPrize || '',
+            startMessage: game.startMessage || 'Em breve o Bingo irá começar',
+            lastNumberDisplay: game.lastNumber ? `${getNumberLetter(game.lastNumber)}-${game.lastNumber}` : '--'
+          },
+          winners: winners.map(w => ({
+            cartelaId: w.cartelaId,
+            playerName: w.playerName,
+            phoneNumber: w.phoneNumber,
+            link: w.link,
+            prize: w.prize
+          }))
+        }));
+      }).catch(err => {
+        console.error('Erro ao buscar winners no WebSocket:', err.message, err.stack);
+      });
+    }).catch(err => {
+      console.error('Erro ao buscar game no WebSocket:', err.message, err.stack);
+    });
+  } catch (err) {
+    console.error('Erro na conexão WebSocket:', err.message, err.stack);
   }
 });
 
