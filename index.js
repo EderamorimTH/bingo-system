@@ -299,7 +299,7 @@ async function markNumber(number) {
             cartelaId: winner.cartelaId,
             playerName: winner.playerName,
             phoneNumber: winner.phoneNumber,
-            link: player.link,
+            link: winner.link,
             prize: winner.prize,
             createdAt: new Date()
           }).save();
@@ -682,7 +682,7 @@ wss.on('connection', ws => {
             drawnNumbers: game.drawnNumbers || [],
             lastNumber: game.lastNumber,
             currentPrize: game.currentPrize || '',
-            startMessage: game.start Mlessage || 'Em breve o Bingo irá começar',
+            startMessage: game.startMessage || 'Em breve o Bingo irá começar', // Corrigido: 'start Mlessage' -> 'startMessage'
             lastNumberDisplay: game.lastNumber ? `${getNumberLetter(game.lastNumber)}-${game.lastNumber}` : '--'
           },
           winners: winners.map(w => ({
