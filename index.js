@@ -20,7 +20,6 @@ app.use(express.static(path.join(__dirname, 'public'), {
     if (p.endsWith('.css')) res.setHeader('Content-Type', 'text/css');
   }
 }));
-// Suporta /css/style.css -> public/css/style.css
 app.use('/css', express.static(path.join(__dirname, 'public', 'css')));
 
 app.use(express.json());
@@ -48,7 +47,7 @@ const Game = mongoose.model('Game', gameSchema);
 const cartelaSchema = new mongoose.Schema({
   cartelaId: String,
   numbers: [[Number]],
-  playerName: String,               // "FIXAS" ou nome do jogador
+  playerName: String,
   markedNumbers: { type: [Number], default: [] },
   createdAt: Date
 });
@@ -73,7 +72,6 @@ const winnerSchema = new mongoose.Schema({
 });
 const Winner = mongoose.model('Winner', winnerSchema);
 
-// Cartelas atribuídas (não remove da coleção original)
 const assignedCartelaSchema = new mongoose.Schema({
   cartelaId: String,
   playerName: String,
@@ -82,7 +80,7 @@ const assignedCartelaSchema = new mongoose.Schema({
 });
 const AssignedCartela = mongoose.model('AssignedCartela', assignedCartelaSchema);
 
-// Conexão
+// Conexão Mongo
 mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(async () => {
     console.log('Conectado ao MongoDB');
@@ -108,18 +106,16 @@ mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTop
   })
   .catch(err => console.error('Erro ao conectar ao MongoDB:', err.message));
 
-// Auth middleware
+// Auth
 function isAuthenticated(req, res, next) {
   if (req.cookies.auth === 'true') return next();
-  // Se for AJAX/JSON, devolve JSON (evita HTML no fetch)
   if (req.xhr || (req.headers.accept && req.headers.accept.indexOf('json') > -1)) {
     return res.status(401).json({ error: 'Não autenticado' });
   }
-  // Navegação normal
   res.redirect('/login');
 }
 
-// Utilidades
+// Utils
 function generateCartelaNumbers() {
   const ranges = [
     { min: 1, max: 15 },
@@ -134,7 +130,7 @@ function generateCartelaNumbers() {
     const { min, max } = ranges[col];
     const available = Array.from({ length: max - min + 1 }, (_, i) => min + i);
     for (let row = 0; row < 5; row++) {
-      if (col === 2 && row === 2) column.push(0);  // FREE
+      if (col === 2 && row === 2) column.push(0); // FREE
       else column.push(available.splice(Math.floor(Math.random() * available.length), 1)[0]);
     }
     numbers.push(column);
@@ -151,7 +147,7 @@ function getNumberLetter(number) {
   return '';
 }
 
-// Broadcast para todos os clientes
+// Broadcast
 async function doBroadcast() {
   const game = await Game.findOne();
   const winners = await Winner.find();
@@ -177,7 +173,7 @@ async function doBroadcast() {
   });
 }
 
-// Checa vitória (todas as casas marcadas, ignorando FREE=0)
+// Check win
 function checkWin(cartela) {
   const marked = cartela.markedNumbers || [];
   for (let col = 0; col < 5; col++) {
@@ -189,12 +185,10 @@ function checkWin(cartela) {
   return true;
 }
 
-// Marca número em todas cartelas + registra vencedor se for a primeira cartela ATRIBUÍDA que completar
+// Marca número em todas cartelas
 async function applyNumberToBoards(number) {
   const game = await Game.findOne();
-  if (!game.drawnNumbers.includes(number)) {
-    game.drawnNumbers.push(number);
-  }
+  if (!game.drawnNumbers.includes(number)) game.drawnNumbers.push(number);
   game.lastNumber = number;
   await game.save();
 
@@ -208,7 +202,6 @@ async function applyNumberToBoards(number) {
           cartela.markedNumbers.push(number);
           await cartela.save();
         }
-        // Só considera vencedor se for cartela atribuída a alguém
         const assigned = await AssignedCartela.findOne({ cartelaId: cartela.cartelaId });
         if (assigned && checkWin(cartela)) {
           const player = await Player.findOne({ playerName: assigned.playerName });
@@ -220,12 +213,11 @@ async function applyNumberToBoards(number) {
             prize: game.currentPrize || 'Não especificado',
             createdAt: new Date()
           }).save();
-          break; // só o primeiro vencedor
+          break;
         }
       }
     }
   } else {
-    // Mesmo sem novo winner, marque o número nas cartelas
     for (const cartela of cartelas) {
       if (cartela.numbers.flat().includes(number) && !cartela.markedNumbers.includes(number)) {
         cartela.markedNumbers.push(number);
@@ -237,7 +229,6 @@ async function applyNumberToBoards(number) {
 
 // Rotas base
 app.get('/', (req, res) => res.redirect('/display'));
-
 app.get('/login', (req, res) => res.render('login', { error: null }));
 app.post('/login', (req, res) => {
   if (req.body.password === process.env.ADMIN_PASSWORD) {
@@ -254,19 +245,16 @@ app.get('/admin', isAuthenticated, async (req, res) => {
   const winners = await Winner.find();
   res.render('admin', { players, winners, game, error: null });
 });
-
 app.get('/display', async (req, res) => {
   const game = await Game.findOne();
   const winners = await Winner.find();
   res.render('display', { game, winners });
 });
-
 app.get('/sorteador', async (req, res) => {
   const game = await Game.findOne();
   const winners = await Winner.find();
   res.render('sorteador', { game, winners });
 });
-
 app.get('/cartelas', async (req, res) => {
   const { playerName } = req.query;
   const cartelas = await Cartela.find({ playerName });
@@ -275,17 +263,13 @@ app.get('/cartelas', async (req, res) => {
   res.render('cartelas', { cartelas, playerName, game, winners });
 });
 
-// --------- ROTAS JSON para o painel do ADM ---------
-
-// Dados do admin (evita 404 em /admin/data)
+// Rotas JSON Admin
 app.get('/admin/data', isAuthenticated, async (req, res) => {
   const game = await Game.findOne();
   const players = await Player.find();
   const winners = await Winner.find();
   res.json({ game, players, winners });
 });
-
-// Sorteio automático de um número aleatório
 app.post('/draw', isAuthenticated, async (req, res) => {
   const game = await Game.findOne();
   const available = Array.from({ length: 75 }, (_, i) => i + 1).filter(n => !game.drawnNumbers.includes(n));
@@ -299,8 +283,6 @@ app.post('/draw', isAuthenticated, async (req, res) => {
   const winners = await Winner.find();
   res.json({ ok: true, number, game: updated, winners });
 });
-
-// Marcar número manualmente (mantém seu “marcador manual”)
 app.post('/mark-number', isAuthenticated, async (req, res) => {
   const { number } = req.body;
   const n = parseInt(number);
@@ -313,8 +295,6 @@ app.post('/mark-number', isAuthenticated, async (req, res) => {
   const winners = await Winner.find();
   res.json({ ok: true, number: n, game: updated, winners });
 });
-
-// Atualizar prêmio atual
 app.post('/update-prize', isAuthenticated, async (req, res) => {
   const { currentPrize } = req.body;
   const game = await Game.findOne();
@@ -323,8 +303,6 @@ app.post('/update-prize', isAuthenticated, async (req, res) => {
   await doBroadcast();
   res.json({ ok: true, currentPrize: game.currentPrize });
 });
-
-// Resetar jogo (limpa números e vencedores, desmarca cartelas)
 app.post('/reset', isAuthenticated, async (req, res) => {
   const game = await Game.findOne();
   game.drawnNumbers = [];
@@ -337,14 +315,10 @@ app.post('/reset', isAuthenticated, async (req, res) => {
   await doBroadcast();
   res.json({ ok: true });
 });
-
-// Endpoint simples que algumas telas usam
 app.get('/game', async (req, res) => {
   const game = await Game.findOne();
   res.json(game);
 });
-
-// Atribuir cartelas (mantém coleção original; registra em AssignedCartela)
 app.post('/assign-cartelas', isAuthenticated, async (req, res) => {
   const { cartelaNumbers, playerName, phoneNumber } = req.body;
   if (!cartelaNumbers || !playerName) return res.status(400).json({ error: 'Campos obrigatórios' });
@@ -380,7 +354,7 @@ app.post('/assign-cartelas', isAuthenticated, async (req, res) => {
   res.json({ success: true, playerName, phoneNumber, assigned, link });
 });
 
-// WebSocket: envia estado inicial
+// WebSocket
 wss.on('connection', async ws => {
   const game = await Game.findOne();
   const winners = await Winner.find();
