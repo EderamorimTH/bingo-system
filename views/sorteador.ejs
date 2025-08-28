@@ -1,70 +1,54 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Sorteador - Bingo</title>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
   <style>
     body { background: linear-gradient(135deg, #34d399, #3b82f6); font-family: Arial, sans-serif; }
     .highlight-box { background: rgba(255,255,255,0.9); border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); padding: 1.5rem; margin-bottom: 1.5rem; }
-    .pulse { animation: pulse 2s infinite; }
-    @keyframes pulse { 0%{transform:scale(1)} 50%{transform:scale(1.05)} 100%{transform:scale(1)} }
   </style>
 </head>
 <body class="flex items-center justify-center min-h-screen text-gray-800">
-  <div class="w-full max-w-4xl p-6">
+  <div class="w-full max-w-5xl p-6">
     <h1 class="text-4xl font-bold text-center mb-6 text-white drop-shadow-lg">Sorteador</h1>
 
-    <!-- Último Número Sorteado -->
-    <div class="highlight-box text-center">
-      <h2 class="text-2xl font-semibold text-gray-700">Último Número Sorteado</h2>
-      <p id="lastNumber" class="text-6xl font-bold text-red-600">--</p>
-    </div>
-
-    <!-- Últimos 5 Números -->
-    <div class="highlight-box text-center">
-      <h2 class="text-2xl font-semibold text-gray-700">Últimos 5 Números Sorteados</h2>
-      <p id="lastFive" class="text-xl">--</p>
-    </div>
-
-    <!-- Prêmio Atual -->
-    <div class="highlight-box text-center">
-      <h2 class="text-2xl font-semibold text-gray-700">Prêmio Atual</h2>
-      <p id="currentPrize" class="text-2xl">--</p>
-    </div>
-
-    <!-- Números Sorteados -->
-    <div class="highlight-box">
-      <h2 class="text-xl font-semibold mb-2 text-gray-700">Números Sorteados</h2>
-      <div id="drawnNumbers">
-        <p><strong>B (1-15):</strong> <span id="drawnB">--</span></p>
-        <p><strong>I (16-30):</strong> <span id="drawnI">--</span></p>
-        <p><strong>N (31-45):</strong> <span id="drawnN">--</span></p>
-        <p><strong>G (46-60):</strong> <span id="drawnG">--</span></p>
-        <p><strong>O (61-75):</strong> <span id="drawnO">--</span></p>
+    <div class="grid md:grid-cols-2 gap-6">
+      <!-- Último Número Sorteado -->
+      <div class="highlight-box text-center">
+        <h2 class="text-2xl font-semibold text-gray-700">Último Número Sorteado</h2>
+        <p id="lastNumber" class="text-6xl font-bold text-red-600">--</p>
+        <p class="text-gray-600" id="lastFive">--</p>
       </div>
-      <div class="mt-4">
-        <form id="markNumberForm" class="flex space-x-2">
+
+      <!-- Prêmio Atual + Marcação Manual -->
+      <div class="highlight-box">
+        <h2 class="text-2xl font-semibold text-gray-700 text-center">Prêmio Atual</h2>
+        <p id="currentPrize" class="text-2xl text-center">--</p>
+
+        <form id="markNumberForm" class="mt-4 flex gap-2 justify-center">
           <input type="number" id="manualNumber" name="number" min="1" max="75" class="border rounded p-2 w-24" placeholder="Nº">
           <input type="password" id="adminPassword" name="password" class="border rounded p-2 w-48" placeholder="Senha do ADM">
           <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Marcar Número</button>
         </form>
-        <p id="manualMsg" class="mt-2 text-sm"></p>
+        <p id="manualMsg" class="mt-2 text-sm text-center"></p>
       </div>
     </div>
 
-    <!-- Vencedores -->
+    <!-- Lista de Vencedores (fixos, não somem após reset) -->
     <div class="highlight-box">
-      <h2 class="text-xl font-semibold mb-2 text-gray-700">Vencedores</h2>
+      <h2 class="text-xl font-semibold mb-2 text-gray-700">Vencedores (ordem de chegada)</h2>
       <table class="w-full border-collapse">
         <thead>
           <tr class="bg-gray-200">
+            <th class="border p-2">#</th>
             <th class="border p-2">Nome</th>
             <th class="border p-2">Telefone</th>
             <th class="border p-2">Cartela</th>
             <th class="border p-2">Prêmio</th>
+            <th class="border p-2">Data/Hora</th>
           </tr>
         </thead>
         <tbody id="winnersTable"></tbody>
@@ -73,49 +57,50 @@
   </div>
 
   <script>
-    function getLetterNumber(number) {
-      if (number >= 1 && number <= 15) return `B-${number}`;
-      if (number >= 16 && number <= 30) return `I-${number}`;
-      if (number >= 31 && number <= 45) return `N-${number}`;
-      if (number >= 46 && number <= 60) return `G-${number}`;
-      if (number >= 61 && number <= 75) return `O-${number}`;
-      return number;
+    function getLetterNumber(n) {
+      if (n >= 1 && n <= 15) return `B-${n}`;
+      if (n <= 30) return `I-${n}`;
+      if (n <= 45) return `N-${n}`;
+      if (n <= 60) return `G-${n}`;
+      if (n <= 75) return `O-${n}`;
+      return n;
     }
 
-    function formatDrawnNumbers(numbers) {
-      const groups = { B: [], I: [], N: [], G: [], O: [] };
-      numbers.forEach(num => {
-        if (num <= 15) groups.B.push(`B-${num}`);
-        else if (num <= 30) groups.I.push(`I-${num}`);
-        else if (num <= 45) groups.N.push(`N-${num}`);
-        else if (num <= 60) groups.G.push(`G-${num}`);
-        else groups.O.push(`O-${num}`);
-      });
-      document.getElementById('drawnB').textContent = groups.B.join(', ') || '--';
-      document.getElementById('drawnI').textContent = groups.I.join(', ') || '--';
-      document.getElementById('drawnN').textContent = groups.N.join(', ') || '--';
-      document.getElementById('drawnG').textContent = groups.G.join(', ') || '--';
-      document.getElementById('drawnO').textContent = groups.O.join(', ') || '--';
+    function formatPhone(p) {
+      if (!p) return '--';
+      return p.replace(/(\d{2})(\d{4,5})(\d{4})/, '($1) $2-$3');
     }
 
-    async function fetchWinners() {
-      const res = await fetch('/winners');
-      const winners = await res.json();
-      const table = document.getElementById('winnersTable');
-      table.innerHTML = '';
-      winners.forEach(w => {
-        const tel = w.phoneNumber ? w.phoneNumber.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-****") : '--';
+    function renderWinners(list) {
+      const tbody = document.getElementById('winnersTable');
+      tbody.innerHTML = '';
+      list.forEach((w, i) => {
         const tr = document.createElement('tr');
+        const dt = w.createdAt ? new Date(w.createdAt) : null;
         tr.innerHTML = `
-          <td class="border p-2">${w.playerName}</td>
-          <td class="border p-2">${tel}</td>
-          <td class="border p-2">${w.cartelaId}</td>
+          <td class="border p-2 text-center">${i + 1}</td>
+          <td class="border p-2">${w.playerName || '--'}</td>
+          <td class="border p-2">${formatPhone(w.phoneNumber)}</td>
+          <td class="border p-2">${w.cartelaId || '--'}</td>
           <td class="border p-2">${w.prize || '--'}</td>
+          <td class="border p-2">${dt ? dt.toLocaleString() : '--'}</td>
         `;
-        table.appendChild(tr);
+        tbody.appendChild(tr);
       });
     }
 
+    function updateGameUI(game) {
+      document.getElementById('lastNumber').textContent = game.lastNumber ? getLetterNumber(game.lastNumber) : '--';
+      const lastFive = (game.drawnNumbers || []).slice(-5).reverse().map(getLetterNumber);
+      document.getElementById('lastFive').textContent = lastFive.length ? lastFive.join(', ') : '--';
+      document.getElementById('currentPrize').textContent = (game.currentPrize && game.currentPrize.trim()) ? game.currentPrize : '--';
+    }
+
+    // Inicial
+    fetch('/game').then(r => r.json()).then(updateGameUI);
+    fetch('/winners').then(r => r.json()).then(renderWinners);
+
+    // Marcação manual
     document.getElementById('markNumberForm').addEventListener('submit', async e => {
       e.preventDefault();
       const number = document.getElementById('manualNumber').value;
@@ -123,6 +108,7 @@
       const msg = document.getElementById('manualMsg');
       msg.textContent = '';
       if (!number) return;
+
       try {
         const res = await fetch('/mark-number', {
           method: 'POST',
@@ -132,45 +118,28 @@
         const data = await res.json();
         if (!res.ok) {
           msg.textContent = data.error || 'Erro ao marcar número';
-          msg.className = 'mt-2 text-sm text-red-700';
+          msg.className = 'mt-2 text-sm text-center text-red-700';
         } else {
           msg.textContent = `Número ${number} marcado com sucesso.`;
-          msg.className = 'mt-2 text-sm text-green-700';
+          msg.className = 'mt-2 text-sm text-center text-green-700';
           document.getElementById('manualNumber').value = '';
         }
       } catch {
         msg.textContent = 'Erro de comunicação com o servidor.';
-        msg.className = 'mt-2 text-sm text-red-700';
+        msg.className = 'mt-2 text-sm text-center text-red-700';
       }
     });
 
-    const ws = new WebSocket('wss://' + window.location.host);
+    // WebSocket: sempre re-renderiza a lista completa (ordem de chegada)
+    const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host);
     ws.onmessage = e => {
       const data = JSON.parse(e.data);
       if (data.type === 'update') {
-        if (data.game.lastNumber) {
-          document.getElementById('lastNumber').textContent = getLetterNumber(data.game.lastNumber);
-        } else {
-          document.getElementById('lastNumber').textContent = '--';
-        }
-        const lastFive = (data.game.drawnNumbers || []).slice(-5).reverse();
-        document.getElementById('lastFive').textContent = lastFive.map(n => getLetterNumber(n)).join(', ') || '--';
-        document.getElementById('currentPrize').textContent = (data.game.currentPrize && data.game.currentPrize.trim()) ? data.game.currentPrize : '--';
-        formatDrawnNumbers(data.game.drawnNumbers || []);
-        fetchWinners();
+        updateGameUI(data.game);
+        // winners já vem completo e ordenado pelo servidor
+        renderWinners(data.winners || []);
       }
     };
-
-    // Estado inicial
-    fetch('/game').then(r => r.json()).then(g => {
-      document.getElementById('lastNumber').textContent = g.lastNumber ? getLetterNumber(g.lastNumber) : '--';
-      const lastFive = (g.drawnNumbers || []).slice(-5).reverse();
-      document.getElementById('lastFive').textContent = lastFive.map(n => getLetterNumber(n)).join(', ') || '--';
-      document.getElementById('currentPrize').textContent = g.currentPrize && g.currentPrize.trim() ? g.currentPrize : '--';
-      formatDrawnNumbers(g.drawnNumbers || []);
-    });
-
-    fetchWinners();
   </script>
 </body>
 </html>
