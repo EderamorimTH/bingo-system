@@ -1,78 +1,135 @@
-require('dotenv').config();
-if(adminPass !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Senha inválida' });
-let draw = await Draw.findOne();
-if(!draw.numbers.includes(number)) draw.numbers.push(number);
-await draw.save();
-io.emit('numberAdded', { number, numbers: draw.numbers });
-res.json({ ok: true });
+const express = require("express");
+const http = require("http");
+const socketIo = require("socket.io");
+const path = require("path");
+const bodyParser = require("body-parser");
+
+// Mongoose
+const mongoose = require("mongoose");
+
+// Conexão MongoDB (usar variável de ambiente no Render)
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/bingo";
+
+mongoose.connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+    .then(() => console.log("✅ MongoDB conectado"))
+    .catch(err => console.error("❌ Erro MongoDB:", err));
+
+// Schemas simples
+const cartelaSchema = new mongoose.Schema({
+    id: Number,
+    dono: String,
+    telefone: String,
+    numeros: [Number],
+    premio: String
 });
 
+const Cartela = mongoose.model("Cartela", cartelaSchema);
 
-// Editar / remover número
-app.post('/api/remove-number', async (req,res)=>{
-const { adminPass, number } = req.body;
-if(adminPass !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Senha inválida' });
-let draw = await Draw.findOne();
-draw.numbers = draw.numbers.filter(n=>n!==number);
-await draw.save();
-io.emit('numberRemoved', { number, numbers: draw.numbers });
-res.json({ ok: true });
-});
+async function start() {
+    const app = express();
+    const server = http.createServer(app);
+    const io = socketIo(server);
 
+    let numerosSorteados = [];
+    let ultimosNumeros = [];
+    let premioAtual = "";
+    let vencedores = [];
 
-// Marcar vencedores (ex: manual ou automático quando uma cartela completa)
-app.post('/api/mark-winner', async (req,res)=>{
-const { adminPass, cardId } = req.body;
-if(adminPass !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Senha inválida' });
-const card = await Card.findOne({ id: cardId });
-if(!card) return res.status(404).json({ error: 'Cartela não existe' });
-card.isWinner = true;
-await card.save();
-const draw = await Draw.findOne();
-const player = card.owner || { name: 'Sem dono', phone: '' };
-draw.winners.push({ cardId, playerName: player.name, playerPhone: player.phone, prize: draw.currentPrize });
-await draw.save();
-io.emit('winner', { cardId, player, prize: draw.currentPrize });
-res.json({ ok: true });
-});
+    // Configuração EJS e estáticos
+    app.set("view engine", "ejs");
+    app.set("views", path.join(__dirname, "views"));
+    app.use(express.static(path.join(__dirname, "public")));
+    app.use(bodyParser.urlencoded({ extended: true }));
 
+    // ================= ROTAS =================
 
-// Atualizar premio
-app.post('/api/update-prize', async (req,res)=>{
-const { adminPass, prize } = req.body;
-if(adminPass !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Senha inválida' });
-const draw = await Draw.findOne();
-draw.currentPrize = prize;
-await draw.save();
-io.emit('prizeUpdated', { prize });
-res.json({ ok: true });
-});
+    // Painel Admin
+    app.get("/admin", async (req, res) => {
+        const cartelas = await Cartela.find();
+        res.render("admin", { numerosSorteados, ultimosNumeros, premioAtual, vencedores, cartelas });
+    });
 
+    // Sortear número automático
+    app.post("/sortear", (req, res) => {
+        if (numerosSorteados.length >= 75) {
+            return res.send("Todos os números já foram sorteados!");
+        }
 
-// Informação pública do draw
-app.get('/api/draw', async (req,res)=>{
-const draw = await Draw.findOne();
-res.json(draw);
-});
+        let numero;
+        do {
+            numero = Math.floor(Math.random() * 75) + 1;
+        } while (numerosSorteados.includes(numero));
 
+        numerosSorteados.push(numero);
+        ultimosNumeros.unshift(numero);
+        if (ultimosNumeros.length > 5) ultimosNumeros.pop();
 
-// Lista de cartelas e donos
-app.get('/api/cards', async (req,res)=>{
-const cards = await Card.find().sort({ id: 1 });
-res.json(cards);
-});
+        io.emit("numeroSorteado", { numero, ultimosNumeros });
+        res.redirect("/admin");
+    });
 
+    // Atualizar prêmio
+    app.post("/premio", (req, res) => {
+        premioAtual = req.body.premio;
+        io.emit("premioAtualizado", premioAtual);
+        res.redirect("/admin");
+    });
 
-// Socket.IO
-io.on('connection', socket=>{
-console.log('Cliente conectado');
-socket.on('requestState', async ()=>{
-const draw = await Draw.findOne();
-const cards = await Card.find().sort({ id:1 });
-socket.emit('state', { draw, cards });
-});
-});
+    // Atribuir cartela
+    app.post("/atribuir", async (req, res) => {
+        const { id, nome, telefone } = req.body;
+        const cartela = await Cartela.findOne({ id: parseInt(id) });
+        if (cartela) {
+            cartela.dono = nome;
+            cartela.telefone = telefone;
+            await cartela.save();
+        }
+        res.redirect("/admin");
+    });
 
+    // Reiniciar bingo
+    app.post("/reiniciar", async (req, res) => {
+        numerosSorteados = [];
+        ultimosNumeros = [];
+        vencedores = [];
+        premioAtual = "";
+        await Cartela.updateMany({}, { dono: "", telefone: "", premio: "" });
+        io.emit("reiniciar");
+        res.redirect("/admin");
+    });
 
-const PORT = process.env.PORT || 10000;
-server.listen(PORT, ()=>console.log('Servidor rodando', PORT));
+    // Página cartela individual
+    app.get("/cartela/:id", async (req, res) => {
+        const cartela = await Cartela.findOne({ id: parseInt(req.params.id) });
+        if (!cartela) return res.send("❌ Cartela não encontrada!");
+        res.render("cartelas", { cartela });
+    });
+
+    // ================= SOCKET =================
+    io.on("connection", socket => {
+        console.log("Novo cliente conectado");
+    });
+
+    // ================= GERAR 500 CARTELAS FIXAS =================
+    const totalCartelas = await Cartela.countDocuments();
+    if (totalCartelas === 0) {
+        let id = 1;
+        while (id <= 500) {
+            const numeros = [];
+            while (numeros.length < 15) {
+                const n = Math.floor(Math.random() * 75) + 1;
+                if (!numeros.includes(n)) numeros.push(n);
+            }
+            await Cartela.create({ id, dono: "", telefone: "", numeros, premio: "" });
+            id++;
+        }
+        console.log("✅ 500 cartelas fixas geradas");
+    }
+
+    // ================= START SERVER =================
+    const PORT = process.env.PORT || 10000;
+    server.listen(PORT, () => console.log(`🚀 Servidor rodando em http://localhost:${PORT}`));
+}
+
+// Inicia função async
+start().catch(err => console.error(err));
