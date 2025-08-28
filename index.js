@@ -84,10 +84,8 @@ mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTop
   .then(async () => {
     console.log('Conectado ao MongoDB');
     const game = await Game.findOne();
-    if (!game) {
-      await new Game().save();
-      console.log('Jogo inicial criado');
-    }
+    if (!game) await new Game().save();
+
     const totalCartelas = await Cartela.countDocuments({ playerName: "FIXAS" });
     if (totalCartelas === 0) {
       console.log("Gerando 500 cartelas fixas...");
@@ -109,6 +107,13 @@ mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTop
 // Middleware de autenticação
 function isAuthenticated(req, res, next) {
   if (req.cookies.auth === 'true') return next();
+
+  // Se for requisição AJAX/fetch → devolve JSON de erro
+  if (req.xhr || (req.headers.accept && req.headers.accept.indexOf('json') > -1)) {
+    return res.status(401).json({ error: 'Não autenticado' });
+  }
+
+  // Caso contrário (navegador normal) → redireciona pro login
   res.redirect('/login');
 }
 
