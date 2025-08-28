@@ -1,114 +1,69 @@
 const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 const mongoose = require('mongoose');
-const bodyParser = require('body-parser');
+const Cartela = require('./models/Cartela');
 
 const app = express();
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+const server = http.createServer(app);
+const io = new Server(server);
+const PORT = process.env.PORT || 10000;
 
-// Conexão com MongoDB
-mongoose.connect('mongodb://localhost:27017/bingo', {
+// MongoDB Atlas
+const MONGO_URI = 'mongodb+srv://Amorim:SENHA@cluster0.8vhg4ws.mongodb.net/bingo?retryWrites=true&w=majority';
+
+mongoose.connect(MONGO_URI, {
     useNewUrlParser: true,
-    useUnifiedTopology: true
-}).then(() => console.log("MongoDB conectado"))
-.catch(err => console.log("Erro MongoDB:", err));
+    useUnifiedTopology: true,
+})
+.then(() => console.log('✅ MongoDB Atlas conectado'))
+.catch(err => console.error('Erro MongoDB:', err));
 
-// Schema da cartela
-const cartelaSchema = new mongoose.Schema({
-    id: { type: Number, required: true, unique: true },
-    numeros: [{ type: Number, required: true }],
-    dono: { type: String, default: null } // Nome do comprador
-});
-const Cartela = mongoose.model('Cartela', cartelaSchema);
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.set('view engine', 'ejs');
+app.use(express.static('public'));
 
-// Schema do sorteio
-const sorteioSchema = new mongoose.Schema({
-    numerosSorteados: [{ type: Number }],
-    vencedor: { type: mongoose.Schema.Types.ObjectId, ref: 'Cartela', default: null },
-    premioAtual: { type: String, default: "" }
-});
-const Sorteio = mongoose.model('Sorteio', sorteioSchema);
-
-// Rotas
-
-// Cadastro de cartela
-app.post('/cartela', async (req, res) => {
-    try {
-        let cartelaId = Number(req.body.id);
-        if (isNaN(cartelaId)) return res.status(400).send("ID da cartela inválido");
-
-        let numeros = req.body.numeros.map(n => Number(n));
-        if (numeros.some(isNaN)) return res.status(400).send("Números inválidos");
-
-        const cartela = new Cartela({
-            id: cartelaId,
-            numeros,
-            dono: req.body.dono || null
-        });
-
-        await cartela.save();
-        res.status(201).send({ message: "Cartela cadastrada!", cartela });
-    } catch (err) {
-        console.error(err);
-        res.status(500).send("Erro ao cadastrar cartela");
-    }
-});
-
-// Listar cartelas
-app.get('/cartelas', async (req, res) => {
+// ROTAS
+app.get('/', async (req, res) => {
     const cartelas = await Cartela.find();
-    res.send(cartelas);
+    res.render('index', { cartelas });
 });
 
-// Realizar sorteio
+// Criar nova cartela
+app.post('/cartela', async (req, res) => {
+    const { numeros, dono } = req.body;
+    const novaCartela = new Cartela({ numeros, dono });
+    await novaCartela.save();
+    res.json({ sucesso: true, cartela: novaCartela });
+});
+
+// Sorteio
 app.post('/sorteio', async (req, res) => {
-    try {
-        let numeroSorteado = Number(req.body.numero);
-        if (isNaN(numeroSorteado)) return res.status(400).send("Número sorteado inválido");
+    const { numero, premio } = req.body;
 
-        let sorteio = await Sorteio.findOne() || new Sorteio({ numerosSorteados: [] });
-        sorteio.numerosSorteados.push(numeroSorteado);
-
-        // Verifica vencedores
-        let vencedores = await Cartela.find({ numeros: numeroSorteado, dono: { $ne: null } });
-        if (vencedores.length > 0) {
-            sorteio.vencedor = vencedores[0]._id; // pega primeiro vencedor
-        }
-
-        sorteio.premioAtual = req.body.premio || sorteio.premioAtual;
-        await sorteio.save();
-
-        res.send({ message: "Número sorteado!", sorteio });
-    } catch (err) {
-        console.error(err);
-        res.status(500).send("Erro no sorteio");
+    // Atualiza cartelas com o número sorteado
+    const cartelas = await Cartela.find({ numeros: numero });
+    for (let cartela of cartelas) {
+        cartela.premio = premio;
+        await cartela.save();
     }
+
+    // Notifica clientes via socket
+    io.emit('numero-sorteado', { numero, premio });
+    res.json({ sucesso: true });
 });
 
-// Painel do admin
-app.get('/painel', async (req, res) => {
-    const sorteio = await Sorteio.findOne().populate('vencedor');
-    res.send(sorteio);
+// Socket.io
+io.on('connection', (socket) => {
+    console.log('🚀 Novo cliente conectado');
+
+    socket.on('disconnect', () => {
+        console.log('❌ Cliente desconectado');
+    });
 });
 
-// Reiniciar sorteio
-app.post('/reiniciar', async (req, res) => {
-    await Sorteio.deleteMany({});
-    res.send({ message: "Sorteio reiniciado" });
+// Servidor
+server.listen(PORT, () => {
+    console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
 });
-
-// Excluir todas cartelas
-app.post('/excluir-todas', async (req, res) => {
-    await Cartela.deleteMany({});
-    res.send({ message: "Todas cartelas excluídas" });
-});
-
-// Excluir cartela por número
-app.post('/excluir-numero', async (req, res) => {
-    let cartelaId = Number(req.body.id);
-    if (isNaN(cartelaId)) return res.status(400).send("ID inválido");
-    await Cartela.deleteOne({ id: cartelaId });
-    res.send({ message: "Cartela excluída" });
-});
-
-app.listen(10000, () => console.log("Servidor rodando em http://localhost:10000"));
