@@ -11,7 +11,7 @@
     .cartela-container { background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); padding: 1.5rem; margin-bottom: 2rem; }
     .cartela-table { border-collapse: separate; border-spacing: 0; width: 100%; }
     .cartela-table th { background: #10b981; color: white; padding: 0.75rem; font-size: 1.25rem; }
-    .cartela-table td { background: #f3f4f6; border: 2px solid #e5e7eb; padding: 0.75rem; font-size: 1.1rem; font-weight: bold; transition: background 0.3s; text-align: center; }
+    .cartela-table td { background: #f3f4f6; border: 2px solid #e5e7eb; padding: 0.75rem; font-size: 1.1rem; font-weight: bold; transition: background 0.3s; }
     .cartela-table td.marked { background: #facc15; color: #1f2937; }
     .cartela-table td.free { background: #60a5fa; color: white; }
     .highlight-box { background: rgba(255,255,255,0.9); border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); padding: 1.5rem; margin-bottom: 1.5rem; }
@@ -48,7 +48,7 @@
               <% for (let row = 0; row < 5; row++) { %>
                 <tr>
                   <% for (let col = 0; col < 5; col++) { %>
-                    <td class="<%= cartela.numbers && cartela.numbers[col] && cartela.numbers[col][row] === 0 ? 'free' : (cartela.markedNumbers && cartela.markedNumbers.includes(cartela.numbers[col][row]) ? 'marked' : '') %>">
+                    <td class="<%= cartela.numbers && cartela.numbers[col] && cartela.numbers[col][row] === 0 ? 'free' : (cartela.markedNumbers && cartela.markedNumbers.includes(cartela.numbers[col][row]) ? 'marked' : '') %> text-center">
                       <%= cartela.numbers && cartela.numbers[col] && cartela.numbers[col][row] === 0 ? 'X' : (cartela.numbers && cartela.numbers[col] ? cartela.numbers[col][row] : '-') %>
                     </td>
                   <% } %>
@@ -67,9 +67,9 @@
 
   <script>
     const cartelasData = <%- JSON.stringify(cartelas || []) %>;
-    const winnersInitial = <%- JSON.stringify(winners || []) %>;
+    const winners = <%- JSON.stringify(winners || []) %>;
 
-    const ws = new WebSocket('wss://' + window.location.host);
+    const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host);
     ws.onopen = () => console.log('Conexão WebSocket estabelecida');
     ws.onmessage = e => {
       try {
@@ -78,10 +78,10 @@
           updateUI(data.game || {}, data.winners || []);
         }
       } catch (error) {
-        console.error('Erro ao processar mensagem WebSocket (cartelas):', error);
+        console.error('Erro ao processar mensagem WebSocket:', error);
       }
     };
-    ws.onerror = (error) => console.error('Erro no WebSocket (cartelas):', error);
+    ws.onerror = (error) => console.error('Erro no WebSocket:', error);
     ws.onclose = () => console.log('Conexão WebSocket fechada');
 
     function updateUI(game, winners) {
@@ -91,16 +91,12 @@
       cartelasData.forEach(cartela => {
         const winnerMsg = document.getElementById(`winnerMessage-${cartela.cartelaId || 'unknown'}`);
         if (winnerMsg) {
-          // === MUDANÇA MÍNIMA: se o jogo foi reiniciado, esconde a mensagem de vitória ===
-          if (!game.drawnNumbers || game.drawnNumbers.length === 0) {
-            winnerMsg.classList.add('hidden');
-          } else if (winners.some(w => w.cartelaId === cartela.cartelaId)) {
+          if (winners.some(w => w.cartelaId === cartela.cartelaId)) {
             winnerMsg.classList.remove('hidden');
           } else {
             winnerMsg.classList.add('hidden');
           }
         }
-
         // Atualizar números marcados
         if (game.drawnNumbers && cartela.numbers) {
           const table = document.getElementById(`table-${cartela.cartelaId || 'unknown'}`);
@@ -113,24 +109,7 @@
                   cell.classList.add('marked');
                 } else if (number !== 0) {
                   cell.classList.remove('marked');
-                } else {
-                  // é o espaço livre (0) — mantém classe 'free'
-                  cell.classList.add('free');
                 }
-              }
-            }
-          }
-        } else {
-          // Se não há drawnNumbers (por exemplo após reset), remove 'marked' de todas as células
-          const table = document.getElementById(`table-${cartela.cartelaId || 'unknown'}`);
-          if (table) {
-            for (let row = 0; row < 5; row++) {
-              for (let col = 0; col < 5; col++) {
-                const cell = table.rows[row + 1].cells[col];
-                cell.classList.remove('marked');
-                const number = cartela.numbers[col][row];
-                if (number === 0) cell.classList.add('free');
-                else cell.classList.remove('free');
               }
             }
           }
@@ -138,12 +117,25 @@
       });
     }
 
-    // Inicializa o UI com winners iniciais (quando a página é carregada)
+    function getLetterNumber(number) {
+      if (!number) return '--';
+      if (number >= 1 && number <= 15) return `B-${number}`;
+      if (number >= 16 && number <= 30) return `I-${number}`;
+      if (number >= 31 && number <= 45) return `N-${number}`;
+      if (number >= 46 && number <= 60) return `G-${number}`;
+      if (number >= 61 && number <= 75) return `O-${number}`;
+      return number.toString();
+    }
+
+    // Carregar dados iniciais
     fetch('/game', { headers: { 'Accept': 'application/json' } })
-      .then(res => res.json())
-      .then(game => updateUI(game || {}, winnersInitial || []))
+      .then(res => {
+        if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+        return res.json();
+      })
+      .then(game => updateUI(game || {}, winners))
       .catch(error => {
-        console.error('Erro ao carregar dados do jogo (cartelas):', error);
+        console.error('Erro ao carregar dados do jogo:', error);
         document.getElementById('lastNumber').textContent = '--';
         document.getElementById('currentPrize').textContent = '--';
       });
