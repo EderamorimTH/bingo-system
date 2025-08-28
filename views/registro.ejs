@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registro de Cartela - Bingo</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    body { background: linear-gradient(135deg, #34d399, #3b82f6); font-family: Arial, sans-serif; }
+    .highlight-box { background: rgba(255, 255, 255, 0.9); border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); padding: 1.5rem; }
+    .error-box { background: #fee2e2; border: 1px solid #ef4444; padding: 1rem; border-radius: 8px; }
+  </style>
+</head>
+<body class="flex items-center justify-center min-h-screen">
+  <div class="highlight-box w-full max-w-md">
+    <h1 class="text-2xl font-bold text-center mb-6 text-gray-700">Registrar Cartela</h1>
+    <% if (error) { %>
+      <div class="error-box mb-4">
+        <p class="text-red-600"><%= error %></p>
+      </div>
+    <% } %>
+    <form method="POST" action="/registro">
+      <div class="mb-4">
+        <label for="cartelaId" class="block text-sm font-medium text-gray-700">Número da Cartela (ex.: CARTELA-XXXXXX)</label>
+        <input type="text" id="cartelaId" name="cartelaId" value="<%= cartelaId %>" class="mt-1 p-2 border rounded w-full focus:ring-green-500 focus:border-green-500" required>
+      </div>
+      <div class="mb-4">
+        <label for="playerName" class="block text-sm font-medium text-gray-700">Nome do Jogador</label>
+        <input type="text" id="playerName" name="playerName" class="mt-1 p-2 border rounded w-full focus:ring-green-500 focus:border-green-500" required>
+      </div>
+      <div class="mb-4">
+        <label for="phoneNumber" class="block text-sm font-medium text-gray-700">Número de Telefone (opcional)</label>
+        <input type="text" id="phoneNumber" name="phoneNumber" class="mt-1 p-2 border rounded w-full focus:ring-green-500 focus:border-green-500">
+      </div>
+      <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg w-full transition duration-300">Registrar</button>
+    </form>
+  </div>
+</body>
+</html>
