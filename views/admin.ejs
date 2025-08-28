@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Painel de Administração</title>
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
   <div class="container">
@@ -153,27 +153,29 @@
     </div>
 
     <div class="section">
-      <h2>Vencedores</h2>
+      <h2>Vencedores (ordem de chegada)</h2>
       <table id="winnersTable">
         <tr>
+          <th>#</th>
           <th>Nome</th>
           <th>Telefone</th>
           <th>Cartela</th>
           <th>Prêmio</th>
-          <th>Link</th>
+          <th>Data/Hora</th>
         </tr>
         <% if (winners && winners.length > 0) { %>
-          <% winners.forEach(winner => { %>
+          <% winners.forEach((winner, index) => { %>
             <tr>
+              <td><%= index + 1 %></td>
               <td><%= winner.playerName %></td>
               <td><%= winner.phoneNumber %></td>
               <td><%= winner.cartelaId %></td>
               <td><%= winner.prize %></td>
-              <td><a href="<%= winner.link %>" target="_blank">Ver</a></td>
+              <td><%= winner.createdAt.toLocaleString() %></td>
             </tr>
           <% }) %>
         <% } else { %>
-          <tr><td colspan="5">Nenhum vencedor</td></tr>
+          <tr><td colspan="6">Nenhum vencedor</td></tr>
         <% } %>
       </table>
     </div>
@@ -205,11 +207,6 @@
           credentials: 'include'
         });
         if (!response.ok) {
-          if (response.status === 401) {
-            alert('Sessão expirada. Faça login novamente.');
-            window.location.href = '/login';
-            return;
-          }
           throw new Error(`Erro HTTP: ${response.status} ${response.statusText}`);
         }
         const data = await response.json();
@@ -250,27 +247,29 @@
         const winnersTable = document.getElementById('winnersTable');
         winnersTable.innerHTML = `
           <tr>
+            <th>#</th>
             <th>Nome</th>
             <th>Telefone</th>
             <th>Cartela</th>
             <th>Prêmio</th>
-            <th>Link</th>
+            <th>Data/Hora</th>
           </tr>
         `;
         if (data.winners && data.winners.length > 0) {
-          data.winners.forEach(winner => {
+          data.winners.forEach((winner, index) => {
             const row = document.createElement('tr');
             row.innerHTML = `
+              <td>${index + 1}</td>
               <td>${winner.playerName}</td>
               <td>${winner.phoneNumber}</td>
               <td>${winner.cartelaId}</td>
               <td>${winner.prize}</td>
-              <td><a href="${winner.link}" target="_blank">Ver</a></td>
+              <td>${new Date(winner.createdAt).toLocaleString()}</td>
             `;
             winnersTable.appendChild(row);
           });
         } else {
-          winnersTable.innerHTML += '<tr><td colspan="5">Nenhum vencedor</td></tr>';
+          winnersTable.innerHTML += '<tr><td colspan="6">Nenhum vencedor</td></tr>';
         }
       } catch (error) {
         console.error('Erro ao atualizar tabelas:', error);
@@ -292,11 +291,6 @@
           body: JSON.stringify({ cartelaNumbers, playerName, phoneNumber })
         });
         if (!response.ok) {
-          if (response.status === 401) {
-            alert('Sessão expirada. Faça login novamente.');
-            window.location.href = '/login';
-            return;
-          }
           throw new Error(`Erro HTTP: ${response.status} ${response.statusText}`);
         }
         const data = await response.json();
@@ -325,11 +319,6 @@
           body: JSON.stringify({ currentPrize })
         });
         if (!response.ok) {
-          if (response.status === 401) {
-            alert('Sessão expirada. Faça login novamente.');
-            window.location.href = '/login';
-            return;
-          }
           throw new Error(`Erro HTTP: ${response.status} ${response.statusText}`);
         }
         const data = await response.json();
@@ -354,11 +343,6 @@
           credentials: 'include'
         });
         if (!response.ok) {
-          if (response.status === 401) {
-            alert('Sessão expirada. Faça login novamente.');
-            window.location.href = '/login';
-            return;
-          }
           throw new Error(`Erro HTTP: ${response.status} ${response.statusText}`);
         }
         const data = await response.json();
@@ -387,11 +371,6 @@
           body: JSON.stringify({ number, password })
         });
         if (!response.ok) {
-          if (response.status === 401) {
-            alert('Sessão expirada. Faça login novamente.');
-            window.location.href = '/login';
-            return;
-          }
           throw new Error(`Erro HTTP: ${response.status} ${response.statusText}`);
         }
         const data = await response.json();
@@ -419,11 +398,6 @@
           body: JSON.stringify({ password })
         });
         if (!response.ok) {
-          if (response.status === 401) {
-            alert('Sessão expirada. Faça login novamente.');
-            window.location.href = '/login';
-            return;
-          }
           throw new Error(`Erro HTTP: ${response.status} ${response.statusText}`);
         }
         const data = await response.json();
@@ -457,11 +431,6 @@
           body: JSON.stringify({ password })
         });
         if (!response.ok) {
-          if (response.status === 401) {
-            alert('Sessão expirada. Faça login novamente.');
-            window.location.href = '/login';
-            return;
-          }
           throw new Error(`Erro HTTP: ${response.status} ${response.statusText}`);
         }
         const data = await response.json();
@@ -490,11 +459,6 @@
           body: JSON.stringify({ phoneNumber, password })
         });
         if (!response.ok) {
-          if (response.status === 401) {
-            alert('Sessão expirada. Faça login novamente.');
-            window.location.href = '/login';
-            return;
-          }
           throw new Error(`Erro HTTP: ${response.status} ${response.statusText}`);
         }
         const data = await response.json();
@@ -523,11 +487,6 @@
           body: JSON.stringify({ cartelaNumbers, playerName })
         });
         if (!response.ok) {
-          if (response.status === 401) {
-            alert('Sessão expirada. Faça login novamente.');
-            window.location.href = '/login';
-            return;
-          }
           throw new Error(`Erro HTTP: ${response.status} ${response.statusText}`);
         }
         const data = await response.json();
