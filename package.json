@@ -1,16 +1,17 @@
 {
   "name": "bingo-system",
   "version": "1.0.0",
-  "description": "Sistema de Bingo com painel admin e cartelas",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "socket.io": "^4.7.5",
-    "ejs": "^3.1.9",
-    "mongoose": "^7.5.0",
-    "body-parser": "^1.20.2"
+    "mongoose": "^7.0.0",
+    "socket.io": "^4.5.4",
+    "pdfkit": "^0.13.0",
+    "body-parser": "^1.20.1",
+    "cookie-parser": "^1.4.6",
+    "bootstrap": "^5.2.3"
   }
 }
