@@ -11,10 +11,24 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Configurar strictQuery para evitar aviso de depreciação
+mongoose.set('strictQuery', false);
+
+// Verificar se MONGO_URI está definida
+if (!process.env.MONGO_URI) {
+  console.error('Erro: MONGO_URI não está definida nas variáveis de ambiente.');
+  process.exit(1);
+}
+
 // Conectar MongoDB
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true
+}).then(() => {
+  console.log('Conectado ao MongoDB com sucesso');
+}).catch(err => {
+  console.error('Erro ao conectar ao MongoDB:', err);
+  process.exit(1);
 });
 
 // Schemas
@@ -200,4 +214,5 @@ app.get('/download-cartelas', isAuthenticated, async (req, res) => {
 });
 
 // Inicia servidor
-app.listen(3000, () => console.log('Servidor rodando na porta 3000'));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
