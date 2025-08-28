@@ -22,7 +22,7 @@ const cartelaSchema = new mongoose.Schema({
   cartelaId: String,
   numbers: [[Number]]
 });
-const Cartela = mongoose.model('Cartela', cartelaSchema);
+const Cartela = mongoose.model('Cartela', cartelaSchema, 'cartelas'); // <-- força coleção "cartelas"
 
 const cartelaAtribuidaSchema = new mongoose.Schema({
   cartelaId: String,
@@ -32,7 +32,8 @@ const cartelaAtribuidaSchema = new mongoose.Schema({
   markedNumbers: { type: [Number], default: [] },
   createdAt: { type: Date, default: Date.now }
 });
-const CartelaAtribuida = mongoose.model('CartelaAtribuida', cartelaAtribuidaSchema);
+const CartelaAtribuida = mongoose.model('CartelaAtribuida', cartelaAtribuidaSchema, 'assignedcartelas'); 
+// <-- força coleção "assignedcartelas"
 
 const playerSchema = new mongoose.Schema({
   playerName: String,
@@ -41,7 +42,7 @@ const playerSchema = new mongoose.Schema({
   link: String,
   createdAt: Date
 });
-const Player = mongoose.model('Player', playerSchema);
+const Player = mongoose.model('Player', playerSchema, 'players'); // <-- força coleção "players"
 
 // Autenticação simples
 const isAuthenticated = (req, res, next) => next();
