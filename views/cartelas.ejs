@@ -27,10 +27,10 @@
       <p id="lastNumber" class="text-5xl font-bold text-center text-red-600">--</p>
     </div>
 
-    <!-- Últimos 5 Números -->
+    <!-- Prêmio Atual (substituiu últimos 5 números) -->
     <div class="highlight-box">
-      <h2 class="text-2xl font-semibold text-center text-gray-700">Últimos 5 Números Sorteados</h2>
-      <p id="drawnNumbers" class="text-xl text-center text-gray-800">--</p>
+      <h2 class="text-2xl font-semibold text-center text-gray-700">Prêmio Atual</h2>
+      <p id="currentPrize" class="text-2xl text-center text-gray-900">--</p>
     </div>
 
     <% cartelas.forEach((cartela, index) => { %>
@@ -71,34 +71,13 @@
 
     function updateUI(game, winners) {
       document.getElementById('lastNumber').textContent = game.lastNumber ? getLetterNumber(game.lastNumber) : '--';
-      const lastFive = game.drawnNumbers.slice(-5).reverse();
-      document.getElementById('drawnNumbers').textContent = lastFive.length ? lastFive.map(n => getLetterNumber(n)).join(', ') : '--';
+      document.getElementById('currentPrize').textContent = game.currentPrize && game.currentPrize.trim() ? game.currentPrize : '--';
 
       cartelasData.forEach(cartela => {
         const winnerMsg = document.getElementById(`winnerMessage-${cartela.cartelaId}`);
         if (winnerMsg) {
-          if (winners.includes(cartela.cartelaId)) winnerMsg.classList.remove('hidden');
+          if (winners.some(w => w.cartelaId === cartela.cartelaId)) winnerMsg.classList.remove('hidden');
           else winnerMsg.classList.add('hidden');
-        }
-
-        const table = document.getElementById(`table-${cartela.cartelaId}`);
-        if (!table) return;
-
-        for (let row = 0; row < 5; row++) {
-          for (let col = 0; col < 5; col++) {
-            const num = cartela.numbers[col][row];
-            const cell = table.rows[row + 1].cells[col];
-            if (num === 0) {
-              cell.className = 'free text-center';
-              cell.textContent = 'X';
-            } else if (game.drawnNumbers.includes(num)) {
-              cell.className = 'marked text-center';
-              cell.textContent = num;
-            } else {
-              cell.className = 'text-center';
-              cell.textContent = num;
-            }
-          }
         }
       });
     }
