@@ -1,5 +1,3 @@
-Vou te mandar o index js para voce ver 
-
 const express = require('express');
 const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
@@ -203,5 +201,3 @@ app.get('/download-cartelas', isAuthenticated, async (req, res) => {
 
 // Inicia servidor
 app.listen(3000, () => console.log('Servidor rodando na porta 3000'));
-
-
