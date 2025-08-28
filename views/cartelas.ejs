@@ -3,95 +3,533 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cartelas do Bingo</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css">
-  <style>
-    body { background: linear-gradient(135deg, #34d399, #3b82f6); font-family: Arial, sans-serif; }
-    .cartela-container { background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); padding: 1.5rem; margin-bottom: 2rem; }
-    .cartela-table { border-collapse: separate; border-spacing: 0; width: 100%; }
-    .cartela-table th { background: #10b981; color: white; padding: 0.75rem; font-size: 1.25rem; }
-    .cartela-table td { background: #f3f4f6; border: 2px solid #e5e7eb; padding: 0.75rem; font-size: 1.1rem; font-weight: bold; transition: background 0.3s; }
-    .cartela-table td.marked { background: #facc15; color: #1f2937; }
-    .cartela-table td.free { background: #60a5fa; color: white; }
-    .highlight-box { background: rgba(255,255,255,0.9); border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); padding: 1.5rem; margin-bottom: 1.5rem; }
-  </style>
+  <title>Painel de Administração</title>
+  <link rel="stylesheet" href="/css/styles.css">
 </head>
-<body class="flex items-center justify-center min-h-screen">
-  <div class="w-full max-w-5xl p-6">
-    <h1 class="text-4xl font-bold text-center mb-6 text-white drop-shadow-lg"><%= playerName %></h1>
+<body>
+  <div class="container">
+    <h1>Painel de Administração</h1>
 
-    <!-- Último Número Sorteado -->
-    <div class="highlight-box">
-      <h2 class="text-2xl font-semibold text-center text-gray-700">Último Número Sorteado</h2>
-      <p id="lastNumber" class="text-5xl font-bold text-center text-red-600">--</p>
+    <div class="section">
+      <h2>Links Fixos</h2>
+      <a href="/display" target="_blank">Exibição Pública</a><br>
+      <a href="/sorteador" target="_blank">Sorteador Público</a><br>
+      <a href="/cartelas-fixas" target="_blank">Todas as 500 Cartelas</a>
     </div>
 
-    <!-- Prêmio Atual (substituiu últimos 5 números) -->
-    <div class="highlight-box">
-      <h2 class="text-2xl font-semibold text-center text-gray-700">Prêmio Atual</h2>
-      <p id="currentPrize" class="text-2xl text-center text-gray-900">--</p>
+    <div class="section">
+      <h2>Atribuir Cartelas</h2>
+      <form id="assignCartelasForm">
+        <div class="form-group">
+          <label for="cartelaNumbers">Números das Cartelas (separados por vírgula)</label>
+          <input type="text" id="cartelaNumbers" name="cartelaNumbers" required>
+        </div>
+        <div class="form-group">
+          <label for="playerName">Nome do Jogador</label>
+          <input type="text" id="playerName" name="playerName" required>
+        </div>
+        <div class="form-group">
+          <label for="phoneNumber">Número de Telefone</label>
+          <input type="text" id="phoneNumber" name="phoneNumber">
+        </div>
+        <button type="submit">Atribuir</button>
+      </form>
     </div>
 
-    <% cartelas.forEach((cartela, index) => { %>
-      <div class="cartela-container">
-        <h2 class="text-xl font-semibold mb-2 text-gray-700">Cartela <%= index + 1 %> (ID: <%= cartela.cartelaId %>)</h2>
-        <div id="winnerMessage-<%= cartela.cartelaId %>" class="text-2xl font-bold text-center text-green-600 hidden mb-4">🎉 Parabéns! Esta cartela venceu!</div>
-        <table class="cartela-table" id="table-<%= cartela.cartelaId %>">
-          <thead>
-            <tr>
-              <th>B</th><th>I</th><th>N</th><th>G</th><th>O</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% for (let row = 0; row < 5; row++) { %>
-              <tr>
-                <% for (let col = 0; col < 5; col++) { %>
-                  <td class="<%= cartela.numbers[col][row] === 0 ? 'free' : (cartela.markedNumbers.includes(cartela.numbers[col][row]) ? 'marked' : '') %> text-center">
-                    <%= cartela.numbers[col][row] === 0 ? 'X' : cartela.numbers[col][row] %>
-                  </td>
-                <% } %>
-              </tr>
-            <% } %>
-          </tbody>
-        </table>
+    <div class="section">
+      <h2>Atualizar Prêmio Atual</h2>
+      <form id="updatePrizeForm">
+        <div class="form-group">
+          <label for="currentPrize">Prêmio Atual</label>
+          <input type="text" id="currentPrize" name="currentPrize" value="<%= game.currentPrize %>">
+        </div>
+        <button type="submit">Atualizar Prêmio</button>
+      </form>
+    </div>
+
+    <div class="section">
+      <h2>Último Número Sorteado</h2>
+      <p id="lastNumber"><%= game.lastNumberDisplay %></p>
+    </div>
+
+    <div class="section">
+      <h2>Números Sorteados</h2>
+      <div id="drawnNumbers">
+        <p><strong>B (1-15):</strong> <span id="bNumbers"><%= game.drawnNumbers.filter(n => n >= 1 && n <= 15).join(', ') %></span></p>
+        <p><strong>I (16-30):</strong> <span id="iNumbers"><%= game.drawnNumbers.filter(n => n >= 16 && n <= 30).join(', ') %></span></p>
+        <p><strong>N (31-45):</strong> <span id="nNumbers"><%= game.drawnNumbers.filter(n => n >= 31 && n <= 45).join(', ') %></span></p>
+        <p><strong>G (46-60):</strong> <span id="gNumbers"><%= game.drawnNumbers.filter(n => n >= 46 && n <= 60).join(', ') %></span></p>
+        <p><strong>O (61-75):</strong> <span id="oNumbers"><%= game.drawnNumbers.filter(n => n >= 61 && n <= 75).join(', ') %></span></p>
       </div>
-    <% }) %>
+      <form id="drawForm">
+        <button type="submit">Sortear Número (Automático)</button>
+      </form>
+      <form id="markNumberForm">
+        <div class="form-group">
+          <label for="manualNumber">Marcar Número Manual (1-75)</label>
+          <input type="number" id="manualNumber" name="number" min="1" max="75" required>
+        </div>
+        <div class="form-group">
+          <label for="markPassword">Senha</label>
+          <input type="password" id="markPassword" name="password" required>
+        </div>
+        <button type="submit">Marcar</button>
+      </form>
+    </div>
+
+    <div class="section">
+      <h2>Ações</h2>
+      <form id="resetForm">
+        <div class="form-group">
+          <label for="resetPassword">Senha</label>
+          <input type="password" id="resetPassword" name="password" required>
+        </div>
+        <button type="submit">Reiniciar o Bingo</button>
+      </form>
+      <form id="deleteAllForm">
+        <div class="form-group">
+          <label for="deleteAllPassword">Senha</label>
+          <input type="password" id="deleteAllPassword" name="password" required>
+        </div>
+        <button type="submit">Excluir Todas as Cartelas</button>
+      </form>
+      <form id="deleteByPhoneForm">
+        <div class="form-group">
+          <label for="deletePhoneNumber">Excluir por Telefone</label>
+          <input type="text" id="deletePhoneNumber" name="phoneNumber" required>
+        </div>
+        <div class="form-group">
+          <label for="deletePhonePassword">Senha</label>
+          <input type="password" id="deletePhonePassword" name="password" required>
+        </div>
+        <button type="submit">Excluir</button>
+      </form>
+    </div>
+
+    <div class="section">
+      <h2>Adicionar Mais Cartelas</h2>
+      <form id="addMoreCartelasForm">
+        <div class="form-group">
+          <label for="addCartelaNumbers">Números das Cartelas (separados por vírgula)</label>
+          <input type="text" id="addCartelaNumbers" name="cartelaNumbers" required>
+        </div>
+        <div class="form-group">
+          <label for="addPlayerName">Nome do Jogador</label>
+          <input type="text" id="addPlayerName" name="playerName" required>
+        </div>
+        <button type="button" onclick="document.getElementById('addMoreCartelasForm').reset()">Cancelar</button>
+        <button type="submit">Adicionar</button>
+      </form>
+    </div>
+
+    <div class="section">
+      <h2>Jogadores e Links</h2>
+      <table id="playersTable">
+        <tr>
+          <th>Nome</th>
+          <th>Telefone</th>
+          <th>Cartelas</th>
+          <th>Link</th>
+          <th>Ações</th>
+        </tr>
+        <% if (players && players.length > 0) { %>
+          <% players.forEach(player => { %>
+            <tr>
+              <td><%= player.playerName %></td>
+              <td><%= player.phoneNumber %></td>
+              <td><%= player.cartelaIds.join(', ') %></td>
+              <td><a href="<%= player.link %>" target="_blank">Ver</a></td>
+              <td>
+                <a href="/cartelas?playerName=<%= encodeURIComponent(player.playerName) %>" target="_blank">Ver Cartelas</a>
+                <button onclick="copyLink('<%= player.link %>')">Copiar</button>
+                <button onclick="openAddMoreCartelas('<%= player.playerName %>')">Adicionar Cartelas</button>
+              </td>
+            </tr>
+          <% }) %>
+        <% } else { %>
+          <tr><td colspan="5">Nenhum jogador registrado</td></tr>
+        <% } %>
+      </table>
+    </div>
+
+    <div class="section">
+      <h2>Vencedores</h2>
+      <table id="winnersTable">
+        <tr>
+          <th>Nome</th>
+          <th>Telefone</th>
+          <th>Cartela</th>
+          <th>Prêmio</th>
+          <th>Link</th>
+        </tr>
+        <% if (winners && winners.length > 0) { %>
+          <% winners.forEach(winner => { %>
+            <tr>
+              <td><%= winner.playerName %></td>
+              <td><%= winner.phoneNumber %></td>
+              <td><%= winner.cartelaId %></td>
+              <td><%= winner.prize %></td>
+              <td><a href="<%= winner.link %>" target="_blank">Ver</a></td>
+            </tr>
+          <% }) %>
+        <% } else { %>
+          <tr><td colspan="5">Nenhum vencedor</td></tr>
+        <% } %>
+      </table>
+    </div>
   </div>
 
   <script>
-    const cartelasData = <%- JSON.stringify(cartelas) %>;
-    const winners = <%- JSON.stringify(winners) %>;
-
-    const ws = new WebSocket('wss://' + window.location.host);
-    ws.onmessage = e => {
-      const data = JSON.parse(e.data);
-      if (data.type === 'update') updateUI(data.game, data.winners || []);
-    };
-
-    function updateUI(game, winners) {
-      document.getElementById('lastNumber').textContent = game.lastNumber ? getLetterNumber(game.lastNumber) : '--';
-      document.getElementById('currentPrize').textContent = game.currentPrize && game.currentPrize.trim() ? game.currentPrize : '--';
-
-      cartelasData.forEach(cartela => {
-        const winnerMsg = document.getElementById(`winnerMessage-${cartela.cartelaId}`);
-        if (winnerMsg) {
-          if (winners.some(w => w.cartelaId === cartela.cartelaId)) winnerMsg.classList.remove('hidden');
-          else winnerMsg.classList.add('hidden');
-        }
+    // Função para copiar link
+    function copyLink(link) {
+      navigator.clipboard.writeText(link).then(() => {
+        alert('Link copiado para a área de transferência!');
+      }).catch(err => {
+        console.error('Erro ao copiar link:', err);
+        alert('Erro ao copiar link.');
       });
     }
 
-    function getLetterNumber(number) {
-      if (number >= 1 && number <= 15) return `B-${number}`;
-      if (number >= 16 && number <= 30) return `I-${number}`;
-      if (number >= 31 && number <= 45) return `N-${number}`;
-      if (number >= 46 && number <= 60) return `G-${number}`;
-      if (number >= 61 && number <= 75) return `O-${number}`;
-      return number;
+    // Função para abrir formulário de adicionar cartelas
+    function openAddMoreCartelas(playerName) {
+      document.getElementById('addPlayerName').value = playerName;
+      document.getElementById('addMoreCartelasForm').scrollIntoView();
     }
 
-    fetch('/game').then(res => res.json()).then(game => updateUI(game, winners));
+    // Função para atualizar tabelas de jogadores e vencedores
+    async function updateTables() {
+      try {
+        const response = await fetch('/admin/data', {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' },
+          credentials: 'include'
+        });
+        if (!response.ok) {
+          throw new Error(`Erro HTTP: ${response.status} ${response.statusText}`);
+        }
+        const data = await response.json();
+        console.log('Dados recebidos:', data);
+
+        // Atualizar tabela de jogadores
+        const playersTable = document.getElementById('playersTable');
+        playersTable.innerHTML = `
+          <tr>
+            <th>Nome</th>
+            <th>Telefone</th>
+            <th>Cartelas</th>
+            <th>Link</th>
+            <th>Ações</th>
+          </tr>
+        `;
+        if (data.players && data.players.length > 0) {
+          data.players.forEach(player => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+              <td>${player.playerName}</td>
+              <td>${player.phoneNumber}</td>
+              <td>${player.cartelaIds.join(', ')}</td>
+              <td><a href="${player.link}" target="_blank">Ver</a></td>
+              <td>
+                <a href="/cartelas?playerName=${encodeURIComponent(player.playerName)}" target="_blank">Ver Cartelas</a>
+                <button onclick="copyLink('${player.link}')">Copiar</button>
+                <button onclick="openAddMoreCartelas('${player.playerName}')">Adicionar Cartelas</button>
+              </td>
+            `;
+            playersTable.appendChild(row);
+          });
+        } else {
+          playersTable.innerHTML += '<tr><td colspan="5">Nenhum jogador registrado</td></tr>';
+        }
+
+        // Atualizar tabela de vencedores
+        const winnersTable = document.getElementById('winnersTable');
+        winnersTable.innerHTML = `
+          <tr>
+            <th>Nome</th>
+            <th>Telefone</th>
+            <th>Cartela</th>
+            <th>Prêmio</th>
+            <th>Link</th>
+          </tr>
+        `;
+        if (data.winners && data.winners.length > 0) {
+          data.winners.forEach(winner => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+              <td>${winner.playerName}</td>
+              <td>${winner.phoneNumber}</td>
+              <td>${winner.cartelaId}</td>
+              <td>${winner.prize}</td>
+              <td><a href="${winner.link}" target="_blank">Ver</a></td>
+            `;
+            winnersTable.appendChild(row);
+          });
+        } else {
+          winnersTable.innerHTML += '<tr><td colspan="5">Nenhum vencedor</td></tr>';
+        }
+      } catch (error) {
+        console.error('Erro ao atualizar tabelas:', error);
+        alert('Erro ao carregar dados: ' + error.message);
+      }
+    }
+
+    // Formulário de atribuir cartelas
+    document.getElementById('assignCartelasForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const cartelaNumbers = document.getElementById('cartelaNumbers').value;
+      const playerName = document.getElementById('playerName').value;
+      const phoneNumber = document.getElementById('phoneNumber').value;
+      try {
+        const response = await fetch('/assign-cartelas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ cartelaNumbers, playerName, phoneNumber })
+        });
+        if (!response.ok) {
+          throw new Error(`Erro HTTP: ${response.status} ${response.statusText}`);
+        }
+        const data = await response.json();
+        if (data.success) {
+          alert('Cartelas atribuídas com sucesso!');
+          document.getElementById('assignCartelasForm').reset();
+          updateTables();
+        } else {
+          alert('Erro: ' + data.error);
+        }
+      } catch (error) {
+        console.error('Erro ao atribuir cartelas:', error);
+        alert('Erro ao atribuir cartelas: ' + error.message);
+      }
+    });
+
+    // Formulário de atualizar prêmio
+    document.getElementById('updatePrizeForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const currentPrize = document.getElementById('currentPrize').value;
+      try {
+        const response = await fetch('/update-prize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ currentPrize })
+        });
+        if (!response.ok) {
+          throw new Error(`Erro HTTP: ${response.status} ${response.statusText}`);
+        }
+        const data = await response.json();
+        if (data.success) {
+          alert('Prêmio atualizado com sucesso!');
+        } else {
+          alert('Erro: ' + data.error);
+        }
+      } catch (error) {
+        console.error('Erro ao atualizar prêmio:', error);
+        alert('Erro ao atualizar prêmio: ' + error.message);
+      }
+    });
+
+    // Formulário de sortear número
+    document.getElementById('drawForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const response = await fetch('/draw', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          credentials: 'include'
+        });
+        if (!response.ok) {
+          throw new Error(`Erro HTTP: ${response.status} ${response.statusText}`);
+        }
+        const data = await response.json();
+        if (data.error) {
+          alert('Erro: ' + data.error);
+        } else {
+          alert(`Número sorteado: ${data.number}`);
+          updateTables();
+        }
+      } catch (error) {
+        console.error('Erro no drawForm:', error);
+        alert('Erro ao sortear número: ' + error.message);
+      }
+    });
+
+    // Formulário de marcar número manual
+    document.getElementById('markNumberForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const number = document.getElementById('manualNumber').value;
+      const password = document.getElementById('markPassword').value;
+      try {
+        const response = await fetch('/mark-number', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ number, password })
+        });
+        if (!response.ok) {
+          throw new Error(`Erro HTTP: ${response.status} ${response.statusText}`);
+        }
+        const data = await response.json();
+        if (data.error) {
+          alert('Erro: ' + data.error);
+        } else {
+          alert(`Número marcado: ${data.number}`);
+          updateTables();
+        }
+      } catch (error) {
+        console.error('Erro ao marcar número:', error);
+        alert('Erro ao marcar número: ' + error.message);
+      }
+    });
+
+    // Formulário de reiniciar o bingo
+    document.getElementById('resetForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const password = document.getElementById('resetPassword').value;
+      try {
+        const response = await fetch('/reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ password })
+        });
+        if (!response.ok) {
+          throw new Error(`Erro HTTP: ${response.status} ${response.statusText}`);
+        }
+        const data = await response.json();
+        if (data.success) {
+          alert('Bingo reiniciado com sucesso!');
+          updateTables();
+          document.getElementById('lastNumber').textContent = '--';
+          document.getElementById('bNumbers').textContent = '';
+          document.getElementById('iNumbers').textContent = '';
+          document.getElementById('nNumbers').textContent = '';
+          document.getElementById('gNumbers').textContent = '';
+          document.getElementById('oNumbers').textContent = '';
+        } else {
+          alert('Erro: ' + data.error);
+        }
+      } catch (error) {
+        console.error('Erro no resetForm:', error);
+        alert('Erro ao reiniciar o bingo: ' + error.message);
+      }
+    });
+
+    // Formulário de excluir todas as cartelas
+    document.getElementById('deleteAllForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const password = document.getElementById('deleteAllPassword').value;
+      try {
+        const response = await fetch('/delete-all', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ password })
+        });
+        if (!response.ok) {
+          throw new Error(`Erro HTTP: ${response.status} ${response.statusText}`);
+        }
+        const data = await response.json();
+        if (data.success) {
+          alert('Todas as cartelas foram excluídas com sucesso!');
+          updateTables();
+        } else {
+          alert('Erro: ' + data.error);
+        }
+      } catch (error) {
+        console.error('Erro ao excluir todas as cartelas:', error);
+        alert('Erro ao excluir todas as cartelas: ' + error.message);
+      }
+    });
+
+    // Formulário de excluir por telefone
+    document.getElementById('deleteByPhoneForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const phoneNumber = document.getElementById('deletePhoneNumber').value;
+      const password = document.getElementById('deletePhonePassword').value;
+      try {
+        const response = await fetch('/delete-by-phone', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ phoneNumber, password })
+        });
+        if (!response.ok) {
+          throw new Error(`Erro HTTP: ${response.status} ${response.statusText}`);
+        }
+        const data = await response.json();
+        if (data.success) {
+          alert('Jogador excluído com sucesso!');
+          updateTables();
+        } else {
+          alert('Erro: ' + data.error);
+        }
+      } catch (error) {
+        console.error('Erro ao excluir por telefone:', error);
+        alert('Erro ao excluir por telefone: ' + error.message);
+      }
+    });
+
+    // Formulário de adicionar mais cartelas
+    document.getElementById('addMoreCartelasForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const cartelaNumbers = document.getElementById('addCartelaNumbers').value;
+      const playerName = document.getElementById('addPlayerName').value;
+      try {
+        const response = await fetch('/assign-cartelas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ cartelaNumbers, playerName })
+        });
+        if (!response.ok) {
+          throw new Error(`Erro HTTP: ${response.status} ${response.statusText}`);
+        }
+        const data = await response.json();
+        if (data.success) {
+          alert('Cartelas adicionadas com sucesso!');
+          document.getElementById('addMoreCartelasForm').reset();
+          updateTables();
+        } else {
+          alert('Erro: ' + data.error);
+        }
+      } catch (error) {
+        console.error('Erro ao adicionar cartelas:', error);
+        alert('Erro ao adicionar cartelas: ' + error.message);
+      }
+    });
+
+    // Atualizar números sorteados
+    function updateDrawnNumbers(drawnNumbers, lastNumber) {
+      document.getElementById('lastNumber').textContent = lastNumber ? `${lastNumber}` : '--';
+      document.getElementById('bNumbers').textContent = drawnNumbers.filter(n => n >= 1 && n <= 15).join(', ');
+      document.getElementById('iNumbers').textContent = drawnNumbers.filter(n => n >= 16 && n <= 30).join(', ');
+      document.getElementById('nNumbers').textContent = drawnNumbers.filter(n => n >= 31 && n <= 45).join(', ');
+      document.getElementById('gNumbers').textContent = drawnNumbers.filter(n => n >= 46 && n <= 60).join(', ');
+      document.getElementById('oNumbers').textContent = drawnNumbers.filter(n => n >= 61 && n <= 75).join(', ');
+    }
+
+    // Configurar WebSocket
+    const ws = new WebSocket(`wss://${window.location.host}`);
+    ws.onopen = () => console.log('Conexão WebSocket estabelecida');
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'update') {
+          console.log('Atualização WebSocket recebida:', data);
+          updateTables();
+          updateDrawnNumbers(data.game.drawnNumbers, data.game.lastNumberDisplay);
+          document.getElementById('currentPrize').value = data.game.currentPrize;
+        }
+      } catch (error) {
+        console.error('Erro ao processar mensagem WebSocket:', error);
+      }
+    };
+    ws.onerror = (error) => console.error('Erro no WebSocket:', error);
+    ws.onclose = () => console.log('Conexão WebSocket fechada');
+
+    // Chamar updateTables ao carregar a página
+    window.addEventListener('load', updateTables);
   </script>
 </body>
 </html>
