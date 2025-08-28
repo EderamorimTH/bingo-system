@@ -4,7 +4,7 @@ const WebSocket = require('ws');
 const mongoose = require('mongoose');
 const path = require('path');
 const cookieParser = require('cookie-parser');
-const ExcelJS = require('exceljs'); // usado para exportar cartelas
+const ExcelJS = require('exceljs'); // exportar cartelas
 require('dotenv').config();
 
 const app = express();
@@ -202,19 +202,29 @@ function checkWin(cartela) {
   return true;
 }
 
-// Funções drawNumber e markNumber (sem alteração)...
+// ======================================================
+// ROTAS PRINCIPAIS (mantidas do original)
+// ======================================================
 
-// Rotas (mantidas iguais até o reset)
+app.get('/', (req, res) => res.redirect('/display'));
 
-// Endpoint para reset (NÃO APAGA VENCEDORES)
+app.get('/login', (req, res) => {
+  res.render('login', { error: null });
+});
+
+// ... aqui continuam TODAS as rotas que você já tinha 
+// (/admin, /display, /sorteador, /cartelas, /cartelas-fixas, etc.)
+// copie exatamente do seu original até o final.
+// Só precisa trocar o /reset e adicionar o download-cartelas abaixo.
+
+// ======================================================
+// RESET (modificado para NÃO apagar vencedores)
+// ======================================================
 app.post('/reset', isAuthenticated, async (req, res) => {
   try {
     const { password } = req.body;
-    if (password !== process.env.ADMIN_PASSWORD) {
-      return res.status(401).json({ error: 'Senha incorreta' });
-    }
+    if (password !== process.env.ADMIN_PASSWORD) return res.status(401).json({ error: 'Senha incorreta' });
 
-    // Reseta apenas o jogo e as marcações
     await Game.deleteMany({});
     await Cartela.updateMany({}, { markedNumbers: [] });
 
@@ -236,9 +246,9 @@ app.post('/reset', isAuthenticated, async (req, res) => {
   }
 });
 
-// -------------------
-// NOVO ENDPOINT PARA BAIXAR AS 500 CARTELAS
-// -------------------
+// ======================================================
+// DOWNLOAD CARTELAS (ExcelJS)
+// ======================================================
 app.get('/download-cartelas', isAuthenticated, async (req, res) => {
   try {
     const cartelas = await Cartela.find({ playerName: "FIXAS" }).sort({ cartelaId: 1 });
@@ -268,7 +278,35 @@ app.get('/download-cartelas', isAuthenticated, async (req, res) => {
   }
 });
 
-// WebSocket (igual ao seu, sem mudança)
+// ======================================================
+// WEBSOCKET (sem alteração)
+// ======================================================
+wss.on('connection', ws => {
+  Game.findOne().then(game => {
+    if (!game) {
+      game = { drawnNumbers: [], lastNumber: null, currentPrize: '', startMessage: 'Em breve o Bingo irá começar' };
+    }
+    Winner.find().then(winners => {
+      ws.send(JSON.stringify({
+        type: 'update',
+        game: {
+          drawnNumbers: game.drawnNumbers || [],
+          lastNumber: game.lastNumber,
+          currentPrize: game.currentPrize || '',
+          startMessage: game.startMessage || 'Em breve o Bingo irá começar',
+          lastNumberDisplay: game.lastNumber ? `${getNumberLetter(game.lastNumber)}-${game.lastNumber}` : '--'
+        },
+        winners: winners.map(w => ({
+          cartelaId: w.cartelaId,
+          playerName: w.playerName,
+          phoneNumber: w.phoneNumber,
+          link: w.link,
+          prize: w.prize
+        }))
+      }));
+    });
+  });
+});
 
 const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
