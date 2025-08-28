@@ -38,6 +38,7 @@
       <p><a href="/display">Exibição Pública</a></p>
       <p><a href="/sorteador">Sorteador Público</a></p>
       <p><a href="/cartelas-fixas">Todas as 500 Cartelas</a></p>
+      <p><a href="/download-cartelas" target="_blank">📥 Baixar 500 Cartelas (com ID)</a></p>
     </div>
 
     <div class="section">
@@ -180,7 +181,7 @@
         </thead>
         <tbody id="winnersTable">
           <% winners.forEach(winner => { %>
-            <tr>
+            <tr data-id="<%= winner.cartelaId %>">
               <td><%= winner.playerName || '-' %></td>
               <td><%= winner.phoneNumber || '-' %></td>
               <td><%= winner.cartelaId %></td>
@@ -242,7 +243,6 @@
             if (reload) location.href = '/admin';
           } else {
             if (reload) location.href = '/admin';
-            else alert('Ação realizada com sucesso!');
           }
         } catch (err) {
           console.error(`Erro no ${formId}:`, err);
@@ -260,7 +260,6 @@
     submitForm('assignCartelasForm', '/assign-cartelas');
     submitForm('addCartelasForm', '/assign-cartelas', true);
 
-    // WebSocket para atualizações em tempo real
     try {
       const ws = new WebSocket('wss://' + window.location.host);
       ws.onmessage = (event) => {
@@ -274,20 +273,24 @@
             document.getElementById('numbersG').textContent = data.game.drawnNumbers ? data.game.drawnNumbers.filter(n => n >= 46 && n <= 60).join(', ') || '--' : '--';
             document.getElementById('numbersO').textContent = data.game.drawnNumbers ? data.game.drawnNumbers.filter(n => n >= 61 && n <= 75).join(', ') || '--' : '--';
             document.getElementById('currentPrize').value = data.game.currentPrize || '';
-            // Atualizar tabelas dinamicamente
+
             fetch('/admin/data').then(res => res.json()).then(data => {
               const winnersTable = document.getElementById('winnersTable');
-              winnersTable.innerHTML = data.winners.length > 0
-                ? data.winners.map(winner => `
-                    <tr>
-                      <td>${winner.playerName || '-'}</td>
-                      <td>${winner.phoneNumber || '-'}</td>
-                      <td>${winner.cartelaId}</td>
-                      <td>${winner.prize || '-'}</td>
-                      <td><a href="${winner.link}" target="_blank">Ver</a></td>
-                    </tr>
-                  `).join('')
-                : '<tr><td colspan="5">Nenhum vencedor</td></tr>';
+              data.winners.forEach(winner => {
+                if (!document.querySelector(`#winnersTable tr[data-id="${winner.cartelaId}"]`)) {
+                  const tr = document.createElement('tr');
+                  tr.setAttribute("data-id", winner.cartelaId);
+                  tr.innerHTML = `
+                    <td>${winner.playerName || '-'}</td>
+                    <td>${winner.phoneNumber || '-'}</td>
+                    <td>${winner.cartelaId}</td>
+                    <td>${winner.prize || '-'}</td>
+                    <td><a href="${winner.link}" target="_blank">Ver</a></td>
+                  `;
+                  winnersTable.appendChild(tr);
+                }
+              });
+
               const playersTable = document.getElementById('playersTable');
               playersTable.innerHTML = data.players.length > 0
                 ? data.players.map(player => `
@@ -303,14 +306,6 @@
                     </tr>
                   `).join('')
                 : '<tr><td colspan="5">Nenhum jogador registrado</td></tr>';
-              // Exibir mensagem para vencedores
-              if (data.winners.length > 0) {
-                data.winners.forEach(winner => {
-                  if (winner.playerName && winner.playerName !== 'FIXAS') {
-                    alert(`Parabéns, ${winner.playerName}! Sua cartela ${winner.cartelaId} completou todos os números e é a vencedora! Prêmio: ${winner.prize || 'Não especificado'}`);
-                  }
-                });
-              }
             }).catch(err => {
               console.error('Erro ao atualizar tabelas:', err);
             });
