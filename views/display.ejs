@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Exibição Pública</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Exibição Pública</h1>
+
+    <div class="section">
+      <h2>Último Número Sorteado</h2>
+      <p id="lastNumber"><%= game.lastNumberDisplay %></p>
+    </div>
+
+    <div class="section">
+      <h2>Últimos 5 Números Sorteados</h2>
+      <p id="lastFiveNumbers"><%= game.drawnNumbers.slice(-5).map(n => `${getNumberLetter(n)}-${n}`).join(', ') %></p>
+    </div>
+
+    <div class="section">
+      <h2>Prêmio Atual</h2>
+      <p id="currentPrize"><%= game.currentPrize %></p>
+    </div>
+
+    <div class="section">
+      <h2>Atenção</h2>
+      <% if (winners && winners.length > 0) { %>
+        <p class="alert"><%= winners.length === 1 ? 'Atenção cartela vencedora' : 'Atenção cartelas vencedoras' %></p>
+        <ul>
+          <% winners.forEach(winner => { %>
+            <li>
+              Nome: <%= winner.playerName %><br>
+              Telefone: <%= maskPhone(winner.phoneNumber) %><br>
+              Cartela: <%= winner.cartelaId %><br>
+              Prêmio: <%= winner.prize %>
+            </li>
+          <% }) %>
+        </ul>
+      <% } else { %>
+        <p>--</p>
+      <% } %>
+    </div>
+  </div>
+
+  <script>
+    function maskPhone(phone) {
+      if (!phone) return '--';
+      // Assumindo formato brasileiro, ex: 11987654321 -> (11) 9****-4321
+      return `(${phone.slice(0,2)}) ${phone.slice(2,3)}****-${phone.slice(-4)}`;
+    }
+
+    const ws = new WebSocket(`wss://${window.location.host}`);
+    ws.onopen = () => console.log('Conexão WebSocket estabelecida');
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'update') {
+          document.getElementById('lastNumber').textContent = data.game.lastNumberDisplay;
+          document.getElementById('lastFiveNumbers').textContent = data.game.drawnNumbers.slice(-5).map(n => `${getLetterNumber(n)}`).join(', ');
+          document.getElementById('currentPrize').textContent = data.game.currentPrize;
+          // Atualizar aviso de vencedores
+          const aviso = document.querySelector('.alert');
+          if (aviso) {
+            aviso.textContent = data.winners.length === 1 ? 'Atenção cartela vencedora' : 'Atenção cartelas vencedoras';
+            const ul = aviso.nextElementSibling;
+            ul.innerHTML = '';
+            data.winners.forEach(winner => {
+              const li = document.createElement('li');
+              li.innerHTML = `
+                Nome: ${winner.playerName}<br>
+                Telefone: ${maskPhone(winner.phoneNumber)}<br>
+                Cartela: ${winner.cartelaId}<br>
+                Prêmio: ${winner.prize}
+              `;
+              ul.appendChild(li);
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao processar mensagem WebSocket:', error);
+      }
+    };
+    ws.onerror = (error) => console.error('Erro no WebSocket:', error);
+    ws.onclose = () => console.log('Conexão WebSocket fechada');
+  </script>
+</body>
+</html>
