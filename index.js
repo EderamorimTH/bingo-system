@@ -166,7 +166,7 @@ function broadcast(game, winners) {
       console.warn('Game não encontrado no broadcast');
       return;
     }
-    const winnerData = winners.map(w => ({
+    const winnerData = (winners || []).map(w => ({
       cartelaId: w.cartelaId,
       playerName: w.playerName,
       phoneNumber: w.phoneNumber,
@@ -550,15 +550,20 @@ app.post('/update-prize', isAuthenticated, async (req, res) => {
   }
 });
 
-// Endpoint para reset (NÃO APAGA VENCEDORES)
+// Endpoint para reset (AGORA APAGA VENCEDORES — para que as mensagens sumam no display/cartela)
 app.post('/reset', isAuthenticated, async (req, res) => {
   try {
     const { password } = req.body;
     if (password !== process.env.ADMIN_PASSWORD) return res.status(401).json({ error: 'Senha incorreta' });
 
+    // Remove game state e limpa marcações das cartelas
     await Game.deleteMany({});
     await Cartela.updateMany({}, { markedNumbers: [] });
 
+    // NOVO: limpar vencedores para que no display/sorteador/cartelas as mensagens desapareçam
+    await Winner.deleteMany({});
+
+    // recria o jogo inicial
     await new Game({
       drawnNumbers: [],
       lastNumber: null,
@@ -674,97 +679,70 @@ app.post('/assign-cartelas', isAuthenticated, async (req, res) => {
 });
 
 // -------------------
-// ENDPOINT ATUALIZADO: baixar as 500 cartelas fixas (Excel) - formato 5x5
+// NOVO ENDPOINT: baixar as 500 cartelas fixas (Excel) - organizado numericamente de 1 a 500
 // -------------------
 app.get('/download-cartelas', isAuthenticated, async (req, res) => {
   try {
-    const cartelas = await Cartela.find({ playerName: "FIXAS" }).sort({ cartelaId: 1 });
-
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet('Cartelas - 5x5');
-
-    // Definimos colunas: a primeira coluna para ID, depois 5 colunas (B..O)
-    sheet.columns = [
-      { header: 'Cartela ID', key: 'cartelaId', width: 14 },
-      { header: 'B', key: 'c1', width: 8 },
-      { header: 'I', key: 'c2', width: 8 },
-      { header: 'N', key: 'c3', width: 8 },
-      { header: 'G', key: 'c4', width: 8 },
-      { header: 'O', key: 'c5', width: 8 }
-    ];
-
-    // Estilo do cabeçalho (opcional, simples)
-    sheet.getRow(1).font = { bold: true };
-
-    let currentRow = 1;
-
-    cartelas.forEach((c, idx) => {
-      // Cabeçalho da cartela (merge da primeira linha para destacar o ID)
-      currentRow++;
-      const headerRow = sheet.getRow(currentRow);
-      headerRow.getCell(1).value = `Cartela ID: ${c.cartelaId}`;
-      headerRow.getCell(1).font = { bold: true };
-      // Mesclar as 6 colunas para o cabeçalho (1..6)
-      sheet.mergeCells(currentRow, 1, currentRow, 6);
-
-      // Linha com os títulos B I N G O (apenas para cada cartela)
-      currentRow++;
-      const titlesRow = sheet.getRow(currentRow);
-      titlesRow.getCell(1).value = ''; // coluna ID vazia nesta linha
-      titlesRow.getCell(2).value = 'B';
-      titlesRow.getCell(3).value = 'I';
-      titlesRow.getCell(4).value = 'N';
-      titlesRow.getCell(5).value = 'G';
-      titlesRow.getCell(6).value = 'O';
-      titlesRow.font = { bold: true };
-      titlesRow.alignment = { horizontal: 'center' };
-
-      // Adiciona 5 linhas para os 5 rows da cartela
-      for (let row = 0; row < 5; row++) {
-        currentRow++;
-        const excelRow = sheet.getRow(currentRow);
-        excelRow.getCell(1).value = ''; // primeira coluna para ID está vazia nas linhas numeradas
-        // Lembrando: c.numbers é um array por coluna: c.numbers[col][row]
-        const b = c.numbers && c.numbers[0] ? c.numbers[0][row] : null;
-        const i = c.numbers && c.numbers[1] ? c.numbers[1][row] : null;
-        const n = c.numbers && c.numbers[2] ? c.numbers[2][row] : null;
-        const g = c.numbers && c.numbers[3] ? c.numbers[3][row] : null;
-        const o = c.numbers && c.numbers[4] ? c.numbers[4][row] : null;
-
-        excelRow.getCell(2).value = (b === 0 || b === null) ? (b === 0 ? 'X' : '') : b;
-        excelRow.getCell(3).value = (i === 0 || i === null) ? (i === 0 ? 'X' : '') : i;
-        excelRow.getCell(4).value = (n === 0 || n === null) ? (n === 0 ? 'X' : '') : n;
-        excelRow.getCell(5).value = (g === 0 || g === null) ? (g === 0 ? 'X' : '') : g;
-        excelRow.getCell(6).value = (o === 0 || o === null) ? (o === 0 ? 'X' : '') : o;
-
-        // centralizar células B..O
-        for (let col = 2; col <= 6; col++) {
-          excelRow.getCell(col).alignment = { horizontal: 'center', vertical: 'middle' };
-        }
-      }
-
-      // Linha em branco entre cartelas para facilitar corte/impressão
-      currentRow++;
-      sheet.addRow([]);
-
-      // (opcional) Forçar altura um pouco maior para linhas com números
-      for (let r = currentRow - 6; r <= currentRow; r++) {
-        const rowObj = sheet.getRow(r);
-        rowObj.height = 16;
-      }
+    const cartelasRaw = await Cartela.find({ playerName: "FIXAS" });
+    // ordenar numericamente pelo número após "FIXA-"
+    const cartelas = cartelasRaw.sort((a, b) => {
+      const na = parseInt((a.cartelaId || '').split('-')[1] || '0', 10);
+      const nb = parseInt((b.cartelaId || '').split('-')[1] || '0', 10);
+      return na - nb;
     });
 
-    // Ajustes finais de layout
-    sheet.properties.defaultRowHeight = 16;
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Cartelas');
+
+    sheet.columns = [
+      { header: 'Cartela ID', key: 'cartelaId', width: 15 },
+      { header: 'Números', key: 'numbers', width: 50 }
+    ];
+
+    cartelas.forEach(c => {
+      sheet.addRow({
+        cartelaId: c.cartelaId,
+        numbers: c.numbers.map(col => col.join(',')).join(' | ')
+      });
+    });
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename="cartelas_5x5.xlsx"');
+    res.setHeader('Content-Disposition', 'attachment; filename="cartelas.xlsx"');
 
     await workbook.xlsx.write(res);
     res.end();
   } catch (err) {
-    console.error('Erro ao gerar Excel (5x5):', err.message, err.stack);
+    console.error('Erro ao gerar Excel:', err.message, err.stack);
     res.status(500).send('Erro ao gerar cartelas');
+  }
+});
+
+// -------------------
+// NOVOS ENDPOINTS ÚTEIS PARA O FRONT
+// -------------------
+
+// Retorna estado do jogo (usado por fetch('/game') nos ejs)
+app.get('/game', async (req, res) => {
+  try {
+    const game = await Game.findOne();
+    if (!game) {
+      return res.json({ drawnNumbers: [], lastNumber: null, currentPrize: '', startMessage: 'Em breve o Bingo irá começar' });
+    }
+    res.json(game);
+  } catch (err) {
+    console.error('Erro no endpoint /game:', err.message, err.stack);
+    res.status(500).json({ error: 'Erro ao obter game' });
+  }
+});
+
+// Retorna lista de vencedores (usado por /sorteador e outros)
+app.get('/winners', async (req, res) => {
+  try {
+    const winners = await Winner.find().sort({ createdAt: -1 });
+    res.json(winners);
+  } catch (err) {
+    console.error('Erro no endpoint /winners:', err.message, err.stack);
+    res.status(500).json({ error: 'Erro ao obter vencedores' });
   }
 });
 
