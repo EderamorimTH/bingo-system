@@ -16,8 +16,8 @@ app.set('views', path.join(__dirname, 'views'));
 
 // Servir arquivos estáticos com tipo MIME correto
 app.use(express.static(path.join(__dirname, 'public'), {
-  setHeaders: (res, filePath) => {
-    if (filePath.endsWith('.css')) {
+  setHeaders: (res, path) => {
+    if (path.endsWith('.css')) {
       res.setHeader('Content-Type', 'text/css');
     }
   }
@@ -94,7 +94,7 @@ mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTop
       for (let i = 1; i <= 500; i++) {
         const numbers = generateCartelaNumbers();
         await new Cartela({
-          cartelaId: i.toString(), // Corrigido para ID fixo numérico
+          cartelaId: `FIXA-${i}`,
           numbers,
           playerName: "FIXAS",
           markedNumbers: [],
@@ -112,16 +112,11 @@ mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTop
 function isAuthenticated(req, res, next) {
   try {
     if (req.cookies.auth === 'true') return next();
-    // Retornar JSON para endpoints de API
-    if (req.xhr || req.headers.accept.includes('json')) {
-      return res.status(401).json({ error: 'Autenticação necessária' });
-    }
-    // Redirecionar apenas para rotas de página
     console.log('Autenticação falhou, redirecionando para /login');
     res.redirect('/login');
   } catch (err) {
     console.error('Erro no middleware isAuthenticated:', err.message, err.stack);
-    return res.status(500).json({ error: 'Erro interno no servidor' });
+    res.status(500).send('Erro interno no servidor');
   }
 }
 
@@ -175,8 +170,7 @@ function broadcast(game, winners) {
       playerName: w.playerName,
       phoneNumber: w.phoneNumber,
       link: w.link,
-      prize: w.prize,
-      createdAt: w.createdAt // Adicionado para ordem de chegada
+      prize: w.prize
     }));
     wss.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
@@ -455,11 +449,9 @@ app.get('/cartelas', async (req, res) => {
       game = { drawnNumbers: [], lastNumber: null, currentPrize: '', startMessage: 'Em breve o Bingo irá começar' };
     }
     const winners = await Winner.find().sort({ createdAt: -1 }) || [];
-    const players = await Player.find({ playerName }).sort({ createdAt: -1 }) || []; // Adiciona a busca por players
     res.render('cartelas', {
       cartelas,
       playerName,
-      players, // Passa a variável players para o template
       game: {
         drawnNumbers: game.drawnNumbers || [],
         lastNumber: game.lastNumber,
@@ -485,7 +477,6 @@ app.get('/cartelas-fixas', async (req, res) => {
     res.render('cartelas', {
       cartelas,
       playerName: "Cartelas Fixas",
-      players: [], // Passa um array vazio para players, já que cartelas fixas não têm jogadores associados
       game: {
         drawnNumbers: game.drawnNumbers || [],
         lastNumber: game.lastNumber,
@@ -507,7 +498,7 @@ app.post('/draw', isAuthenticated, async (req, res) => {
     const result = await drawNumber();
     if (result.error) return res.status(400).json({ error: result.error });
     const game = await Game.findOne();
-    const winners = await Winner.find().sort({ createdAt: -1 });
+    const winners = await Winner.find();
     broadcast(game, winners);
     res.json({ number: result.newNumber, winners: result.winners });
   } catch (err) {
@@ -524,7 +515,7 @@ app.post('/mark-number', isAuthenticated, async (req, res) => {
     const result = await markNumber(number);
     if (result.error) return res.status(400).json({ error: result.error });
     const game = await Game.findOne();
-    const winners = await Winner.find().sort({ createdAt: -1 });
+    const winners = await Winner.find();
     broadcast(game, winners);
     res.json({ number: result.newNumber, winners: result.winners });
   } catch (err) {
@@ -550,7 +541,7 @@ app.post('/update-prize', isAuthenticated, async (req, res) => {
       await game.save();
     }
     const updatedGame = await Game.findOne();
-    broadcast(updatedGame, await Winner.find().sort({ createdAt: -1 }));
+    broadcast(updatedGame, await Winner.find());
     res.json({ success: true });
   } catch (err) {
     console.error('Erro no endpoint /update-prize:', err.message, err.stack);
@@ -564,7 +555,7 @@ app.post('/reset', isAuthenticated, async (req, res) => {
     const { password } = req.body;
     if (password !== process.env.ADMIN_PASSWORD) return res.status(401).json({ error: 'Senha incorreta' });
     await Game.deleteMany({});
-    // Removido Winner.deleteMany({}); para persistir vencedores
+    await Winner.deleteMany({});
     await Cartela.updateMany({}, { markedNumbers: [] });
     await new Game({
       drawnNumbers: [],
@@ -573,8 +564,7 @@ app.post('/reset', isAuthenticated, async (req, res) => {
       startMessage: 'Em breve o Bingo irá começar'
     }).save();
     const game = await Game.findOne();
-    const winners = await Winner.find().sort({ createdAt: -1 });
-    broadcast(game, winners);
+    broadcast(game, []);
     res.json({ success: true });
   } catch (err) {
     console.error('Erro no endpoint /reset:', err.message, err.stack);
@@ -590,7 +580,7 @@ app.post('/delete-all', isAuthenticated, async (req, res) => {
     await Player.deleteMany({});
     await Cartela.updateMany({ playerName: { $ne: "FIXAS" } }, { playerName: "FIXAS", markedNumbers: [] });
     const game = await Game.findOne();
-    broadcast(game, await Winner.find().sort({ createdAt: -1 }));
+    broadcast(game, await Winner.find());
     res.json({ success: true });
   } catch (err) {
     console.error('Erro no endpoint /delete-all:', err.message, err.stack);
@@ -608,7 +598,7 @@ app.post('/delete-by-phone', isAuthenticated, async (req, res) => {
     await Cartela.updateMany({ playerName: player.playerName }, { playerName: "FIXAS", markedNumbers: [] });
     await player.deleteOne();
     const game = await Game.findOne();
-    broadcast(game, await Winner.find().sort({ createdAt: -1 }));
+    broadcast(game, await Winner.find());
     res.json({ success: true });
   } catch (err) {
     console.error('Erro no endpoint /delete-by-phone:', err.message, err.stack);
@@ -626,10 +616,10 @@ app.post('/assign-cartelas', isAuthenticated, async (req, res) => {
     const assigned = [];
     const errors = [];
     for (const num of nums) {
-      const cartelaId = num.toString(); // Corrigido para ID fixo numérico
+      const cartelaId = `FIXA-${num}`;
       const cartela = await Cartela.findOne({ cartelaId });
       if (!cartela) {
-        errors.push(`Cartela ${num} não existe`);
+        errors.push(`Cartela FIXA-${num} não existe`);
         continue;
       }
       if (cartela.playerName !== "FIXAS") {
@@ -657,7 +647,7 @@ app.post('/assign-cartelas', isAuthenticated, async (req, res) => {
       await player.save();
     }
     const game = await Game.findOne();
-    broadcast(game, await Winner.find().sort({ createdAt: -1 }));
+    broadcast(game, await Winner.find());
     res.json({ success: true, playerName, phoneNumber, assigned, link });
   } catch (err) {
     console.error('Erro no endpoint /assign-cartelas:', err.message, err.stack);
@@ -677,7 +667,7 @@ wss.on('connection', ws => {
           startMessage: 'Em breve o Bingo irá começar'
         };
       }
-      Winner.find().sort({ createdAt: -1 }).then(winners => {
+      Winner.find().then(winners => {
         ws.send(JSON.stringify({
           type: 'update',
           game: {
@@ -692,8 +682,7 @@ wss.on('connection', ws => {
             playerName: w.playerName,
             phoneNumber: w.phoneNumber,
             link: w.link,
-            prize: w.prize,
-            createdAt: w.createdAt
+            prize: w.prize
           }))
         }));
       }).catch(err => {
