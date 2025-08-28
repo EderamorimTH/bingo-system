@@ -16,8 +16,8 @@ app.set('views', path.join(__dirname, 'views'));
 
 // Servir arquivos estáticos com tipo MIME correto
 app.use(express.static(path.join(__dirname, 'public'), {
-  setHeaders: (res, path) => {
-    if (path.endsWith('.css')) {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.css')) {
       res.setHeader('Content-Type', 'text/css');
     }
   }
@@ -112,11 +112,16 @@ mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTop
 function isAuthenticated(req, res, next) {
   try {
     if (req.cookies.auth === 'true') return next();
+    // Retornar JSON para endpoints de API
+    if (req.xhr || req.headers.accept.includes('json')) {
+      return res.status(401).json({ error: 'Autenticação necessária' });
+    }
+    // Redirecionar apenas para rotas de página
     console.log('Autenticação falhou, redirecionando para /login');
     res.redirect('/login');
   } catch (err) {
     console.error('Erro no middleware isAuthenticated:', err.message, err.stack);
-    res.status(500).send('Erro interno no servidor');
+    return res.status(500).json({ error: 'Erro interno no servidor' });
   }
 }
 
