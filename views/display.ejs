@@ -34,6 +34,12 @@
       <p id="currentPrize" class="text-2xl text-center text-gray-900">--</p>
     </div>
 
+    <!-- Alerta de cartela vencedora -->
+    <div id="winnerAlert" class="hidden highlight-box pulse border-4 border-red-500 text-center">
+      <h2 class="text-2xl font-bold text-red-600">⚠️ Uma cartela completou todos os números!</h2>
+      <p id="winnerInfo" class="text-xl text-gray-800 mt-2"></p>
+    </div>
+
   </div>
 
   <script>
@@ -41,7 +47,10 @@
 
     ws.onmessage = event => {
       const data = JSON.parse(event.data);
-      if (data.type === 'update') updateUI(data.game);
+      if (data.type === 'update') {
+        updateUI(data.game);
+        showWinner(data.winners || []);
+      }
     };
 
     function updateUI(game) {
@@ -58,6 +67,15 @@
       if (number >= 46 && number <= 60) return `G-${number}`;
       if (number >= 61 && number <= 75) return `O-${number}`;
       return number;
+    }
+
+    function showWinner(winners) {
+      if (!winners || winners.length === 0) return;
+      const winner = winners[0]; // primeiro vencedor
+      const maskedPhone = winner.phoneNumber ? winner.phoneNumber.replace(/(\d{2})(\d{5})(\d{4})/, "($1) *****-$3") : '';
+      document.getElementById('winnerAlert').classList.remove('hidden');
+      document.getElementById('winnerInfo').textContent =
+        `Nome: ${winner.playerName} | Telefone: ${maskedPhone} | Cartela: ${winner.cartelaId}`;
     }
 
     fetch('/game').then(res => res.json()).then(updateUI);
